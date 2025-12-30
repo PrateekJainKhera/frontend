@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -101,7 +101,7 @@ interface RejectionRecord {
   correctiveAction: string
 }
 
-export default function RejectionRecordPage() {
+function RejectionRecordContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const jobId = searchParams.get('jobId')
@@ -516,5 +516,13 @@ export default function RejectionRecordPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function RejectionRecordPage() {
+  return (
+    <Suspense fallback={<div className="p-4"><div className="space-y-4"><div className="h-10 w-full bg-muted animate-pulse rounded" /><div className="h-64 w-full bg-muted animate-pulse rounded" /></div></div>}>
+      <RejectionRecordContent />
+    </Suspense>
   )
 }

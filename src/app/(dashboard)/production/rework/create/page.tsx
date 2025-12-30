@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -126,7 +126,7 @@ interface ReworkOrder {
   targetCompletionDate: string
 }
 
-export default function CreateReworkOrderPage() {
+function CreateReworkOrderContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const parentJobId = searchParams.get('jobId')
@@ -578,5 +578,13 @@ export default function CreateReworkOrderPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function CreateReworkOrderPage() {
+  return (
+    <Suspense fallback={<div className="p-4"><div className="space-y-4"><div className="h-10 w-full bg-muted animate-pulse rounded" /><div className="h-64 w-full bg-muted animate-pulse rounded" /></div></div>}>
+      <CreateReworkOrderContent />
+    </Suspense>
   )
 }

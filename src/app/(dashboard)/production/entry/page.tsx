@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -69,7 +69,7 @@ const mockJobCards: Record<string, JobCard> = {
   },
 }
 
-export default function ProductionEntryPage() {
+function ProductionEntryContent() {
   const searchParams = useSearchParams()
   const jobId = searchParams.get('jobId')
 
@@ -451,5 +451,13 @@ export default function ProductionEntryPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function ProductionEntryPage() {
+  return (
+    <Suspense fallback={<div className="p-4"><div className="space-y-4"><div className="h-10 w-full bg-muted animate-pulse rounded" /><div className="h-64 w-full bg-muted animate-pulse rounded" /></div></div>}>
+      <ProductionEntryContent />
+    </Suspense>
   )
 }
