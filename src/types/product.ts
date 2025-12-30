@@ -1,0 +1,21 @@
+import { RollerType } from './enums'
+
+export interface Product {
+  id: string
+  partCode: string
+  customerName: string
+  modelName: string
+  rollerType: RollerType
+  diameter: number
+  length: number
+  materialGrade: string
+  drawingNo: string
+  revisionNo: string
+  numberOfTeeth?: number | null
+  surfaceFinish?: string
+  hardness?: string
+  processTemplateId: string
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+}

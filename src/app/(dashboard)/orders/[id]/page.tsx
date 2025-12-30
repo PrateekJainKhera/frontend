@@ -1,0 +1,336 @@
+"use client"
+
+import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft, Calendar, Clock, AlertTriangle, CheckCircle2, Package } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Separator } from '@/components/ui/separator'
+import { mockOrders, getDelayDays, getOrderProgress } from '@/lib/mock-data'
+import { simulateApiCall } from '@/lib/utils/mock-api'
+import { formatDate, formatDateTime } from '@/lib/utils/formatters'
+import { Order } from '@/types'
+
+export default function OrderDetailPage() {
+  const params = useParams()
+  const [order, setOrder] = useState<Order | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadOrder()
+  }, [params.id])
+
+  const loadOrder = async () => {
+    setLoading(true)
+    const foundOrder = mockOrders.find(o => o.id === params.id)
+    const data = await simulateApiCall(foundOrder || null, 800)
+    setOrder(data)
+    setLoading(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-96 lg:col-span-2" />
+          <Skeleton className="h-96" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!order) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Order not found</p>
+        <Button asChild className="mt-4">
+          <Link href="/dashboard/orders">Back to Orders</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  const progress = getOrderProgress(order)
+  const delayDays = getDelayDays(order)
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/dashboard/orders">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold">{order.orderNo}</h1>
+            <Badge variant={
+              order.status === 'Completed' ? 'default' :
+              order.status === 'In Progress' ? 'secondary' :
+              'outline'
+            }>
+              {order.status}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">{order.customer?.name}</p>
+        </div>
+        <Button variant="outline">Edit Order</Button>
+      </div>
+
+      {/* Delay Alert */}
+      {delayDays > 5 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            This order is delayed by {delayDays} days
+            {order.delayReason && ` due to: ${order.delayReason}`}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Details */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Product Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Product Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Part Code</p>
+                  <p className="font-mono font-bold text-lg">{order.product?.partCode}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Model</p>
+                  <p className="font-semibold">{order.product?.modelName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Roller Type</p>
+                  <p className="font-semibold">{order.product?.rollerType}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Dimensions</p>
+                  <p className="font-semibold">
+                    ⌀{order.product?.diameter} × {order.product?.length}mm
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Material Grade</p>
+                  <p className="font-semibold">{order.product?.materialGrade}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Drawing No</p>
+                  <p className="font-mono text-sm">{order.product?.drawingNo}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Current Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Production Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Current Process</p>
+                  <p className="font-bold text-blue-900">
+                    {order.currentProcess || 'Not Started'}
+                  </p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Machine</p>
+                  <p className="font-bold text-green-900">
+                    {order.currentMachine || '-'}
+                  </p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Operator</p>
+                  <p className="font-bold text-purple-900">
+                    {order.currentOperator || '-'}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold">Production Progress</p>
+                  <p className="text-sm text-muted-foreground">
+                    {order.qtyCompleted} / {order.quantity} pcs
+                  </p>
+                </div>
+                <Progress value={progress} className="h-3" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {Math.round(progress)}% Complete
+                </p>
+              </div>
+
+              {order.qtyRejected > 0 && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>{order.qtyRejected} units rejected</strong>
+                    <br />
+                    Original quantity adjusted from {order.originalQuantity} to {order.quantity} pcs
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Process History (Placeholder) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Process Timeline</CardTitle>
+              <CardDescription>Production history and checkpoints</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Timeline would go here - using placeholder for now */}
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="w-0.5 h-12 bg-muted"></div>
+                  </div>
+                  <div className="flex-1 pb-8">
+                    <p className="font-semibold">Order Created</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatDateTime(order.createdAt)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      By {order.createdBy}
+                    </p>
+                  </div>
+                </div>
+
+                {order.currentProcess && (
+                  <div className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center animate-pulse">
+                        <Clock className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">{order.currentProcess}</p>
+                      <p className="text-sm text-muted-foreground">In Progress</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {order.currentMachine} • {order.currentOperator}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Quantity Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Quantity Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Total Ordered</span>
+                </div>
+                <span className="font-bold">{order.originalQuantity}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-900">Completed</span>
+                </div>
+                <span className="font-bold text-green-900">{order.qtyCompleted}</span>
+              </div>
+              {order.qtyRejected > 0 && (
+                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <span className="text-sm text-red-900">Rejected</span>
+                  </div>
+                  <span className="font-bold text-red-900">{order.qtyRejected}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm text-blue-900">Pending</span>
+                </div>
+                <span className="font-bold text-blue-900">{order.qtyInProgress}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dates */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Timeline</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Order Date:</span>
+                <span className="font-semibold">{formatDate(order.orderDate)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Original Due:</span>
+                <span className="font-semibold">{formatDate(order.dueDate)}</span>
+              </div>
+              {order.adjustedDueDate && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Adjusted Due:</span>
+                  <span className="font-semibold text-amber-600">
+                    {formatDate(order.adjustedDueDate)}
+                  </span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Priority:</span>
+                <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
+                  {order.priority}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button variant="outline" className="w-full">
+                <Calendar className="mr-2 h-4 w-4" />
+                Extend Due Date
+              </Button>
+              <Button variant="outline" className="w-full">
+                View Process Flow
+              </Button>
+              <Button variant="outline" className="w-full">
+                Download Report
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
