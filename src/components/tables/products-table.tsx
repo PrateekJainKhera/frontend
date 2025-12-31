@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react'
 import { Product } from '@/types'
 import {
   Table,
@@ -13,12 +14,29 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Edit, Eye } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
+import { ViewProductDialog } from '@/components/dialogs/view-product-dialog'
+import { EditProductDialog } from '@/components/dialogs/edit-product-dialog'
 
 interface ProductsTableProps {
   products: Product[]
+  onUpdate?: () => void
 }
 
-export function ProductsTable({ products }: ProductsTableProps) {
+export function ProductsTable({ products, onUpdate }: ProductsTableProps) {
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+
+  const handleView = (product: Product) => {
+    setSelectedProduct(product)
+    setViewDialogOpen(true)
+  }
+
+  const handleEdit = (product: Product) => {
+    setSelectedProduct(product)
+    setEditDialogOpen(true)
+  }
+
   if (products.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -49,7 +67,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
               <TableCell className="font-mono font-semibold">
                 {product.partCode}
               </TableCell>
-              <TableCell className="max-w-[200px] truncate">
+              <TableCell className="max-w-50 truncate">
                 {product.customerName}
               </TableCell>
               <TableCell>{product.modelName}</TableCell>
@@ -70,10 +88,10 @@ export function ProductsTable({ products }: ProductsTableProps) {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" onClick={() => handleView(product)}>
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
                     <Edit className="h-4 w-4" />
                   </Button>
                 </div>
@@ -82,6 +100,26 @@ export function ProductsTable({ products }: ProductsTableProps) {
           ))}
         </TableBody>
       </Table>
+
+      {/* Dialogs */}
+      {selectedProduct && (
+        <>
+          <ViewProductDialog
+            product={selectedProduct}
+            open={viewDialogOpen}
+            onOpenChange={setViewDialogOpen}
+          />
+          <EditProductDialog
+            product={selectedProduct}
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onSuccess={() => {
+              setEditDialogOpen(false)
+              onUpdate?.()
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import { Customer } from '@/types'
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,14 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 
@@ -32,51 +41,47 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
+  isActive: z.boolean(),
 })
 
 type FormData = z.infer<typeof formSchema>
 
-interface CreateCustomerDialogProps {
+interface EditCustomerDialogProps {
+  customer: Customer
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }
 
-export function CreateCustomerDialog({
+export function EditCustomerDialog({
+  customer,
   open,
   onOpenChange,
   onSuccess,
-}: CreateCustomerDialogProps) {
+}: EditCustomerDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      code: '',
-      contactPerson: '',
-      email: '',
-      phone: '',
-      address: '',
+      name: customer.name,
+      code: customer.code,
+      contactPerson: customer.contactPerson || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || '',
+      isActive: customer.isActive,
     },
   })
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
-    toast.loading('Creating customer...')
-
     try {
-      // Simulate API call
-      await simulateApiCall(data, 1000)
-
-      toast.dismiss()
-      toast.success('Customer created successfully')
-      form.reset()
-      onOpenChange(false)
+      await simulateApiCall({ ...customer, ...data }, 1000)
+      toast.success('Customer updated successfully')
       onSuccess()
     } catch (error) {
-      toast.dismiss()
-      toast.error('Failed to create customer')
+      toast.error('Failed to update customer')
     } finally {
       setIsSubmitting(false)
     }
@@ -84,11 +89,11 @@ export function CreateCustomerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-150">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Customer</DialogTitle>
+          <DialogTitle>Edit Customer</DialogTitle>
           <DialogDescription>
-            Add a new customer to the system. All fields with * are required.
+            Update customer information. Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
@@ -102,7 +107,7 @@ export function CreateCustomerDialog({
                   <FormItem>
                     <FormLabel>Customer Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="ABC Flexo Packaging Ltd." {...field} />
+                      <Input placeholder="Enter customer name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -116,13 +121,15 @@ export function CreateCustomerDialog({
                   <FormItem>
                     <FormLabel>Customer Code *</FormLabel>
                     <FormControl>
-                      <Input placeholder="ABC001" {...field} />
+                      <Input placeholder="e.g., CUST-001" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="contactPerson"
@@ -130,7 +137,7 @@ export function CreateCustomerDialog({
                   <FormItem>
                     <FormLabel>Contact Person</FormLabel>
                     <FormControl>
-                      <Input placeholder="Rajesh Kumar" {...field} />
+                      <Input placeholder="Enter contact person name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -142,50 +149,72 @@ export function CreateCustomerDialog({
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="+91 98765 43210" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="contact@example.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Plot 45, Industrial Area, Ahmedabad..."
-                        {...field}
-                      />
+                      <Input placeholder="Enter phone number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="customer@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter full address"
+                      className="min-h-20"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isActive"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(value === 'true')}
+                    defaultValue={field.value ? 'true' : 'false'}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="true">Active</SelectItem>
+                      <SelectItem value="false">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button
@@ -197,7 +226,7 @@ export function CreateCustomerDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Creating...' : 'Create Customer'}
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
               </Button>
             </DialogFooter>
           </form>

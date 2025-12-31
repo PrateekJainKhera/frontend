@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from 'next/navigation'
 import { Order } from '@/types'
 import {
   Table,
@@ -34,6 +35,12 @@ const getStatusVariant = (status: string) => {
 }
 
 export function OrdersTable({ orders }: OrdersTableProps) {
+  const router = useRouter()
+
+  const handleViewOrder = (orderId: string) => {
+    router.push(`/orders/${orderId}`)
+  }
+
   if (orders.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -67,7 +74,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                 <TableCell className="font-mono font-semibold">
                   {order.orderNo}
                 </TableCell>
-                <TableCell className="max-w-[200px] truncate">
+                <TableCell className="max-w-50 truncate">
                   {order.customer?.name}
                 </TableCell>
                 <TableCell className="font-mono text-sm">
@@ -85,7 +92,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="w-[100px]">
+                  <div className="w-25">
                     <Progress value={progress} className="h-2" />
                     <p className="text-xs text-muted-foreground mt-1">
                       {Math.round(progress)}%
@@ -115,7 +122,11 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleViewOrder(order.id)}
+                  >
                     <Eye className="h-4 w-4" />
                   </Button>
                 </TableCell>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react'
 import { RawMaterial } from '@/types'
 import {
   Table,
@@ -11,14 +12,30 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Edit, AlertTriangle } from 'lucide-react'
+import { Edit, Eye, AlertTriangle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ViewRawMaterialDialog } from '@/components/dialogs/view-raw-material-dialog'
+import { EditRawMaterialDialog } from '@/components/dialogs/edit-raw-material-dialog'
 
 interface RawMaterialsTableProps {
   materials: RawMaterial[]
+  onUpdate?: () => void
 }
 
-export function RawMaterialsTable({ materials }: RawMaterialsTableProps) {
+export function RawMaterialsTable({ materials, onUpdate }: RawMaterialsTableProps) {
+  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+
+  const handleView = (material: RawMaterial) => {
+    setSelectedMaterial(material)
+    setViewDialogOpen(true)
+  }
+
+  const handleEdit = (material: RawMaterial) => {
+    setSelectedMaterial(material)
+    setEditDialogOpen(true)
+  }
   if (materials.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -82,9 +99,14 @@ export function RawMaterialsTable({ materials }: RawMaterialsTableProps) {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon">
-                    <Edit className="h-4 w-4" />
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleView(material)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(material)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             )
@@ -103,6 +125,26 @@ export function RawMaterialsTable({ materials }: RawMaterialsTableProps) {
             </AlertDescription>
           </Alert>
         </div>
+      )}
+
+      {/* Dialogs */}
+      {selectedMaterial && (
+        <>
+          <ViewRawMaterialDialog
+            material={selectedMaterial}
+            open={viewDialogOpen}
+            onOpenChange={setViewDialogOpen}
+          />
+          <EditRawMaterialDialog
+            material={selectedMaterial}
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onSuccess={() => {
+              setEditDialogOpen(false)
+              onUpdate?.()
+            }}
+          />
+        </>
       )}
     </div>
   )

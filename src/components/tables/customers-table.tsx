@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react'
 import { Customer } from '@/types'
 import {
   Table,
@@ -13,12 +14,28 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Edit, Eye } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
+import { ViewCustomerDialog } from '@/components/dialogs/view-customer-dialog'
+import { EditCustomerDialog } from '@/components/dialogs/edit-customer-dialog'
 
 interface CustomersTableProps {
   customers: Customer[]
+  onUpdate?: () => void
 }
 
-export function CustomersTable({ customers }: CustomersTableProps) {
+export function CustomersTable({ customers, onUpdate }: CustomersTableProps) {
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+
+  const handleView = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setViewDialogOpen(true)
+  }
+
+  const handleEdit = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setEditDialogOpen(true)
+  }
   if (customers.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -60,10 +77,10 @@ export function CustomersTable({ customers }: CustomersTableProps) {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" onClick={() => handleView(customer)}>
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}>
                     <Edit className="h-4 w-4" />
                   </Button>
                 </div>
@@ -72,6 +89,26 @@ export function CustomersTable({ customers }: CustomersTableProps) {
           ))}
         </TableBody>
       </Table>
+
+      {/* Dialogs */}
+      {selectedCustomer && (
+        <>
+          <ViewCustomerDialog
+            customer={selectedCustomer}
+            open={viewDialogOpen}
+            onOpenChange={setViewDialogOpen}
+          />
+          <EditCustomerDialog
+            customer={selectedCustomer}
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onSuccess={() => {
+              setEditDialogOpen(false)
+              onUpdate?.()
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }

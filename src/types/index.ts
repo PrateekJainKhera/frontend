@@ -2,6 +2,7 @@
 export * from './customer'
 export * from './product'
 export * from './raw-material'
+export * from './component'
 export * from './process'
 export * from './order'
 export * from './rejection'

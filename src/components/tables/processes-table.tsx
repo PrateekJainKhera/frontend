@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react'
 import { Process } from '@/types'
 import {
   Table,
@@ -11,10 +12,13 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Edit, Clock, ExternalLink } from 'lucide-react'
+import { Edit, Eye, Clock, ExternalLink } from 'lucide-react'
+import { ViewProcessDialog } from '@/components/dialogs/view-process-dialog'
+import { EditProcessDialog } from '@/components/dialogs/edit-process-dialog'
 
 interface ProcessesTableProps {
   processes: Process[]
+  onUpdate?: () => void
 }
 
 const getCategoryColor = (category: string) => {
@@ -36,7 +40,20 @@ const getCategoryColor = (category: string) => {
   }
 }
 
-export function ProcessesTable({ processes }: ProcessesTableProps) {
+export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
+  const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+
+  const handleView = (process: Process) => {
+    setSelectedProcess(process)
+    setViewDialogOpen(true)
+  }
+
+  const handleEdit = (process: Process) => {
+    setSelectedProcess(process)
+    setEditDialogOpen(true)
+  }
   if (processes.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -97,14 +114,39 @@ export function ProcessesTable({ processes }: ProcessesTableProps) {
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="icon">
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => handleView(process)}>
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(process)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      {/* Dialogs */}
+      {selectedProcess && (
+        <>
+          <ViewProcessDialog
+            process={selectedProcess}
+            open={viewDialogOpen}
+            onOpenChange={setViewDialogOpen}
+          />
+          <EditProcessDialog
+            process={selectedProcess}
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onSuccess={() => {
+              setEditDialogOpen(false)
+              onUpdate?.()
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }

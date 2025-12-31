@@ -71,7 +71,7 @@ export default function CustomersPage() {
           ))}
         </div>
       ) : (
-        <CustomersTable customers={filteredCustomers} />
+        <CustomersTable customers={filteredCustomers} onUpdate={loadCustomers} />
       )}
 
       {/* Create Dialog */}

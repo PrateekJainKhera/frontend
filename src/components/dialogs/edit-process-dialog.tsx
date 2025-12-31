@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import { Process } from '@/types'
 import {
   Dialog,
   DialogContent,
@@ -19,64 +20,62 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 
 const formSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  code: z.string().min(2, 'Code must be at least 2 characters'),
-  contactPerson: z.string().optional(),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
-  phone: z.string().optional(),
-  address: z.string().optional(),
+  processCode: z.string().min(2, 'Process code must be at least 2 characters'),
+  processName: z.string().min(2, 'Process name must be at least 2 characters'),
+  category: z.string().min(1, 'Category is required'),
+  defaultMachine: z.string().optional(),
+  standardTimeMin: z.number().positive('Standard time must be positive'),
+  skillRequired: z.string().min(1, 'Skill level is required'),
+  isOutsourced: z.boolean(),
 })
 
 type FormData = z.infer<typeof formSchema>
 
-interface CreateCustomerDialogProps {
+interface EditProcessDialogProps {
+  process: Process
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }
 
-export function CreateCustomerDialog({
+export function EditProcessDialog({
+  process,
   open,
   onOpenChange,
   onSuccess,
-}: CreateCustomerDialogProps) {
+}: EditProcessDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      code: '',
-      contactPerson: '',
-      email: '',
-      phone: '',
-      address: '',
+      processCode: process.processCode,
+      processName: process.processName,
+      category: process.category,
+      defaultMachine: process.defaultMachine || '',
+      standardTimeMin: process.standardTimeMin,
+      skillRequired: process.skillRequired,
+      isOutsourced: process.isOutsourced,
     },
   })
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
-    toast.loading('Creating customer...')
-
     try {
-      // Simulate API call
-      await simulateApiCall(data, 1000)
-
-      toast.dismiss()
-      toast.success('Customer created successfully')
-      form.reset()
-      onOpenChange(false)
+      await simulateApiCall({ ...process, ...data }, 1000)
+      toast.success('Process updated successfully')
       onSuccess()
     } catch (error) {
-      toast.dismiss()
-      toast.error('Failed to create customer')
+      toast.error('Failed to update process')
     } finally {
       setIsSubmitting(false)
     }
@@ -84,11 +83,11 @@ export function CreateCustomerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-150">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Customer</DialogTitle>
+          <DialogTitle>Edit Process</DialogTitle>
           <DialogDescription>
-            Add a new customer to the system. All fields with * are required.
+            Update process information. Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
@@ -97,12 +96,12 @@ export function CreateCustomerDialog({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="processCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer Name *</FormLabel>
+                    <FormLabel>Process Code *</FormLabel>
                     <FormControl>
-                      <Input placeholder="ABC Flexo Packaging Ltd." {...field} />
+                      <Input placeholder="e.g., PROC-001" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -111,12 +110,28 @@ export function CreateCustomerDialog({
 
               <FormField
                 control={form.control}
-                name="code"
+                name="processName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer Code *</FormLabel>
+                    <FormLabel>Process Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="ABC001" {...field} />
+                      <Input placeholder="Enter process name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Machining, Finishing" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -125,13 +140,32 @@ export function CreateCustomerDialog({
 
               <FormField
                 control={form.control}
-                name="contactPerson"
+                name="skillRequired"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contact Person</FormLabel>
+                    <FormLabel>Skill Required *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Rajesh Kumar" {...field} />
+                      <Input placeholder="e.g., Basic, Expert" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="defaultMachine"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Machine</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter default machine" {...field} />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Optional: Preferred machine for this process
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -139,46 +173,17 @@ export function CreateCustomerDialog({
 
               <FormField
                 control={form.control}
-                name="phone"
+                name="standardTimeMin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+91 98765 43210" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Standard Time (minutes) *</FormLabel>
                     <FormControl>
                       <Input
-                        type="email"
-                        placeholder="contact@example.com"
+                        type="number"
+                        step="0.1"
+                        placeholder="Enter time in minutes"
                         {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Plot 45, Industrial Area, Ahmedabad..."
-                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -186,6 +191,27 @@ export function CreateCustomerDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="isOutsourced"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Outsourced Process</FormLabel>
+                    <FormDescription>
+                      Enable if this process is handled by external vendor/contractor
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button
@@ -197,7 +223,7 @@ export function CreateCustomerDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Creating...' : 'Create Customer'}
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
               </Button>
             </DialogFooter>
           </form>

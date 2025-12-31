@@ -191,7 +191,7 @@ export default function LiveTrackingPage() {
                 </CardContent>
                 <CardFooter className="bg-muted/50 pt-3">
                   <Button variant="link" asChild className="px-0">
-                    <Link href={`/dashboard/orders/${order.id}`}>
+                    <Link href={`/orders/${order.id}`}>
                       View Details →
                     </Link>
                   </Button>

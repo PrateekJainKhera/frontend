@@ -799,7 +799,7 @@ interface RawMaterial {
     <CardContent className="p-4">
       <div className="flex flex-wrap gap-4">
         <Select>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-45">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -1206,7 +1206,7 @@ const handleRejection = async (data: RejectionForm) => {
           <Textarea
             {...field}
             placeholder="Explain why rework is feasible and cost-effective"
-            className="min-h-[100px]"
+            className="min-h-25"
           />
         </FormItem>
       )}
@@ -1816,10 +1816,10 @@ function TableSkeleton() {
         <div key={i} className="flex items-center gap-4">
           <Skeleton className="h-12 w-12 rounded-full" />
           <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-[250px]" />
-            <Skeleton className="h-4 w-[200px]" />
+            <Skeleton className="h-4 w-62.5" />
+            <Skeleton className="h-4 w-50" />
           </div>
-          <Skeleton className="h-8 w-[100px]" />
+          <Skeleton className="h-8 w-25" />
         </div>
       ))}
     </div>
@@ -1831,8 +1831,8 @@ function CardSkeleton() {
   return (
     <Card>
       <CardHeader>
-        <Skeleton className="h-6 w-[200px]" />
-        <Skeleton className="h-4 w-[150px]" />
+        <Skeleton className="h-6 w-50" />
+        <Skeleton className="h-4 w-37.5" />
       </CardHeader>
       <CardContent>
         <Skeleton className="h-32 w-full" />

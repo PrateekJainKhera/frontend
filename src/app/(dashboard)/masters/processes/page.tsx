@@ -97,7 +97,7 @@ export default function ProcessesPage() {
           ))}
         </div>
       ) : (
-        <ProcessesTable processes={filteredProcesses} />
+        <ProcessesTable processes={filteredProcesses} onUpdate={loadProcesses} />
       )}
 
       {/* Add Process Dialog */}

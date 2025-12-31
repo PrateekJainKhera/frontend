@@ -363,7 +363,7 @@ function RejectionRecordContent() {
                   value={detailedDescription}
                   onChange={(e) => setDetailedDescription(e.target.value)}
                   placeholder="Describe the defect in detail..."
-                  className="min-h-[100px]"
+                  className="min-h-25"
                   required
                 />
               </div>
@@ -484,7 +484,7 @@ function RejectionRecordContent() {
                   value={correctiveAction}
                   onChange={(e) => setCorrectiveAction(e.target.value)}
                   placeholder="Describe actions to prevent this issue in the future..."
-                  className="min-h-[100px]"
+                  className="min-h-25"
                   required
                 />
               </div>

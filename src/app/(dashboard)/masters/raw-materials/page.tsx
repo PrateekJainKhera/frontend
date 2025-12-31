@@ -107,7 +107,7 @@ export default function RawMaterialsPage() {
           ))}
         </div>
       ) : (
-        <RawMaterialsTable materials={filteredMaterials} />
+        <RawMaterialsTable materials={filteredMaterials} onUpdate={loadMaterials} />
       )}
 
       {/* Calculator Dialog */}

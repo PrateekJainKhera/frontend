@@ -35,6 +35,7 @@ const navItems: NavItem[] = [
       { title: 'Customers', href: '/masters/customers', icon: Package },
       { title: 'Products', href: '/masters/products', icon: Package },
       { title: 'Raw Materials', href: '/masters/raw-materials', icon: Package },
+      { title: 'Components', href: '/masters/components', icon: Package },
       { title: 'Processes', href: '/masters/processes', icon: Package },
       { title: 'Process Templates', href: '/masters/process-templates', icon: Package }
     ]
@@ -54,19 +55,17 @@ const navItems: NavItem[] = [
     href: '/production',
     icon: Factory,
     children: [
-      { title: 'Job Cards', href: '/production/job-cards', icon: Factory },
-      { title: 'Production Entry', href: '/production/entry', icon: Factory }
+      { title: 'Job Cards', href: '/production/job-cards', icon: Factory }
     ]
   },
   {
-    title: 'Rejections',
-    href: '/rejections',
-    icon: XCircle
-  },
-  {
-    title: 'Rework',
-    href: '/rework',
-    icon: RotateCcw
+    title: 'Quality',
+    href: '/quality',
+    icon: XCircle,
+    children: [
+      { title: 'Rejections', href: '/quality/rejections', icon: XCircle },
+      { title: 'Rework Orders', href: '/quality/rework', icon: RotateCcw }
+    ]
   },
   {
     title: 'MIS',

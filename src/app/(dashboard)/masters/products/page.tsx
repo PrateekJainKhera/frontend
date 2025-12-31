@@ -72,7 +72,7 @@ export default function ProductsPage() {
           ))}
         </div>
       ) : (
-        <ProductsTable products={filteredProducts} />
+        <ProductsTable products={filteredProducts} onUpdate={loadProducts} />
       )}
 
       {/* Create Dialog */}

@@ -58,12 +58,12 @@ export default function OrdersPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href="/dashboard/orders/live-tracking">
+            <Link href="/orders/live-tracking">
               Live Tracking
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/dashboard/orders/create">
+            <Link href="/orders/create">
               <Plus className="mr-2 h-4 w-4" />
               Create Order
             </Link>
@@ -85,7 +85,7 @@ export default function OrdersPage() {
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-45">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>

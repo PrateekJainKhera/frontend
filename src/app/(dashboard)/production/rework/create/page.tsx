@@ -512,7 +512,7 @@ function CreateReworkOrderContent() {
                   value={reworkInstructions}
                   onChange={(e) => setReworkInstructions(e.target.value)}
                   placeholder="1. Clean the part thoroughly...&#10;2. Check for dimensional accuracy...&#10;3. Perform rework operation...&#10;4. Final inspection..."
-                  className="min-h-[120px] font-mono text-sm"
+                  className="min-h-30 font-mono text-sm"
                   required
                 />
               </div>
@@ -526,7 +526,7 @@ function CreateReworkOrderContent() {
                   value={qualityCheckpoints}
                   onChange={(e) => setQualityCheckpoints(e.target.value)}
                   placeholder="• Verify dimensions within ±0.05mm tolerance&#10;• Check surface finish for any defects&#10;• Ensure concentricity within specifications&#10;• Final balance check required"
-                  className="min-h-[120px] font-mono text-sm"
+                  className="min-h-30 font-mono text-sm"
                   required
                 />
               </div>
