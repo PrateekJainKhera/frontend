@@ -11,7 +11,8 @@ import {
   XCircle,
   RotateCcw,
   BarChart3,
-  Home
+  Home,
+  Warehouse
 } from 'lucide-react'
 
 interface NavItem {
@@ -55,7 +56,18 @@ const navItems: NavItem[] = [
     href: '/production',
     icon: Factory,
     children: [
-      { title: 'Job Cards', href: '/production/job-cards', icon: Factory }
+      { title: 'Job Cards', href: '/production/job-cards', icon: Factory },
+      { title: 'Child Parts', href: '/production/child-parts', icon: Factory },
+      { title: 'Machines', href: '/production/machines', icon: Factory },
+      { title: 'OSP Tracking', href: '/production/osp', icon: Factory }
+    ]
+  },
+  {
+    title: 'Inventory',
+    href: '/inventory',
+    icon: Warehouse,
+    children: [
+      { title: 'Raw Materials', href: '/inventory/raw-materials', icon: Package }
     ]
   },
   {
@@ -74,7 +86,8 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Executive', href: '/mis/executive', icon: BarChart3 },
       { title: 'Production', href: '/mis/production', icon: BarChart3 },
-      { title: 'Sales', href: '/mis/sales', icon: BarChart3 }
+      { title: 'Sales', href: '/mis/sales', icon: BarChart3 },
+      { title: 'Agent Performance', href: '/mis/agents', icon: BarChart3 }
     ]
   }
 ]

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { mockOrders } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Order, OrderStatus } from '@/types'
+import { Order, OrderStatus, OrderSource } from '@/types'
 import { OrdersTable } from '@/components/tables/orders-table'
 
 export default function OrdersPage() {
@@ -24,6 +24,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [sourceFilter, setSourceFilter] = useState<string>('all')
 
   useEffect(() => {
     loadOrders()
@@ -40,12 +41,16 @@ export default function OrdersPage() {
     const matchesSearch =
       order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.product?.partCode.toLowerCase().includes(searchQuery.toLowerCase())
+      order.product?.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.agentCustomer?.name.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus =
       statusFilter === 'all' || order.status === statusFilter
 
-    return matchesSearch && matchesStatus
+    const matchesSource =
+      sourceFilter === 'all' || order.orderSource === sourceFilter
+
+    return matchesSearch && matchesStatus && matchesSource
   })
 
   return (
@@ -93,6 +98,22 @@ export default function OrdersPage() {
                 {Object.values(OrderStatus).map((status) => (
                   <SelectItem key={status} value={status}>
                     {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-45">
+                <SelectValue placeholder="Order source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                {Object.values(OrderSource).map((source) => (
+                  <SelectItem key={source} value={source}>
+                    {source}
                   </SelectItem>
                 ))}
               </SelectContent>

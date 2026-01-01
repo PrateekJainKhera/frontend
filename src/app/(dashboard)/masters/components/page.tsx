@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Search, Filter, Settings2 } from 'lucide-react'
+import { Search, Filter, Settings2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -17,12 +17,14 @@ import { mockComponents } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { Component, ComponentCategory } from '@/types'
 import { ComponentsTable } from '@/components/tables/components-table'
+import { AddComponentDialog } from '@/components/dialogs/add-component-dialog'
 
 export default function ComponentsPage() {
   const [components, setComponents] = useState<Component[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
 
   useEffect(() => {
     loadComponents()
@@ -60,14 +62,20 @@ export default function ComponentsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Settings2 className="h-8 w-8 text-primary" />
-          Components & Parts
-        </h1>
-        <p className="text-muted-foreground">
-          Manage bearings, gears, seals, and other manufacturing components
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Settings2 className="h-8 w-8 text-primary" />
+            Components & Parts
+          </h1>
+          <p className="text-muted-foreground">
+            Manage bearings, gears, seals, and other manufacturing components
+          </p>
+        </div>
+        <Button onClick={() => setAddDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Component
+        </Button>
       </div>
 
       {/* Summary Stats */}
@@ -134,6 +142,13 @@ export default function ComponentsPage() {
       ) : (
         <ComponentsTable components={filteredComponents} onUpdate={loadComponents} />
       )}
+
+      {/* Add Component Dialog */}
+      <AddComponentDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onSuccess={loadComponents}
+      />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { Order, OrderStatus, Priority, DelayReason } from '@/types'
+import { Order, OrderStatus, Priority, DelayReason, OrderSource, SchedulingStrategy } from '@/types'
 import { mockCustomers } from './customers'
 import { mockProducts } from './products'
 
@@ -24,6 +24,9 @@ export const mockOrders: Order[] = [
     currentProcess: 'Grinding',
     currentMachine: 'GRD-02',
     currentOperator: 'Ramesh Patel',
+    orderSource: OrderSource.DIRECT,
+    schedulingStrategy: SchedulingStrategy.DUE_DATE,
+    canReschedule: false,
     createdAt: new Date('2024-03-01'),
     updatedAt: new Date('2024-03-10'),
     createdBy: 'sales-user'
@@ -49,6 +52,24 @@ export const mockOrders: Order[] = [
     currentProcess: 'CNC Turning',
     currentMachine: 'CNC-01',
     currentOperator: 'Suresh Kumar',
+    orderSource: OrderSource.AGENT,
+    agentCustomerId: 'cust-7',
+    agentCustomer: mockCustomers[6],
+    agentCommission: 3750,
+    schedulingStrategy: SchedulingStrategy.PRIORITY_FLAG,
+    canReschedule: false,
+    rescheduleHistory: [
+      {
+        id: 'rsch-1',
+        orderId: 'ord-2',
+        oldDueDate: new Date('2024-03-10'),
+        newDueDate: new Date('2024-03-18'),
+        reason: 'Quality Issue - Rejected parts need rework',
+        rescheduledBy: 'user-prod-manager',
+        rescheduledByName: 'Production Manager',
+        rescheduledAt: new Date('2024-03-08')
+      }
+    ],
     createdAt: new Date('2024-02-25'),
     updatedAt: new Date('2024-03-08'),
     createdBy: 'sales-user'
@@ -74,6 +95,9 @@ export const mockOrders: Order[] = [
     currentProcess: null,
     currentMachine: null,
     currentOperator: null,
+    orderSource: OrderSource.DIRECT,
+    schedulingStrategy: SchedulingStrategy.CUSTOMER_IMPORTANCE,
+    canReschedule: false,
     createdAt: new Date('2024-02-20'),
     updatedAt: new Date('2024-03-04'),
     createdBy: 'sales-user'
@@ -99,6 +123,24 @@ export const mockOrders: Order[] = [
     currentProcess: 'Heat Treatment',
     currentMachine: 'Outsourced',
     currentOperator: 'Vendor-A',
+    orderSource: OrderSource.AGENT,
+    agentCustomerId: 'cust-8',
+    agentCustomer: mockCustomers[7],
+    agentCommission: 5600,
+    schedulingStrategy: SchedulingStrategy.PRIORITY_FLAG,
+    canReschedule: false,
+    rescheduleHistory: [
+      {
+        id: 'rsch-2',
+        orderId: 'ord-4',
+        oldDueDate: new Date('2024-02-29'),
+        newDueDate: new Date('2024-03-20'),
+        reason: 'Machine Breakdown - CNC-03 under repair',
+        rescheduledBy: 'user-prod-manager',
+        rescheduledByName: 'Production Manager',
+        rescheduledAt: new Date('2024-02-28')
+      }
+    ],
     createdAt: new Date('2024-02-15'),
     updatedAt: new Date('2024-03-10'),
     createdBy: 'sales-user'
@@ -124,6 +166,9 @@ export const mockOrders: Order[] = [
     currentProcess: null,
     currentMachine: null,
     currentOperator: null,
+    orderSource: OrderSource.DIRECT,
+    schedulingStrategy: SchedulingStrategy.RESOURCE_AVAILABILITY,
+    canReschedule: true,
     createdAt: new Date('2024-03-12'),
     updatedAt: new Date('2024-03-12'),
     createdBy: 'sales-user'

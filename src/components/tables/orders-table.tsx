@@ -56,6 +56,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
           <TableRow>
             <TableHead>Order No</TableHead>
             <TableHead>Customer</TableHead>
+            <TableHead>Source</TableHead>
             <TableHead>Part Code</TableHead>
             <TableHead>Quantity</TableHead>
             <TableHead>Progress</TableHead>
@@ -75,7 +76,24 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                   {order.orderNo}
                 </TableCell>
                 <TableCell className="max-w-50 truncate">
-                  {order.customer?.name}
+                  <div>
+                    {order.customer?.name}
+                    {order.orderSource === 'Through Agent' && order.agentCustomer && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        via {order.agentCustomer.name}
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={order.orderSource === 'Direct' ? 'default' : 'secondary'} className="text-xs">
+                    {order.orderSource}
+                  </Badge>
+                  {order.agentCommission && (
+                    <div className="text-xs text-green-600 font-semibold mt-1">
+                      ₹{order.agentCommission.toLocaleString()}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="font-mono text-sm">
                   {order.product?.partCode}

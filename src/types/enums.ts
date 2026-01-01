@@ -109,3 +109,22 @@ export enum ModuleName {
   INVENTORY = 'Inventory',
   REPORTS = 'Reports'
 }
+
+export enum CustomerType {
+  DIRECT = 'Direct Customer',
+  AGENT = 'Agent/Distributor',
+  DEALER = 'Dealer'
+}
+
+export enum OrderSource {
+  DIRECT = 'Direct',
+  AGENT = 'Through Agent',
+  REPEAT = 'Repeat Order'
+}
+
+export enum SchedulingStrategy {
+  DUE_DATE = 'Due Date Priority',
+  PRIORITY_FLAG = 'Priority Flag',
+  CUSTOMER_IMPORTANCE = 'Customer Importance',
+  RESOURCE_AVAILABILITY = 'Resource Availability'
+}

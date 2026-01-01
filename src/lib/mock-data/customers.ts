@@ -1,4 +1,4 @@
-import { Customer } from '@/types'
+import { Customer, CustomerType } from '@/types'
 
 export const mockCustomers: Customer[] = [
   {
@@ -10,6 +10,10 @@ export const mockCustomers: Customer[] = [
     phone: '+91 98765 43210',
     address: 'Plot 45, Industrial Area, Ahmedabad, Gujarat - 380015',
     isActive: true,
+    customerType: CustomerType.DIRECT,
+    isAgent: false,
+    creditLimit: 500000,
+    paymentTerms: 'NET 30',
     createdAt: new Date('2023-06-15'),
     updatedAt: new Date('2023-06-15')
   },
@@ -22,6 +26,10 @@ export const mockCustomers: Customer[] = [
     phone: '+91 98765 43211',
     address: 'B-12, GIDC Estate, Vapi, Gujarat - 396195',
     isActive: true,
+    customerType: CustomerType.DIRECT,
+    isAgent: false,
+    creditLimit: 750000,
+    paymentTerms: 'NET 45',
     createdAt: new Date('2023-08-20'),
     updatedAt: new Date('2023-08-20')
   },
@@ -34,6 +42,10 @@ export const mockCustomers: Customer[] = [
     phone: '+91 98765 43212',
     address: '15/A, Phase-2, Vatva GIDC, Ahmedabad, Gujarat - 382445',
     isActive: true,
+    customerType: CustomerType.DIRECT,
+    isAgent: false,
+    creditLimit: 1000000,
+    paymentTerms: 'NET 30',
     createdAt: new Date('2023-09-10'),
     updatedAt: new Date('2023-09-10')
   },
@@ -46,6 +58,10 @@ export const mockCustomers: Customer[] = [
     phone: '+91 98765 43213',
     address: 'Plot 78, Changodar Industrial Estate, Ahmedabad - 382213',
     isActive: true,
+    customerType: CustomerType.DIRECT,
+    isAgent: false,
+    creditLimit: 600000,
+    paymentTerms: 'Advance Payment',
     createdAt: new Date('2024-01-05'),
     updatedAt: new Date('2024-01-05')
   },
@@ -58,6 +74,10 @@ export const mockCustomers: Customer[] = [
     phone: '+91 98765 43214',
     address: 'Survey No. 234, Sachin GIDC, Surat, Gujarat - 394230',
     isActive: true,
+    customerType: CustomerType.DIRECT,
+    isAgent: false,
+    creditLimit: 800000,
+    paymentTerms: 'NET 30',
     createdAt: new Date('2024-02-12'),
     updatedAt: new Date('2024-02-12')
   },
@@ -70,7 +90,45 @@ export const mockCustomers: Customer[] = [
     phone: '+91 98765 43215',
     address: 'Unit 5, Odhav Industrial Area, Ahmedabad - 382415',
     isActive: true,
+    customerType: CustomerType.DEALER,
+    isAgent: false,
+    creditLimit: 450000,
+    paymentTerms: 'NET 15',
     createdAt: new Date('2024-03-01'),
     updatedAt: new Date('2024-03-01')
+  },
+  {
+    id: 'cust-7',
+    name: 'Gujarat Roller Distributors',
+    code: 'GRD007',
+    contactPerson: 'Kiran Thakkar',
+    email: 'kiran@gujaratrollers.com',
+    phone: '+91 98765 43216',
+    address: 'Shop 12-15, Industrial Market, Naroda, Ahmedabad - 382330',
+    isActive: true,
+    customerType: CustomerType.AGENT,
+    isAgent: true,
+    commissionPercent: 5,
+    creditLimit: 1500000,
+    paymentTerms: 'NET 15',
+    createdAt: new Date('2023-05-10'),
+    updatedAt: new Date('2024-01-15')
+  },
+  {
+    id: 'cust-8',
+    name: 'Western India Sales Corporation',
+    code: 'WISC008',
+    contactPerson: 'Manish Joshi',
+    email: 'manish@westernindiasales.com',
+    phone: '+91 98765 43217',
+    address: 'B-102, Trade Center, Ring Road, Surat - 395002',
+    isActive: true,
+    customerType: CustomerType.AGENT,
+    isAgent: true,
+    commissionPercent: 7,
+    creditLimit: 2000000,
+    paymentTerms: 'NET 20',
+    createdAt: new Date('2023-07-22'),
+    updatedAt: new Date('2024-02-10')
   }
 ]

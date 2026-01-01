@@ -15,11 +15,14 @@ import { mockOrders, getDelayDays, getOrderProgress } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { formatDate, formatDateTime } from '@/lib/utils/formatters'
 import { Order } from '@/types'
+import { RescheduleOrderDialog } from '@/components/dialogs/reschedule-order-dialog'
+import { format } from 'date-fns'
 
 export default function OrderDetailPage() {
   const params = useParams()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
 
   useEffect(() => {
     loadOrder()
@@ -81,8 +84,26 @@ export default function OrderDetailPage() {
           </div>
           <p className="text-muted-foreground">{order.customer?.name}</p>
         </div>
-        <Button variant="outline">Edit Order</Button>
+        <div className="flex gap-2">
+          {order.canReschedule && order.status !== 'Completed' && (
+            <Button onClick={() => setRescheduleDialogOpen(true)}>
+              <Calendar className="mr-2 h-4 w-4" />
+              Reschedule
+            </Button>
+          )}
+          <Button variant="outline">Edit Order</Button>
+        </div>
       </div>
+
+      {/* Reschedule Warning */}
+      {!order.canReschedule && order.status !== 'Completed' && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            This order cannot be rescheduled - production has started (job cards active)
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Delay Alert */}
       {delayDays > 5 && (
@@ -279,6 +300,55 @@ export default function OrderDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Order Source & Agent */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Order Source</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Source:</span>
+                <Badge variant={order.orderSource === 'Direct' ? 'default' : 'secondary'}>
+                  {order.orderSource}
+                </Badge>
+              </div>
+              {order.orderSource === 'Through Agent' && order.agentCustomer && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-muted-foreground mb-1">Agent:</p>
+                    <p className="font-semibold">{order.agentCustomer.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {order.agentCustomer.contactPerson}
+                    </p>
+                  </div>
+                  {order.agentCommission && (
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Commission</p>
+                      <p className="text-lg font-bold text-green-700">
+                        ₹{order.agentCommission.toLocaleString('en-IN')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {order.agentCustomer.commissionPercent}% of order value
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+              {order.schedulingStrategy && (
+                <>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Scheduling:</span>
+                    <Badge variant="outline" className="text-xs">
+                      {order.schedulingStrategy}
+                    </Badge>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Dates */}
           <Card>
             <CardHeader>
@@ -300,6 +370,27 @@ export default function OrderDetailPage() {
                     {formatDate(order.adjustedDueDate)}
                   </span>
                 </div>
+              )}
+              {order.rescheduleHistory && order.rescheduleHistory.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-muted-foreground mb-2">Reschedule History:</p>
+                    <div className="space-y-2">
+                      {order.rescheduleHistory.map((history) => (
+                        <div key={history.id} className="p-2 bg-amber-50 rounded text-xs">
+                          <p className="font-semibold text-amber-900">{history.reason}</p>
+                          <p className="text-amber-700 mt-1">
+                            {format(new Date(history.oldDueDate), 'PP')} → {format(new Date(history.newDueDate), 'PP')}
+                          </p>
+                          <p className="text-amber-600 mt-1">
+                            By {history.rescheduledByName} on {format(new Date(history.rescheduledAt), 'PP')}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
               <Separator />
               <div className="flex items-center justify-between">
@@ -331,6 +422,16 @@ export default function OrderDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Reschedule Dialog */}
+      {order && (
+        <RescheduleOrderDialog
+          order={order}
+          open={rescheduleDialogOpen}
+          onOpenChange={setRescheduleDialogOpen}
+          onSuccess={loadOrder}
+        />
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Product } from '@/types'
 import {
   Table,
@@ -12,7 +13,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Edit, Eye } from 'lucide-react'
+import { Edit, Eye, Package } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
 import { ViewProductDialog } from '@/components/dialogs/view-product-dialog'
 import { EditProductDialog } from '@/components/dialogs/edit-product-dialog'
@@ -23,6 +24,7 @@ interface ProductsTableProps {
 }
 
 export function ProductsTable({ products, onUpdate }: ProductsTableProps) {
+  const router = useRouter()
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -35,6 +37,10 @@ export function ProductsTable({ products, onUpdate }: ProductsTableProps) {
   const handleEdit = (product: Product) => {
     setSelectedProduct(product)
     setEditDialogOpen(true)
+  }
+
+  const handleViewBOM = (productId: string) => {
+    router.push(`/masters/products/${productId}`)
   }
 
   if (products.length === 0) {
@@ -87,11 +93,14 @@ export function ProductsTable({ products, onUpdate }: ProductsTableProps) {
                 {formatDate(product.createdAt)}
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => handleView(product)}>
+                <div className="flex justify-end gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => handleViewBOM(product.id)} title="View BOM">
+                    <Package className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleView(product)} title="View Details">
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(product)} title="Edit Product">
                     <Edit className="h-4 w-4" />
                   </Button>
                 </div>

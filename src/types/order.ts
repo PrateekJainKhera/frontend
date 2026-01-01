@@ -1,6 +1,7 @@
-import { OrderStatus, Priority, DelayReason, ProcessStatus } from './enums'
+import { OrderStatus, Priority, DelayReason, ProcessStatus, OrderSource, SchedulingStrategy } from './enums'
 import { Customer } from './customer'
 import { Product } from './product'
+import { ChildPartStatus } from './child-part-production'
 
 export interface Order {
   id: string
@@ -24,9 +25,37 @@ export interface Order {
   currentMachine?: string | null
   currentOperator?: string | null
   processHistory?: ProcessHistory[]
+  orderSource: OrderSource
+  agentCustomerId?: string
+  agentCustomer?: Customer
+  agentCommission?: number
+  schedulingStrategy?: SchedulingStrategy
+  canReschedule: boolean
+  rescheduleHistory?: RescheduleHistory[]
   createdAt: Date
   updatedAt: Date
   createdBy: string
+
+  // Assembly tracking
+  assemblyReadiness?: AssemblyReadiness
+  canStartAssembly?: boolean
+  assemblyBlockedReason?: string | null
+  assemblyStartDate?: Date | null
+  assemblyCompletionDate?: Date | null
+
+  // Time estimates
+  estimatedTotalTimeMin?: number
+  estimatedCompletionDate?: Date
+  actualStartDate?: Date | null
+  actualCompletionDate?: Date | null
+  timeVarianceMin?: number | null
+
+  // Material approval
+  materialGradeApproved?: string | null
+  materialGradeApprovedBy?: string | null
+  materialGradeApprovalDate?: Date | null
+  materialGradeNotes?: string | null
+  alternativeMaterialsConsidered?: AlternativeMaterial[]
 }
 
 export interface ProcessHistory {
@@ -44,4 +73,48 @@ export interface ProcessHistory {
   endTime?: Date | null
   status: ProcessStatus
   remarks?: string
+}
+
+export interface RescheduleHistory {
+  id: string
+  orderId: string
+  oldDueDate: Date
+  newDueDate: Date
+  reason: string
+  rescheduledBy: string
+  rescheduledByName: string
+  rescheduledAt: Date
+}
+
+export interface BlockingItem {
+  childPartId: string
+  childPartName: string
+  currentStatus: ChildPartStatus
+  expectedReadyDate: Date | null
+  delayDays: number | null
+}
+
+export interface ReadyItem {
+  childPartId: string
+  childPartName: string
+  readyDate: Date
+  quantityReady: number
+}
+
+export interface AssemblyReadiness {
+  orderId: string
+  lastChecked: Date
+  isReady: boolean
+  blockingItems: BlockingItem[]
+  readyItems: ReadyItem[]
+  readinessPercentage: number
+}
+
+export interface AlternativeMaterial {
+  materialId: string
+  materialGrade: string
+  reason: string
+  costDifference: number
+  wasApproved: boolean
+  approvedBy: string | null
 }
