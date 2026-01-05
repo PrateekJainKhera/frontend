@@ -10,3 +10,7 @@ export * from './rejection'
 export * from './rework'
 export * from './user'
 export * from './enums'
+export * from './job-card'
+
+// Export specific types from pfd-template to avoid enum conflicts
+export type { PFDTemplate, PFDProcessStep } from './pfd-template'

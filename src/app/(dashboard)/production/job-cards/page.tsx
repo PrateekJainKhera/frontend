@@ -5,95 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Progress } from '@/components/ui/progress'
 import {
   Play,
-  Square,
   CheckCircle,
   Clock,
   AlertCircle,
   User,
   Package,
-  Wrench
+  Wrench,
+  Plus,
+  Lock,
+  Unlock,
+  Factory
 } from 'lucide-react'
 import { simulateApiCall } from '@/lib/utils/mock-api'
+import { mockJobCards } from '@/lib/mock-data'
+import { JobCard, JobCardStatus } from '@/types'
 import Link from 'next/link'
-
-// Mock job card data
-interface JobCard {
-  id: string
-  orderNo: string
-  customerName: string
-  productName: string
-  processName: string
-  quantity: number
-  completedQty: number
-  status: 'Pending' | 'In Progress' | 'Completed'
-  priority: 'Low' | 'Medium' | 'High' | 'Urgent'
-  machine: string
-  startTime?: string
-  estimatedTime: number
-}
-
-const mockJobCards: JobCard[] = [
-  {
-    id: 'JC-001',
-    orderNo: 'ORD-128',
-    customerName: 'ABC Industries',
-    productName: 'Magnetic Roller 250mm',
-    processName: 'CNC Turning',
-    quantity: 10,
-    completedQty: 0,
-    status: 'Pending',
-    priority: 'Urgent',
-    machine: 'CNC-01',
-    estimatedTime: 4.5
-  },
-  {
-    id: 'JC-002',
-    orderNo: 'ORD-125',
-    customerName: 'XYZ Manufacturing',
-    productName: 'Rubber Roller 300mm',
-    processName: 'Grinding',
-    quantity: 8,
-    completedQty: 3,
-    status: 'In Progress',
-    priority: 'High',
-    machine: 'GRN-01',
-    startTime: '09:30 AM',
-    estimatedTime: 3.0
-  },
-  {
-    id: 'JC-003',
-    orderNo: 'ORD-130',
-    customerName: 'Global Prints',
-    productName: 'Anilox Roller 200mm',
-    processName: 'Chrome Plating',
-    quantity: 5,
-    completedQty: 5,
-    status: 'Completed',
-    priority: 'Medium',
-    machine: 'PLT-01',
-    estimatedTime: 6.0
-  },
-  {
-    id: 'JC-004',
-    orderNo: 'ORD-127',
-    customerName: 'Mega Corp',
-    productName: 'Printing Roller 350mm',
-    processName: 'Balancing',
-    quantity: 12,
-    completedQty: 0,
-    status: 'Pending',
-    priority: 'Medium',
-    machine: 'BAL-01',
-    estimatedTime: 1.5
-  },
-]
+import { format } from 'date-fns'
 
 export default function JobCardsPage() {
   const [jobCards, setJobCards] = useState<JobCard[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress'>('all')
+  const [filter, setFilter] = useState<'all' | 'ready' | 'in-progress' | 'blocked'>('all')
 
   useEffect(() => {
     loadJobCards()
@@ -107,9 +42,10 @@ export default function JobCardsPage() {
   }
 
   const filteredCards = jobCards.filter(card => {
-    if (filter === 'pending') return card.status === 'Pending'
-    if (filter === 'in-progress') return card.status === 'In Progress'
-    return card.status !== 'Completed'
+    if (filter === 'ready') return card.status === JobCardStatus.READY
+    if (filter === 'in-progress') return card.status === JobCardStatus.IN_PROGRESS
+    if (filter === 'blocked') return card.status === JobCardStatus.BLOCKED
+    return card.status !== JobCardStatus.COMPLETED
   })
 
   const getPriorityColor = (priority: string) => {
@@ -121,12 +57,31 @@ export default function JobCardsPage() {
     }
   }
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: JobCardStatus) => {
     switch (status) {
-      case 'Pending': return <Clock className="h-4 w-4" />
-      case 'In Progress': return <Play className="h-4 w-4" />
-      case 'Completed': return <CheckCircle className="h-4 w-4" />
+      case JobCardStatus.BLOCKED: return <Lock className="h-4 w-4 text-orange-500" />
+      case JobCardStatus.READY: return <Unlock className="h-4 w-4 text-green-500" />
+      case JobCardStatus.IN_PROGRESS: return <Play className="h-4 w-4 text-blue-500" />
+      case JobCardStatus.COMPLETED: return <CheckCircle className="h-4 w-4 text-green-600" />
+      case JobCardStatus.PAUSED: return <Clock className="h-4 w-4 text-yellow-500" />
       default: return <AlertCircle className="h-4 w-4" />
+    }
+  }
+
+  const getStatusBadge = (status: JobCardStatus) => {
+    switch (status) {
+      case JobCardStatus.BLOCKED:
+        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">🔒 Blocked</Badge>
+      case JobCardStatus.READY:
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">🔓 Ready</Badge>
+      case JobCardStatus.IN_PROGRESS:
+        return <Badge variant="secondary">⚡ In Progress</Badge>
+      case JobCardStatus.COMPLETED:
+        return <Badge variant="default" className="bg-green-600">✓ Completed</Badge>
+      case JobCardStatus.PAUSED:
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">⏸ Paused</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
     }
   }
 
@@ -143,9 +98,17 @@ export default function JobCardsPage() {
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Header - Mobile Optimized */}
+      {/* Header */}
       <div className="sticky top-0 z-10 bg-background p-4 border-b">
-        <h1 className="text-2xl font-bold text-primary mb-4">My Job Cards</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-primary">Job Cards</h1>
+          <Button asChild>
+            <Link href="/production/job-cards/create">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Job Card
+            </Link>
+          </Button>
+        </div>
 
         {/* Filter Buttons */}
         <div className="flex gap-2 overflow-x-auto">
@@ -155,15 +118,15 @@ export default function JobCardsPage() {
             onClick={() => setFilter('all')}
             className="whitespace-nowrap"
           >
-            All Active ({jobCards.filter(c => c.status !== 'Completed').length})
+            All Active ({jobCards.filter(c => c.status !== JobCardStatus.COMPLETED).length})
           </Button>
           <Button
-            variant={filter === 'pending' ? 'default' : 'outline'}
+            variant={filter === 'ready' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilter('pending')}
+            onClick={() => setFilter('ready')}
             className="whitespace-nowrap"
           >
-            Pending ({jobCards.filter(c => c.status === 'Pending').length})
+            🔓 Ready ({jobCards.filter(c => c.status === JobCardStatus.READY).length})
           </Button>
           <Button
             variant={filter === 'in-progress' ? 'default' : 'outline'}
@@ -171,121 +134,164 @@ export default function JobCardsPage() {
             onClick={() => setFilter('in-progress')}
             className="whitespace-nowrap"
           >
-            In Progress ({jobCards.filter(c => c.status === 'In Progress').length})
+            ⚡ In Progress ({jobCards.filter(c => c.status === JobCardStatus.IN_PROGRESS).length})
+          </Button>
+          <Button
+            variant={filter === 'blocked' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('blocked')}
+            className="whitespace-nowrap"
+          >
+            🔒 Blocked ({jobCards.filter(c => c.status === JobCardStatus.BLOCKED).length})
           </Button>
         </div>
       </div>
 
-      {/* Job Cards List - Mobile First */}
+      {/* Job Cards List */}
       <div className="px-4 space-y-4">
         {filteredCards.length === 0 ? (
           <Card className="p-8 text-center">
             <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
             <p className="text-lg font-medium">All caught up!</p>
-            <p className="text-sm text-muted-foreground">No active job cards</p>
+            <p className="text-sm text-muted-foreground">No active job cards in this category</p>
           </Card>
         ) : (
-          filteredCards.map((card) => (
-            <Card
-              key={card.id}
-              className={`${
-                card.status === 'In Progress'
-                  ? 'border-l-4 border-l-blue-500 bg-blue-50/50'
-                  : ''
-              }`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {card.id}
-                      </span>
-                      <Badge variant={getPriorityColor(card.priority)} className="text-xs">
-                        {card.priority}
-                      </Badge>
+          filteredCards.map((card) => {
+            const progressPercentage = card.quantity > 0 ? (card.completedQty / card.quantity) * 100 : 0
+
+            return (
+              <Card
+                key={card.id}
+                className={`${
+                  card.priority === 'Urgent' ? 'border-red-300 shadow-md' : ''
+                } hover:shadow-lg transition-shadow`}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">{card.jobCardNo}</CardTitle>
+                        {card.priority === 'Urgent' && (
+                          <Badge variant="destructive" className="text-xs">URGENT</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        {getStatusIcon(card.status)}
+                        {getStatusBadge(card.status)}
+                        <Badge variant="outline" className="text-xs">
+                          Step {card.stepNo}
+                        </Badge>
+                      </div>
                     </div>
-                    <CardTitle className="text-lg">{card.processName}</CardTitle>
+                    <Badge variant={getPriorityColor(card.priority)}>
+                      {card.priority}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    {getStatusIcon(card.status)}
-                  </div>
-                </div>
-              </CardHeader>
+                </CardHeader>
 
-              <CardContent className="space-y-3">
-                {/* Order Info */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{card.productName}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">{card.customerName}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
+                <CardContent className="space-y-4">
+                  {/* Process Info */}
+                  <div className="flex items-center gap-2 text-sm">
                     <Wrench className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">{card.machine}</span>
+                    <span className="font-semibold">{card.processName}</span>
+                    <span className="text-muted-foreground">({card.processCode})</span>
                   </div>
-                </div>
 
-                {/* Progress */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium">
-                      {card.completedQty}/{card.quantity} units
-                    </span>
+                  {/* Order & Product Info */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{card.productName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{card.customerName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>Order: {card.orderNo}</span>
+                      {card.assignedMachineName && (
+                        <>
+                          <span>•</span>
+                          <Factory className="h-3 w-3" />
+                          <span>{card.assignedMachineName}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all"
-                      style={{ width: `${(card.completedQty / card.quantity) * 100}%` }}
-                    />
-                  </div>
-                </div>
 
-                {/* Time Info */}
-                {card.startTime && (
-                  <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                    <Clock className="h-4 w-4" />
-                    <span>Started at {card.startTime}</span>
-                  </div>
-                )}
+                  {/* Dependency Status */}
+                  {card.status === JobCardStatus.BLOCKED && card.blockedBy.length > 0 && (
+                    <div className="rounded-lg bg-orange-50 border border-orange-200 p-3">
+                      <div className="flex items-center gap-2 text-xs text-orange-700">
+                        <Lock className="h-3 w-3" />
+                        <span className="font-medium">
+                          Waiting for: {card.blockedBy.join(', ')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                  {card.status === 'Pending' && (
-                    <Button className="flex-1" size="lg">
-                      <Play className="mr-2 h-4 w-4" />
-                      Start Job
+                  {/* Material Allocation Status */}
+                  {card.allocatedMaterials && card.allocatedMaterials.length > 0 && (
+                    <div className="rounded-lg bg-muted p-2 text-xs">
+                      <span className="text-muted-foreground">
+                        Materials: {card.allocatedMaterials.every(m => m.isAllocated) ? '✓' : '⚠'}
+                        {' '}{card.allocatedMaterials.filter(m => m.isAllocated).length}/{card.allocatedMaterials.length} allocated
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Progress */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-semibold">
+                        {card.completedQty}/{card.quantity} units
+                      </span>
+                    </div>
+                    <Progress value={progressPercentage} className="h-2" />
+                    <div className="text-xs text-muted-foreground">
+                      {progressPercentage.toFixed(0)}% complete
+                      {card.inProgressQty > 0 && (
+                        <span> • {card.inProgressQty} in progress</span>
+                      )}
+                      {card.rejectedQty > 0 && (
+                        <span className="text-red-600"> • {card.rejectedQty} rejected</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Time Info */}
+                  {card.actualStartTime && (
+                    <div className="text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3 inline mr-1" />
+                      Started: {format(new Date(card.actualStartTime), 'MMM dd, yyyy HH:mm')}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2">
+                    {card.status === JobCardStatus.READY && (
+                      <Button size="sm" className="flex-1">
+                        <Play className="mr-2 h-4 w-4" />
+                        Start Job
+                      </Button>
+                    )}
+                    {card.status === JobCardStatus.IN_PROGRESS && (
+                      <Button size="sm" variant="secondary" className="flex-1">
+                        Enter Quantity
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/production/job-cards/${card.id}`}>
+                        View Details
+                      </Link>
                     </Button>
-                  )}
-                  {card.status === 'In Progress' && (
-                    <>
-                      <Button variant="outline" className="flex-1" size="lg">
-                        <Square className="mr-2 h-4 w-4" />
-                        Pause
-                      </Button>
-                      <Button asChild className="flex-1" size="lg">
-                        <Link href={`/production/entry?jobId=${card.id}`}>
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Enter Qty
-                        </Link>
-                      </Button>
-                    </>
-                  )}
-                </div>
-
-                {/* Quick Stats */}
-                <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t">
-                  <span>Est. Time: {card.estimatedTime}h</span>
-                  <span>Order: {card.orderNo}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
         )}
       </div>
     </div>

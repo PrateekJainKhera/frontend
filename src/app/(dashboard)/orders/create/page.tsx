@@ -122,7 +122,7 @@ export default function CreateOrderPage() {
       toast.success(`Order created successfully: ${orderNo}`)
 
       // Redirect to orders list
-      router.push('/dashboard/orders')
+      router.push('/orders')
     } catch (error) {
       toast.dismiss()
       toast.error('Failed to create order')
@@ -136,7 +136,7 @@ export default function CreateOrderPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/orders">
+          <Link href="/orders">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -352,7 +352,10 @@ export default function CreateOrderPage() {
                           type="number"
                           min="1"
                           placeholder="Enter quantity"
-                          {...field}
+                          value={field.value}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          onBlur={field.onBlur}
+                          name={field.name}
                         />
                       </FormControl>
                       <FormDescription>
@@ -493,7 +496,7 @@ export default function CreateOrderPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => router.push('/dashboard/orders')}
+                    onClick={() => router.push('/orders')}
                     disabled={isSubmitting}
                   >
                     Cancel

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, Clock, AlertTriangle, CheckCircle2, Package } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, AlertTriangle, CheckCircle2, Package, Factory } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -11,18 +11,24 @@ import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import { mockOrders, getDelayDays, getOrderProgress } from '@/lib/mock-data'
+import { mockOrders, mockProcessTemplates, getDelayDays, getOrderProgress } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { formatDate, formatDateTime } from '@/lib/utils/formatters'
-import { Order } from '@/types'
+import { Order, ProcessTemplate, JobCard } from '@/types'
 import { RescheduleOrderDialog } from '@/components/dialogs/reschedule-order-dialog'
+import { GenerateJobCardsDialog } from '@/components/dialogs/generate-job-cards-dialog'
 import { format } from 'date-fns'
+import { useRouter } from 'next/navigation'
 
 export default function OrderDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [generateJobCardsDialogOpen, setGenerateJobCardsDialogOpen] = useState(false)
+  const [processTemplate, setProcessTemplate] = useState<ProcessTemplate | null>(null)
+  const [hasJobCards, setHasJobCards] = useState(false)
 
   useEffect(() => {
     loadOrder()
@@ -33,7 +39,25 @@ export default function OrderDetailPage() {
     const foundOrder = mockOrders.find(o => o.id === params.id)
     const data = await simulateApiCall(foundOrder || null, 800)
     setOrder(data)
+
+    // Load process template if order has a product with template
+    if (data?.product?.processTemplateId) {
+      const template = mockProcessTemplates.find(t => t.id === data.product?.processTemplateId)
+      setProcessTemplate(template || null)
+    }
+
+    // Check if job cards already exist (in real app, would check via API)
+    // For now, check if order has jobCards property or flag
+    setHasJobCards(false) // Will be updated when we implement job card checking
+
     setLoading(false)
+  }
+
+  const handleJobCardsGenerated = (jobCards: JobCard[]) => {
+    setHasJobCards(true)
+    setGenerateJobCardsDialogOpen(false)
+    // Navigate to job cards list
+    router.push('/dashboard/production/job-cards')
   }
 
   if (loading) {
@@ -89,6 +113,12 @@ export default function OrderDetailPage() {
             <Button onClick={() => setRescheduleDialogOpen(true)}>
               <Calendar className="mr-2 h-4 w-4" />
               Reschedule
+            </Button>
+          )}
+          {!hasJobCards && order.status !== 'Completed' && processTemplate && (
+            <Button onClick={() => setGenerateJobCardsDialogOpen(true)}>
+              <Factory className="mr-2 h-4 w-4" />
+              Generate Job Cards
             </Button>
           )}
           <Button variant="outline">Edit Order</Button>
@@ -430,6 +460,17 @@ export default function OrderDetailPage() {
           open={rescheduleDialogOpen}
           onOpenChange={setRescheduleDialogOpen}
           onSuccess={loadOrder}
+        />
+      )}
+
+      {/* Generate Job Cards Dialog */}
+      {order && processTemplate && (
+        <GenerateJobCardsDialog
+          order={order}
+          processTemplate={processTemplate}
+          open={generateJobCardsDialogOpen}
+          onOpenChange={setGenerateJobCardsDialogOpen}
+          onSuccess={handleJobCardsGenerated}
         />
       )}
     </div>
