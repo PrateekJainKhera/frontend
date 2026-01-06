@@ -153,7 +153,7 @@ export default function CreateProcessTemplatePage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Create Process Template</h1>
+          <h1 className="text-3xl font-bold text-primary">Create Process Template</h1>
           <p className="text-muted-foreground">Define a standard process flow</p>
         </div>
       </div>

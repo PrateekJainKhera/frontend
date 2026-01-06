@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 import { mockOSPTransactions } from "@/lib/mock-data/osp-transactions";
 import { OSPStatus } from "@/types/osp-tracking";
 import { format, differenceInDays } from "date-fns";
+import { TruckIcon, AlertCircle, CheckCircle } from "lucide-react";
 
 export default function OSPTrackingPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -71,28 +72,49 @@ export default function OSPTrackingPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Outsource (OSP) Tracking</h1>
-        <p className="text-muted-foreground mt-1">
-          Track parts sent to external vendors for specialized processes
-        </p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Outsource (OSP) Tracking</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-6 border-l-4 border-l-blue-500">
-          <div className="text-sm text-muted-foreground">Active Transactions</div>
-          <div className="text-3xl font-bold text-blue-600">{activeTransactions.length}</div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="flex items-center gap-2">
+              <TruckIcon className="h-4 w-4" />
+              Active Transactions
+            </CardDescription>
+            <CardTitle className="text-3xl text-blue-600">{activeTransactions.length}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Parts with vendors</p>
+          </CardContent>
         </Card>
-        <Card className="p-6 border-l-4 border-l-red-500">
-          <div className="text-sm text-muted-foreground">Overdue</div>
-          <div className="text-3xl font-bold text-red-600">{overdueTransactions.length}</div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Overdue
+            </CardDescription>
+            <CardTitle className="text-3xl text-red-600">{overdueTransactions.length}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Delayed deliveries</p>
+          </CardContent>
         </Card>
-        <Card className="p-6 border-l-4 border-l-green-500">
-          <div className="text-sm text-muted-foreground">Completed (This Month)</div>
-          <div className="text-3xl font-bold text-green-600">
-            {mockOSPTransactions.filter((t) => t.status === OSPStatus.RECEIVED).length}
-          </div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Completed (This Month)
+            </CardDescription>
+            <CardTitle className="text-3xl text-green-600">
+              {mockOSPTransactions.filter((t) => t.status === OSPStatus.RECEIVED).length}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Received back</p>
+          </CardContent>
         </Card>
       </div>
 

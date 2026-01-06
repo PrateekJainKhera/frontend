@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -13,7 +13,8 @@ import {
   Clock,
   Link as LinkIcon,
   Calendar,
-  Filter
+  Filter,
+  ListChecks
 } from 'lucide-react'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import Link from 'next/link'
@@ -159,22 +160,16 @@ export default function ReworkOrdersListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-          <RefreshCw className="h-8 w-8" />
-          Rework Orders
-        </h1>
-        <p className="text-muted-foreground">Track and manage rework operations</p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Rework Orders</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total Rework Units</span>
-              <RefreshCw className="h-4 w-4 text-blue-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Total Rework Units
+            </CardDescription>
             <CardTitle className="text-3xl text-blue-600">{totalRework}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -182,12 +177,12 @@ export default function ReworkOrdersListPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Pending Orders</span>
-              <Clock className="h-4 w-4 text-amber-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Pending Orders
+            </CardDescription>
             <CardTitle className="text-3xl text-amber-600">{pending}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -195,12 +190,12 @@ export default function ReworkOrdersListPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">In Progress</span>
-              <RefreshCw className="h-4 w-4 text-green-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4" />
+              In Progress
+            </CardDescription>
             <CardTitle className="text-3xl text-green-600">{inProgress}</CardTitle>
           </CardHeader>
           <CardContent>

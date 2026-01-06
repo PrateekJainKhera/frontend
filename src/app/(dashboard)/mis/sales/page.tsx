@@ -99,36 +99,33 @@ export default function SalesDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Sales Dashboard</h1>
-        <p className="text-muted-foreground">Order pipeline, customer analytics, and revenue insights</p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Sales Dashboard</h1>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Total Revenue (YTD)</CardDescription>
-              <DollarSign className="h-4 w-4 text-green-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">₹3.28L</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Total Revenue (YTD)
+            </CardDescription>
+            <CardTitle className="text-3xl text-green-600">₹3.28L</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-green-600">+18.5%</span> vs last year
+              <span className="text-green-600 font-semibold">+18.5%</span> vs last year
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Active Customers</CardDescription>
-              <Users className="h-4 w-4 text-blue-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">42</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Active Customers
+            </CardDescription>
+            <CardTitle className="text-3xl text-blue-600">42</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -138,13 +135,13 @@ export default function SalesDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Avg Order Value</CardDescription>
-              <ShoppingCart className="h-4 w-4 text-amber-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">₹3,480</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Avg Order Value
+            </CardDescription>
+            <CardTitle className="text-3xl text-amber-600">₹3,480</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -154,12 +151,12 @@ export default function SalesDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Pending Quotations</CardDescription>
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Pending Quotations
+            </CardDescription>
             <CardTitle className="text-3xl text-red-600">15</CardTitle>
           </CardHeader>
           <CardContent>

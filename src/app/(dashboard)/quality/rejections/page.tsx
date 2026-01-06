@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,7 +12,8 @@ import {
   User,
   Calendar,
   FileText,
-  Filter
+  Filter,
+  Trash2
 } from 'lucide-react'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import Link from 'next/link'
@@ -152,22 +153,16 @@ export default function RejectionsListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-          <XCircle className="h-8 w-8" />
-          Rejection Records
-        </h1>
-        <p className="text-muted-foreground">Track and manage rejected units</p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Rejection Records</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-red-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total Rejected</span>
-              <XCircle className="h-4 w-4 text-red-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <XCircle className="h-4 w-4" />
+              Total Rejected
+            </CardDescription>
             <CardTitle className="text-3xl text-red-600">{totalRejected}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -175,29 +170,29 @@ export default function RejectionsListPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Rework Pending</span>
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Rework Pending
+            </CardDescription>
             <CardTitle className="text-3xl text-amber-600">{reworkPending}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-muted-foreground">Rejections awaiting rework orders</p>
+            <p className="text-xs text-muted-foreground">Awaiting rework orders</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-gray-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Scrapped</span>
-              <XCircle className="h-4 w-4 text-gray-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Scrapped
+            </CardDescription>
             <CardTitle className="text-3xl text-gray-600">{scrapped}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-muted-foreground">Non-reworkable rejections</p>
+            <p className="text-xs text-muted-foreground">Non-reworkable</p>
           </CardContent>
         </Card>
       </div>

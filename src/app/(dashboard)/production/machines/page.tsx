@@ -1,11 +1,12 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { mockMachines, calculateOverallUtilization } from "@/lib/mock-data/machines";
 import { format } from "date-fns";
+import { Activity, Target, Cpu, AlertTriangle } from "lucide-react";
 
 export default function MachinesPage() {
   const overallUtilization = calculateOverallUtilization();
@@ -38,12 +39,7 @@ export default function MachinesPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Machine Load Overview</h1>
-          <p className="text-muted-foreground mt-1">
-            Real-time machine utilization and job queue status
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold text-primary">Machine Load Overview</h1>
         <div className="text-right">
           <div className="text-sm text-muted-foreground">Last Updated</div>
           <div className="font-medium">{format(new Date(), "MMM dd, yyyy HH:mm")}</div>
@@ -52,30 +48,62 @@ export default function MachinesPage() {
 
       {/* Overall Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-6 border-l-4 border-l-primary">
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">Overall Utilization</div>
-            <div className={`text-3xl font-bold ${getUtilizationColor(overallUtilization)}`}>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Overall Utilization
+            </CardDescription>
+            <CardTitle className={`text-3xl ${getUtilizationColor(overallUtilization)}`}>
               {overallUtilization}%
-            </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <Progress value={overallUtilization} className="h-2" />
-          </div>
+          </CardContent>
         </Card>
-        <Card className="p-6 border-l-4 border-l-green-500">
-          <div className="text-sm text-muted-foreground">Target Utilization</div>
-          <div className="text-3xl font-bold text-green-600">85%</div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Target Utilization
+            </CardDescription>
+            <CardTitle className="text-3xl text-green-600">85%</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Production target</p>
+          </CardContent>
         </Card>
-        <Card className="p-6 border-l-4 border-l-blue-500">
-          <div className="text-sm text-muted-foreground">Machines Busy</div>
-          <div className="text-3xl font-bold text-blue-600">
-            {mockMachines.filter((m) => m.currentJobCardId).length}
-          </div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="flex items-center gap-2">
+              <Cpu className="h-4 w-4" />
+              Machines Busy
+            </CardDescription>
+            <CardTitle className="text-3xl text-blue-600">
+              {mockMachines.filter((m) => m.currentJobCardId).length}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Currently running</p>
+          </CardContent>
         </Card>
-        <Card className="p-6 border-l-4 border-l-orange-500">
-          <div className="text-sm text-muted-foreground">Bottlenecks</div>
-          <div className="text-3xl font-bold text-orange-600">
-            {mockMachines.filter((m) => m.currentUtilizationPercent >= 90).length}
-          </div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Bottlenecks
+            </CardDescription>
+            <CardTitle className="text-3xl text-orange-600">
+              {mockMachines.filter((m) => m.currentUtilizationPercent >= 90).length}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">High utilization</p>
+          </CardContent>
         </Card>
       </div>
 

@@ -62,12 +62,7 @@ export default function RawMaterialInventoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Raw Material Inventory</h1>
-        <p className="text-muted-foreground">
-          Track material usage, wastage, and inventory value
-        </p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Raw Material Inventory</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

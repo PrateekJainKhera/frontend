@@ -97,7 +97,7 @@ export default function OrderDetailPage() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">{order.orderNo}</h1>
+            <h1 className="text-3xl font-bold text-primary">{order.orderNo}</h1>
             <Badge variant={
               order.status === 'Completed' ? 'default' :
               order.status === 'In Progress' ? 'secondary' :

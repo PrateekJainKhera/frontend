@@ -140,10 +140,7 @@ export default function CreateOrderPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Create New Order</h1>
-          <p className="text-muted-foreground">Punch a new production order</p>
-        </div>
+        <h1 className="text-3xl font-bold text-primary">Create New Order</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

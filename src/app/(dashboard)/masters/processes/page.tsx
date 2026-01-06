@@ -40,10 +40,7 @@ export default function ProcessesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Process Master</h1>
-          <p className="text-muted-foreground">Manage manufacturing processes</p>
-        </div>
+        <h1 className="text-3xl font-bold text-primary">Process Master</h1>
         <Button onClick={() => setIsAddProcessOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Process

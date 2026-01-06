@@ -86,7 +86,7 @@ export default function ProcessTemplateDetailPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
               <Workflow className="h-8 w-8 text-primary" />
               {template.templateName}
             </h1>

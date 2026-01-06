@@ -40,10 +40,7 @@ export default function CustomersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Customer Master</h1>
-          <p className="text-muted-foreground">Manage customer information</p>
-        </div>
+        <h1 className="text-3xl font-bold text-primary">Customer Master</h1>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Customer

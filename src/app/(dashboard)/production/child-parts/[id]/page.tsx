@@ -68,7 +68,7 @@ export default function ChildPartDetailPage({
             <div className="flex items-center gap-3">
               <div className="text-4xl">{childPart.icon}</div>
               <div>
-                <h1 className="text-3xl font-bold">
+                <h1 className="text-3xl font-bold text-primary">
                   {childPart.childPartName} for Order #{childPart.parentOrderNo}
                 </h1>
                 <p className="text-muted-foreground mt-1">{childPart.productName}</p>

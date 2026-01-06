@@ -170,7 +170,7 @@ export default function CreateJobCardPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Create Job Card</h1>
+          <h1 className="text-3xl font-bold text-primary">Create Job Card</h1>
           <p className="text-muted-foreground">Create a manual job card for production</p>
         </div>
       </div>

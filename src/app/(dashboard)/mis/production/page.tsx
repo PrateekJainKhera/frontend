@@ -89,74 +89,62 @@ export default function ProductionDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Production Dashboard</h1>
-        <p className="text-muted-foreground">Shop floor performance and machine analytics</p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Production Dashboard</h1>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Overall OEE</CardDescription>
-              <Activity className="h-4 w-4 text-green-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">87.5%</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Overall OEE
+            </CardDescription>
+            <CardTitle className="text-3xl text-green-600">87.5%</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-green-600">+3.2%</span> from last week
+              <span className="text-green-600 font-semibold">+3.2%</span> from last week
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Avg Utilization</CardDescription>
-              <Zap className="h-4 w-4 text-blue-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">85%</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              Avg Utilization
+            </CardDescription>
+            <CardTitle className="text-3xl text-blue-600">85%</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <BarChart3 className="h-4 w-4 text-blue-600" />
-              <span>6 machines active</span>
-            </div>
+            <p className="text-xs text-muted-foreground">6 machines active</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Active Jobs</CardDescription>
-              <CheckCircle className="h-4 w-4 text-amber-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">24</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Active Jobs
+            </CardDescription>
+            <CardTitle className="text-3xl text-amber-600">24</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>8 in CNC, 6 in Grinding</span>
-            </div>
+            <p className="text-xs text-muted-foreground">8 in CNC, 6 in Grinding</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Downtime Today</CardDescription>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Downtime Today
+            </CardDescription>
             <CardTitle className="text-3xl text-red-600">3.5 hrs</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Wrench className="h-4 w-4" />
-              <span>2 planned, 1.5 unplanned</span>
-            </div>
+            <p className="text-xs text-muted-foreground">2 planned, 1.5 unplanned</p>
           </CardContent>
         </Card>
       </div>

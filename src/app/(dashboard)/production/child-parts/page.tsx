@@ -85,12 +85,7 @@ export default function ChildPartsProductionPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Child Part Production Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Track parallel manufacturing of child parts across all orders
-        </p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Child Part Production Dashboard</h1>
 
       {/* Filters */}
       <Card className="p-4">

@@ -71,7 +71,7 @@ export default function ProductDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{product.partCode}</h1>
+            <h1 className="text-3xl font-bold text-primary">{product.partCode}</h1>
             <p className="text-muted-foreground">{product.customerName}</p>
           </div>
         </div>

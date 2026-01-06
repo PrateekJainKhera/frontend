@@ -63,15 +63,7 @@ export default function ComponentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Settings2 className="h-8 w-8 text-primary" />
-            Components & Parts
-          </h1>
-          <p className="text-muted-foreground">
-            Manage bearings, gears, seals, and other manufacturing components
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold text-primary">Components & Parts</h1>
         <Button onClick={() => setAddDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Component

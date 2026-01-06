@@ -97,38 +97,35 @@ export default function AgentPerformancePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Agent Performance Dashboard</h1>
-        <p className="text-muted-foreground">Track agent commissions, orders, and performance metrics</p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Agent Performance Dashboard</h1>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Total Commissions</CardDescription>
-              <DollarSign className="h-4 w-4 text-green-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">
+            <CardDescription className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Total Commissions
+            </CardDescription>
+            <CardTitle className="text-3xl text-green-600">
               ₹{totalCommissions.toLocaleString('en-IN')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-green-600">+24.5%</span> vs last month
+              <span className="text-green-600 font-semibold">+24.5%</span> vs last month
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Active Agents</CardDescription>
-              <Users className="h-4 w-4 text-blue-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">{activeAgents}</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Active Agents
+            </CardDescription>
+            <CardTitle className="text-3xl text-blue-600">{activeAgents}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -138,13 +135,13 @@ export default function AgentPerformancePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Agent Orders</CardDescription>
-              <ShoppingCart className="h-4 w-4 text-amber-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">{totalAgentOrders}</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Agent Orders
+            </CardDescription>
+            <CardTitle className="text-3xl text-amber-600">{totalAgentOrders}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -154,13 +151,13 @@ export default function AgentPerformancePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Avg Commission/Order</CardDescription>
-              <Target className="h-4 w-4 text-purple-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">
+            <CardDescription className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Avg Commission/Order
+            </CardDescription>
+            <CardTitle className="text-3xl text-purple-600">
               ₹{Math.round(avgCommissionPerOrder).toLocaleString('en-IN')}
             </CardTitle>
           </CardHeader>

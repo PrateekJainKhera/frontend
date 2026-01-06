@@ -89,74 +89,65 @@ export default function ExecutiveDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Executive Dashboard</h1>
-        <p className="text-muted-foreground">High-level business metrics and insights</p>
-      </div>
+      <h1 className="text-3xl font-bold text-primary">Executive Dashboard</h1>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Monthly Revenue</CardDescription>
-              <DollarSign className="h-4 w-4 text-green-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">₹67,000</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Monthly Revenue
+            </CardDescription>
+            <CardTitle className="text-3xl text-green-600">₹67,000</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-green-600">+21.8%</span> from last month
+              <span className="text-green-600 font-semibold">+21.8%</span> from last month
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Total Orders</CardDescription>
-              <Package className="h-4 w-4 text-blue-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">128</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Total Orders
+            </CardDescription>
+            <CardTitle className="text-3xl text-blue-600">128</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Target className="h-4 w-4 text-blue-600" />
-              <span>20 orders this month</span>
-            </div>
+            <p className="text-xs text-muted-foreground">20 orders this month</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Avg. Lead Time</CardDescription>
-              <Clock className="h-4 w-4 text-amber-600" />
-            </div>
-            <CardTitle className="text-3xl text-primary">12 days</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Avg. Lead Time
+            </CardDescription>
+            <CardTitle className="text-3xl text-amber-600">12 days</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <TrendingDown className="h-4 w-4 text-green-600" />
-              <span className="text-green-600">-2 days</span> improvement
+              <span className="text-green-600 font-semibold">-2 days</span> improvement
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Delayed Orders</CardDescription>
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-            </div>
+            <CardDescription className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Delayed Orders
+            </CardDescription>
             <CardTitle className="text-3xl text-red-600">8</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Users className="h-4 w-4" />
-              <span>5 customers affected</span>
-            </div>
+            <p className="text-xs text-muted-foreground">Requires attention</p>
           </CardContent>
         </Card>
       </div>
