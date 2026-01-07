@@ -297,10 +297,7 @@ function CreateReworkOrderContent() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-xl font-bold text-primary flex items-center gap-2">
-              <RefreshCw className="h-5 w-5" />
-              Create Rework Order
-            </h1>
+            <h1 className="sr-only">Create Rework Order</h1>
             <p className="text-sm text-muted-foreground">
               Parent Job: {parentJob.id}
             </p>

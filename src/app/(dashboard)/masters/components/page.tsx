@@ -63,8 +63,8 @@ export default function ComponentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-bold text-primary">Components & Parts</h1>
-        <Button onClick={() => setAddDialogOpen(true)}>
+        {/* <h1 className="sr-only">Components & Parts</h1> */}
+        <Button onClick={() => setAddDialogOpen(true)} className="ml-auto">
           <Plus className="mr-2 h-4 w-4" />
           Add Component
         </Button>

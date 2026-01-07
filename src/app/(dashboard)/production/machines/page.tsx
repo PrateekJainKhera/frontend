@@ -39,7 +39,7 @@ export default function MachinesPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
-        <h1 className="text-3xl font-bold text-primary">Machine Load Overview</h1>
+        <h1 className="sr-only">Machine Load Overview</h1>
         <div className="text-right">
           <div className="text-sm text-muted-foreground">Last Updated</div>
           <div className="font-medium">{format(new Date(), "MMM dd, yyyy HH:mm")}</div>

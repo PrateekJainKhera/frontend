@@ -160,7 +160,7 @@ export default function ReworkOrdersListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <h1 className="text-3xl font-bold text-primary">Rework Orders</h1>
+      <h1 className="sr-only">Rework Orders</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

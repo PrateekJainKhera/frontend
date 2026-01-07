@@ -72,7 +72,7 @@ export default function OSPTrackingPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <h1 className="text-3xl font-bold text-primary">Outsource (OSP) Tracking</h1>
+      <h1 className="sr-only">Outsource (OSP) Tracking</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

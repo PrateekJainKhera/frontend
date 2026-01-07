@@ -266,10 +266,7 @@ function RejectionRecordContent() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-xl font-bold text-red-600 flex items-center gap-2">
-              <XCircle className="h-5 w-5" />
-              Record Rejection
-            </h1>
+            <h1 className="sr-only">Record Rejection</h1>
             <p className="text-sm text-muted-foreground">Job Card: {jobCard.id}</p>
           </div>
         </div>

@@ -153,7 +153,7 @@ export default function RejectionsListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <h1 className="text-3xl font-bold text-primary">Rejection Records</h1>
+      <h1 className="sr-only">Rejection Records</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

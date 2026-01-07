@@ -38,8 +38,8 @@ export default function ProcessTemplatesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-bold text-primary">Process Templates</h1>
-        <Button asChild>
+        <h1 className="sr-only">Process Templates</h1>
+        <Button asChild className="ml-auto">
           <Link href="/masters/process-templates/create">
             <Plus className="mr-2 h-4 w-4" />
             Create Template

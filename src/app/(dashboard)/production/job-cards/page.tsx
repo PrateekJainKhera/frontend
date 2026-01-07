@@ -101,7 +101,7 @@ export default function JobCardsPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background p-4 border-b">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-primary">Job Cards</h1>
+          <h1 className="sr-only">Job Cards</h1>
           <Button asChild>
             <Link href="/production/job-cards/create">
               <Plus className="mr-2 h-4 w-4" />

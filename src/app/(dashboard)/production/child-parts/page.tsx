@@ -85,7 +85,7 @@ export default function ChildPartsProductionPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <h1 className="text-3xl font-bold text-primary">Child Part Production Dashboard</h1>
+      <h1 className="sr-only">Child Part Production Dashboard</h1>
 
       {/* Filters */}
       <Card className="p-4">

@@ -4,7 +4,7 @@ import { Package, ShoppingCart, Factory, TrendingUp } from 'lucide-react'
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
+      <h1 className="sr-only">Dashboard</h1>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

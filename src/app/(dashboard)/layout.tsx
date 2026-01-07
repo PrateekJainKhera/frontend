@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
+import { TopHeader } from '@/components/layout/top-header'
 import { Menu } from 'lucide-react'
 
 export default function DashboardLayout({
@@ -53,6 +54,9 @@ export default function DashboardLayout({
           sidebarOpen ? (sidebarExpanded ? 'ml-72' : 'ml-16') : 'ml-0'
         }`}
       >
+        {/* Top Header */}
+        <TopHeader sidebarOpen={sidebarOpen} sidebarExpanded={sidebarExpanded} />
+
         {/* Mobile menu button - only visible when sidebar is closed */}
         {!sidebarOpen && (
           <button

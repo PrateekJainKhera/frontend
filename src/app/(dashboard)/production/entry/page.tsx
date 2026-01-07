@@ -231,7 +231,7 @@ function ProductionEntryContent() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-xl font-bold text-primary">Production Entry</h1>
+            <h1 className="sr-only">Production Entry</h1>
             <p className="text-sm text-muted-foreground">Job Card: {jobCard.id}</p>
           </div>
         </div>

@@ -41,7 +41,7 @@ export default function ProductsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-bold text-primary">Product / Part Master</h1>
+        <h1 className="sr-only">Product / Part Master</h1>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Product
