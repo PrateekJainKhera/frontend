@@ -48,7 +48,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Search & Filters */}
-      <Card className="p-4">
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-muted-foreground" />
           <Input

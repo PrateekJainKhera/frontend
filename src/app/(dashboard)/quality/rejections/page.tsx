@@ -157,7 +157,7 @@ export default function RejectionsListPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <XCircle className="h-4 w-4" />
@@ -170,7 +170,7 @@ export default function RejectionsListPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
@@ -183,7 +183,7 @@ export default function RejectionsListPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Trash2 className="h-4 w-4" />
@@ -198,7 +198,7 @@ export default function RejectionsListPage() {
       </div>
 
       {/* Filter Buttons */}
-      <Card>
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -234,14 +234,14 @@ export default function RejectionsListPage() {
       {/* Rejections List */}
       <div className="space-y-4">
         {filteredRejections.length === 0 ? (
-          <Card className="p-8 text-center">
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-8 text-center">
             <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium">No rejections found</p>
             <p className="text-sm text-muted-foreground">No rejection records match the selected filter</p>
           </Card>
         ) : (
           filteredRejections.map((rejection) => (
-            <Card key={rejection.id} className="border-l-4 border-l-red-500">
+            <Card key={rejection.id} className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] border-l-4 border-l-red-500">
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">

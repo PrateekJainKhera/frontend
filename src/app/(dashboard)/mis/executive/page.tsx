@@ -10,9 +10,7 @@ import {
   DollarSign,
   Package,
   AlertTriangle,
-  Clock,
-  Users,
-  Target
+  Clock
 } from 'lucide-react'
 import {
   BarChart,
@@ -93,7 +91,7 @@ export default function ExecutiveDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-green-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
@@ -109,7 +107,7 @@ export default function ExecutiveDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-blue-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Package className="h-4 w-4" />
@@ -122,7 +120,7 @@ export default function ExecutiveDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-amber-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -138,7 +136,7 @@ export default function ExecutiveDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-red-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
@@ -163,7 +161,7 @@ export default function ExecutiveDashboardPage() {
 
         {/* Revenue Trends */}
         <TabsContent value="revenue" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Monthly Revenue & Orders</CardTitle>
               <CardDescription>Revenue and order count over the last 6 months</CardDescription>
@@ -202,7 +200,7 @@ export default function ExecutiveDashboardPage() {
         {/* Order Status */}
         <TabsContent value="orders" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle>Order Status Distribution</CardTitle>
                 <CardDescription>Current status of all orders</CardDescription>
@@ -230,7 +228,7 @@ export default function ExecutiveDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle>Order Status Details</CardTitle>
                 <CardDescription>Breakdown by count</CardDescription>
@@ -258,7 +256,7 @@ export default function ExecutiveDashboardPage() {
 
         {/* Product Mix */}
         <TabsContent value="products" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Product Type Distribution</CardTitle>
               <CardDescription>Order count by roller type</CardDescription>
@@ -280,7 +278,7 @@ export default function ExecutiveDashboardPage() {
 
         {/* Quality Metrics */}
         <TabsContent value="quality" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Quality Trend Analysis</CardTitle>
               <CardDescription>Acceptance vs rejection rate over time</CardDescription>

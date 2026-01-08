@@ -88,13 +88,13 @@ export default function ProductTemplatesPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Total Templates</CardDescription>
             <CardTitle className="text-3xl text-primary">{templates.length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Active Templates</CardDescription>
             <CardTitle className="text-3xl text-green-600">
@@ -102,7 +102,7 @@ export default function ProductTemplatesPage() {
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Roller Types</CardDescription>
             <CardTitle className="text-3xl text-blue-600">
@@ -113,7 +113,7 @@ export default function ProductTemplatesPage() {
       </div>
 
       {/* Search and Filter */}
-      <Card className="p-4">
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium mb-2 block">Search Templates</label>
@@ -151,7 +151,7 @@ export default function ProductTemplatesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredTemplates.map((template) => (
           <Link key={template.id} href={`/masters/product-templates/${template.id}`}>
-            <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer hover:border-primary">
+            <Card className="h-full border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-lg transition-shadow cursor-pointer hover:border-primary">
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
@@ -200,7 +200,7 @@ export default function ProductTemplatesPage() {
       </div>
 
       {filteredTemplates.length === 0 && (
-        <Card className="p-12">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-12">
           <div className="text-center">
             <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No templates found</h3>

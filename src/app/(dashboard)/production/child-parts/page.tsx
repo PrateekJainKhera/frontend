@@ -54,13 +54,13 @@ export default function ChildPartsProductionPage() {
       case ChildPartStatus.InProcess:
         return "bg-blue-100 text-blue-800 border-blue-300";
       case ChildPartStatus.NotStarted:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-slate-100 text-slate-700 border-slate-300";
       case ChildPartStatus.QualityCheck:
         return "bg-purple-100 text-purple-800 border-purple-300";
       case ChildPartStatus.MaterialIssued:
-        return "bg-yellow-100 text-yellow-800 border-yellow-300";
+        return "bg-amber-100 text-amber-800 border-amber-300";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-slate-100 text-slate-700 border-slate-300";
     }
   };
 
@@ -74,7 +74,7 @@ export default function ChildPartsProductionPage() {
             <div key={`filled-${i}`} className="w-2 h-2 bg-primary rounded-full" />
           ))}
           {Array.from({ length: emptyDots }).map((_, i) => (
-            <div key={`empty-${i}`} className="w-2 h-2 bg-gray-300 rounded-full" />
+            <div key={`empty-${i}`} className="w-2 h-2 bg-slate-200 rounded-full" />
           ))}
         </div>
         <span className="text-sm font-medium ml-2">{percentage}%</span>
@@ -176,7 +176,7 @@ export default function ChildPartsProductionPage() {
                       href={`/production/child-parts/${childPart.id}`}
                       className="block"
                     >
-                      <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer border border-primary/10 hover:border-primary/20">
                         <div className="flex items-center gap-4 flex-1">
                           <div className="text-3xl">{childPart.icon}</div>
                           <div className="flex-1">

@@ -74,7 +74,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Search & Filters */}
-      <Card className="p-4">
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 flex items-center gap-2">
             <Search className="h-4 w-4 text-muted-foreground" />
@@ -121,23 +121,23 @@ export default function OrdersPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Total Orders</p>
           <p className="text-2xl font-bold">{orders.length}</p>
         </Card>
-        <Card className="p-4">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">In Progress</p>
           <p className="text-2xl font-bold text-blue-600">
             {orders.filter((o) => o.status === OrderStatus.IN_PROGRESS).length}
           </p>
         </Card>
-        <Card className="p-4">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Completed</p>
           <p className="text-2xl font-bold text-green-600">
             {orders.filter((o) => o.status === OrderStatus.COMPLETED).length}
           </p>
         </Card>
-        <Card className="p-4">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Pending</p>
           <p className="text-2xl font-bold text-amber-600">
             {orders.filter((o) => o.status === OrderStatus.PENDING).length}

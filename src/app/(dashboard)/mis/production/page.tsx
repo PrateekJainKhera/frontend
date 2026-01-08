@@ -10,15 +10,11 @@ import {
   Zap,
   TrendingUp,
   AlertCircle,
-  CheckCircle,
-  Clock,
-  Wrench,
-  BarChart3
+  CheckCircle
 } from 'lucide-react'
 import {
   BarChart,
   Bar,
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -93,7 +89,7 @@ export default function ProductionDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-green-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
@@ -109,7 +105,7 @@ export default function ProductionDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-blue-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
@@ -122,7 +118,7 @@ export default function ProductionDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-amber-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
@@ -135,7 +131,7 @@ export default function ProductionDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-red-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
@@ -160,7 +156,7 @@ export default function ProductionDashboardPage() {
 
         {/* Machine Utilization */}
         <TabsContent value="utilization" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Machine Utilization vs Target</CardTitle>
               <CardDescription>Current utilization compared to target efficiency</CardDescription>
@@ -181,7 +177,7 @@ export default function ProductionDashboardPage() {
           </Card>
 
           {/* Machine Status List */}
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Machine Status</CardTitle>
               <CardDescription>Real-time status of all machines</CardDescription>
@@ -221,7 +217,7 @@ export default function ProductionDashboardPage() {
 
         {/* Production Trends */}
         <TabsContent value="production" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Weekly Production Performance</CardTitle>
               <CardDescription>Completed orders vs target with efficiency</CardDescription>
@@ -271,7 +267,7 @@ export default function ProductionDashboardPage() {
 
         {/* Process Time */}
         <TabsContent value="process" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Average Process Time Analysis</CardTitle>
               <CardDescription>Actual vs standard time by process</CardDescription>
@@ -294,7 +290,7 @@ export default function ProductionDashboardPage() {
 
         {/* Downtime Analysis */}
         <TabsContent value="downtime" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Weekly Downtime Analysis</CardTitle>
               <CardDescription>Planned vs unplanned downtime hours</CardDescription>

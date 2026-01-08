@@ -164,7 +164,7 @@ export default function ReworkOrdersListPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <RefreshCw className="h-4 w-4" />
@@ -177,7 +177,7 @@ export default function ReworkOrdersListPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -190,7 +190,7 @@ export default function ReworkOrdersListPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <ListChecks className="h-4 w-4" />
@@ -205,7 +205,7 @@ export default function ReworkOrdersListPage() {
       </div>
 
       {/* Filter Buttons */}
-      <Card>
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -247,7 +247,7 @@ export default function ReworkOrdersListPage() {
       {/* Rework Orders List */}
       <div className="space-y-4">
         {filteredOrders.length === 0 ? (
-          <Card className="p-8 text-center">
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-8 text-center">
             <RefreshCw className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium">No rework orders found</p>
             <p className="text-sm text-muted-foreground">No rework orders match the selected filter</p>
@@ -258,7 +258,7 @@ export default function ReworkOrdersListPage() {
             return (
               <Card
                 key={order.id}
-                className={`${
+                className={`border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] ${
                   order.status === 'In Progress'
                     ? 'border-l-4 border-l-blue-500 bg-blue-50/50'
                     : order.status === 'Completed'

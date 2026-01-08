@@ -77,13 +77,13 @@ export default function LiveTrackingPage() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Active Orders</CardDescription>
             <CardTitle className="text-3xl">{orders.length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>On Time</CardDescription>
             <CardTitle className="text-3xl text-green-600">
@@ -91,7 +91,7 @@ export default function LiveTrackingPage() {
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Delayed (10+ days)</CardDescription>
             <CardTitle className="text-3xl text-destructive">
@@ -109,7 +109,7 @@ export default function LiveTrackingPage() {
           ))}
         </div>
       ) : orders.length === 0 ? (
-        <Card className="p-12 text-center">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-12 text-center">
           <CardDescription>No active orders in production</CardDescription>
         </Card>
       ) : (
@@ -119,7 +119,7 @@ export default function LiveTrackingPage() {
             const delayDays = getDelayDays(order)
 
             return (
-              <Card key={order.id} className="overflow-hidden">
+              <Card key={order.id} className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">

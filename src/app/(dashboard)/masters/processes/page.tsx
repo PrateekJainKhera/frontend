@@ -49,23 +49,23 @@ export default function ProcessesPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <Card className="p-4">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Total Processes</p>
           <p className="text-2xl font-bold">{processes.length}</p>
         </Card>
-        <Card className="p-4">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Machining</p>
           <p className="text-2xl font-bold text-blue-600">
             {processes.filter(p => p.category === 'Machining').length}
           </p>
         </Card>
-        <Card className="p-4">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Finishing</p>
           <p className="text-2xl font-bold text-green-600">
             {processes.filter(p => p.category === 'Finishing').length}
           </p>
         </Card>
-        <Card className="p-4">
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Outsourced</p>
           <p className="text-2xl font-bold text-amber-600">
             {processes.filter(p => p.isOutsourced).length}
@@ -74,7 +74,7 @@ export default function ProcessesPage() {
       </div>
 
       {/* Search */}
-      <Card className="p-4">
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-muted-foreground" />
           <Input

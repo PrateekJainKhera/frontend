@@ -66,7 +66,7 @@ export default function RawMaterialInventoryPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-primary/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Package className="h-4 w-4" />
@@ -88,7 +88,7 @@ export default function RawMaterialInventoryPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-blue-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription>Total Length</CardDescription>
             <CardTitle className="text-3xl text-blue-600">
@@ -102,7 +102,7 @@ export default function RawMaterialInventoryPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-orange-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <TrendingDown className="h-4 w-4" />
@@ -119,7 +119,7 @@ export default function RawMaterialInventoryPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-primary/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription>Inventory Value</CardDescription>
             <CardTitle className="text-3xl text-primary">
@@ -147,7 +147,7 @@ export default function RawMaterialInventoryPage() {
 
         {/* Material Pieces Tab */}
         <TabsContent value="pieces" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>All Material Pieces</CardTitle>
               <CardDescription>
@@ -255,7 +255,7 @@ export default function RawMaterialInventoryPage() {
 
         {/* Usage History Tab */}
         <TabsContent value="usage" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Material Usage History</CardTitle>
               <CardDescription>
@@ -324,7 +324,7 @@ export default function RawMaterialInventoryPage() {
         {/* Wastage Analysis Tab */}
         <TabsContent value="wastage" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle>Wastage Summary</CardTitle>
                 <CardDescription>Overview of material wastage</CardDescription>
@@ -372,7 +372,7 @@ export default function RawMaterialInventoryPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle>Wastage Pieces</CardTitle>
                 <CardDescription>Material pieces marked as wastage</CardDescription>

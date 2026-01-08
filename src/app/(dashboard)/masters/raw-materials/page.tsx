@@ -59,13 +59,13 @@ export default function RawMaterialsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Total Materials</CardDescription>
             <CardTitle className="text-3xl">{materials.length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Total Stock Weight</CardDescription>
             <CardTitle className="text-3xl text-blue-600">
@@ -73,7 +73,7 @@ export default function RawMaterialsPage() {
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Low Stock Alerts</CardDescription>
             <CardTitle className={`text-3xl ${lowStockCount > 0 ? 'text-destructive' : 'text-green-600'}`}>
@@ -84,7 +84,7 @@ export default function RawMaterialsPage() {
       </div>
 
       {/* Search */}
-      <Card className="p-4">
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-muted-foreground" />
           <Input

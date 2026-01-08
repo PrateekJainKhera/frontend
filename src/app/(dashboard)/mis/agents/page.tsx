@@ -17,7 +17,6 @@ import {
 import {
   BarChart,
   Bar,
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -101,7 +100,7 @@ export default function AgentPerformancePage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-green-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
@@ -119,7 +118,7 @@ export default function AgentPerformancePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-blue-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -135,7 +134,7 @@ export default function AgentPerformancePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-amber-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
@@ -151,7 +150,7 @@ export default function AgentPerformancePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-purple-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Target className="h-4 w-4" />
@@ -180,7 +179,7 @@ export default function AgentPerformancePage() {
 
         {/* Agent Performance */}
         <TabsContent value="performance" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Individual Agent Performance</CardTitle>
               <CardDescription>Detailed breakdown of each agent's contribution</CardDescription>
@@ -234,7 +233,7 @@ export default function AgentPerformancePage() {
 
         {/* Commission Trends */}
         <TabsContent value="trends" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Commission & Order Trends</CardTitle>
               <CardDescription>Monthly commission earnings and order volume</CardDescription>
@@ -263,7 +262,7 @@ export default function AgentPerformancePage() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle className="text-base">Peak Month</CardTitle>
               </CardHeader>
@@ -275,7 +274,7 @@ export default function AgentPerformancePage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle className="text-base">Growth Rate</CardTitle>
               </CardHeader>
@@ -287,7 +286,7 @@ export default function AgentPerformancePage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle className="text-base">Total YTD</CardTitle>
               </CardHeader>
@@ -303,7 +302,7 @@ export default function AgentPerformancePage() {
 
         {/* Agent Comparison */}
         <TabsContent value="comparison" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Agent Commission Comparison</CardTitle>
               <CardDescription>Side-by-side performance comparison</CardDescription>
@@ -325,7 +324,7 @@ export default function AgentPerformancePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {sortedAgents.map((agent) => (
-              <Card key={agent.id}>
+              <Card key={agent.id} className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
                 <CardHeader>
                   <CardTitle className="text-base">{agent.name}</CardTitle>
                   <CardDescription>{agent.contactPerson}</CardDescription>

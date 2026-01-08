@@ -18,7 +18,6 @@ import {
 import {
   BarChart,
   Bar,
-  LineChart,
   Line,
   PieChart,
   Pie,
@@ -29,8 +28,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ComposedChart,
-  Area
+  ComposedChart
 } from 'recharts'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 
@@ -103,7 +101,7 @@ export default function SalesDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-green-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
@@ -119,7 +117,7 @@ export default function SalesDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-blue-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -135,7 +133,7 @@ export default function SalesDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-amber-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
@@ -151,7 +149,7 @@ export default function SalesDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-red-400/50 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
@@ -180,7 +178,7 @@ export default function SalesDashboardPage() {
 
         {/* Sales Trends */}
         <TabsContent value="trends" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Sales Trends & Order Value</CardTitle>
               <CardDescription>Monthly revenue, order count, and average order value</CardDescription>
@@ -219,7 +217,7 @@ export default function SalesDashboardPage() {
 
         {/* Top Customers */}
         <TabsContent value="customers" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Top Customers by Revenue</CardTitle>
               <CardDescription>Top 5 customers this year</CardDescription>
@@ -240,7 +238,7 @@ export default function SalesDashboardPage() {
           </Card>
 
           {/* Customer Details List */}
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Customer Performance Details</CardTitle>
             </CardHeader>
@@ -276,7 +274,7 @@ export default function SalesDashboardPage() {
         {/* Order Pipeline */}
         <TabsContent value="pipeline" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle>Order Pipeline Status</CardTitle>
                 <CardDescription>Distribution by stage</CardDescription>
@@ -303,7 +301,7 @@ export default function SalesDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <CardTitle>Pipeline Value</CardTitle>
                 <CardDescription>Revenue by stage</CardDescription>
@@ -336,7 +334,7 @@ export default function SalesDashboardPage() {
 
         {/* Product Revenue */}
         <TabsContent value="products" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Revenue by Product Type</CardTitle>
               <CardDescription>Year-to-date revenue breakdown</CardDescription>
@@ -358,7 +356,7 @@ export default function SalesDashboardPage() {
 
         {/* Delay Analysis */}
         <TabsContent value="delays" className="space-y-4">
-          <Card>
+          <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Delay Reasons Analysis</CardTitle>
               <CardDescription>Orders delayed by reason</CardDescription>

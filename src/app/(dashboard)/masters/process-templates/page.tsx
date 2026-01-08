@@ -49,13 +49,13 @@ export default function ProcessTemplatesPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Total Templates</CardDescription>
             <CardTitle className="text-3xl">{templates.length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Avg Steps/Template</CardDescription>
             <CardTitle className="text-3xl text-blue-600">
@@ -65,7 +65,7 @@ export default function ProcessTemplatesPage() {
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Total Process Steps</CardDescription>
             <CardTitle className="text-3xl text-green-600">
@@ -76,7 +76,7 @@ export default function ProcessTemplatesPage() {
       </div>
 
       {/* Search */}
-      <Card className="p-4">
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-muted-foreground" />
           <Input
@@ -102,7 +102,7 @@ export default function ProcessTemplatesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTemplates.map((template) => (
-            <Card key={template.id} className="hover:shadow-lg transition-shadow">
+            <Card key={template.id} className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
