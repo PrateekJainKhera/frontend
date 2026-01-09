@@ -31,6 +31,7 @@ export interface Process {
   setupTimeMin?: number
   cycleTimeMin?: number
   cycleTimeFormula?: string | null
+  restTimeHours?: number // Rest/cooling time required after process completion
 
   // Manual operation
   isManualOperation?: boolean

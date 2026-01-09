@@ -37,6 +37,7 @@ export interface ProductTemplateChildPart {
   unit: string // e.g., "pcs", "kg", "m"
   notes?: string
   sequenceNo: number // Order in which parts are needed
+  childPartTemplateId?: string // Optional link to Child Part Template
 }
 
 /**

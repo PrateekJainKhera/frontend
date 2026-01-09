@@ -2,6 +2,7 @@
 export * from './customers'
 export * from './products'
 export * from './product-templates'
+export * from './child-part-templates'
 export * from './orders'
 export * from './raw-materials'
 export * from './components'

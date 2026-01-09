@@ -33,8 +33,8 @@ export function ViewBOMDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+<DialogContent className="sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <DialogTitle className="text-2xl">Bill of Materials</DialogTitle>
@@ -54,7 +54,8 @@ export function ViewBOMDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="space-y-6 mt-4">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="p-4">
@@ -198,6 +199,7 @@ export function ViewBOMDialog({
                 )}
               </div>
             </div>
+          </div>
           </div>
         </div>
       </DialogContent>

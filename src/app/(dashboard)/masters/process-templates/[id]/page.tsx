@@ -6,11 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ArrowLeft, Workflow, AlertCircle, Edit } from 'lucide-react'
+import { ArrowLeft, Workflow, AlertCircle, Edit, Package } from 'lucide-react'
 import Link from 'next/link'
-import { mockProcessTemplates } from '@/lib/mock-data'
+import { mockProcessTemplates, mockChildPartTemplates } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ProcessTemplate } from '@/types'
+import { ProcessTemplate, ChildPartTemplate } from '@/types'
 
 export default function ProcessTemplateDetailPage() {
   const params = useParams()
@@ -18,6 +18,7 @@ export default function ProcessTemplateDetailPage() {
 
   const [template, setTemplate] = useState<ProcessTemplate | null>(null)
   const [loading, setLoading] = useState(true)
+  const [relatedChildParts, setRelatedChildParts] = useState<ChildPartTemplate[]>([])
 
   useEffect(() => {
     loadTemplate()
@@ -30,6 +31,15 @@ export default function ProcessTemplateDetailPage() {
       const data = await simulateApiCall(mockProcessTemplates, 800)
       const foundTemplate = data.find(t => t.id === templateId)
       setTemplate(foundTemplate || null)
+
+      // Find child part templates that use processes from this template
+      if (foundTemplate) {
+        const processIds = foundTemplate.steps.map(step => step.processId)
+        const childParts = mockChildPartTemplates.filter(cpt =>
+          cpt.processSteps.some(step => processIds.includes(step.processId))
+        )
+        setRelatedChildParts(childParts)
+      }
     } catch (error) {
       setTemplate(null)
     } finally {
@@ -195,6 +205,54 @@ export default function ProcessTemplateDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Related Child Parts */}
+      {relatedChildParts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              <div>
+                <CardTitle>Child Parts Using These Processes</CardTitle>
+                <CardDescription>
+                  Child part templates that use one or more processes from this template
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {relatedChildParts.map((childPart) => (
+                <Link
+                  key={childPart.id}
+                  href={`/masters/child-part-templates/${childPart.id}`}
+                  className="block"
+                >
+                  <div className="border rounded-lg p-4 hover:border-primary hover:shadow-md transition-all cursor-pointer">
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-semibold text-sm line-clamp-2">{childPart.templateName}</h4>
+                      <Badge variant="outline" className="text-xs ml-2 shrink-0">
+                        {childPart.childPartType}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">{childPart.templateCode}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{childPart.processSteps.length} process steps</span>
+                      <span>•</span>
+                      <span>{childPart.totalStandardTimeHours.toFixed(1)} hrs</span>
+                    </div>
+                    {childPart.description && (
+                      <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                        {childPart.description}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

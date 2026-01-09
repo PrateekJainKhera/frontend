@@ -1,6 +1,8 @@
 import { ProductTemplate, RollerType } from '@/types'
 
+// Product Templates - Only Magnetic and Printing Rollers
 export const mockProductTemplates: ProductTemplate[] = [
+  // ===== MAGNETIC ROLLERS =====
   {
     id: 'pt-001',
     templateCode: 'TPL-MAG-STD',
@@ -16,7 +18,8 @@ export const mockProductTemplates: ProductTemplate[] = [
         quantity: 1,
         unit: 'pcs',
         notes: 'Main shaft for magnetic roller',
-        sequenceNo: 1
+        sequenceNo: 1,
+        childPartTemplateId: 'cpt-001' // Links to Magnetic Roller Shaft - Standard
       },
       {
         id: 'cp-002',
@@ -26,7 +29,8 @@ export const mockProductTemplates: ProductTemplate[] = [
         quantity: 1,
         unit: 'pcs',
         notes: 'Magnetic core assembly',
-        sequenceNo: 2
+        sequenceNo: 2,
+        childPartTemplateId: 'cpt-002' // Links to Magnetic Core - Standard
       },
       {
         id: 'cp-003',
@@ -36,224 +40,205 @@ export const mockProductTemplates: ProductTemplate[] = [
         quantity: 1,
         unit: 'pcs',
         notes: 'Aluminum shell',
-        sequenceNo: 3
+        sequenceNo: 3,
+        childPartTemplateId: 'cpt-004' // Links to Aluminum Shell
       },
       {
         id: 'cp-004',
         productTemplateId: 'pt-001',
-        childPartName: 'End Caps',
-        childPartCode: 'CAP-END',
+        childPartName: 'End Disks',
+        childPartCode: 'DISK-END',
         quantity: 2,
         unit: 'pcs',
-        notes: 'Both side end caps',
-        sequenceNo: 4
+        notes: 'Both side end disks',
+        sequenceNo: 4,
+        childPartTemplateId: 'cpt-005' // Links to End Disk Template
       }
     ],
     processTemplateId: 'tpl-001',
     processTemplateName: 'Magnetic Roller Complete Process',
     isActive: true,
     createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
+    updatedAt: new Date('2024-11-15'),
     createdBy: 'admin'
   },
   {
     id: 'pt-002',
-    templateCode: 'TPL-ANI-STD',
-    templateName: 'Anilox Roller Standard',
-    description: 'Standard anilox roller with engraving and chrome coating',
-    rollerType: RollerType.ANILOX,
-    childParts: [
-      {
-        id: 'cp-005',
-        productTemplateId: 'pt-002',
-        childPartName: 'Base Shaft',
-        childPartCode: 'SHAFT-ANI',
-        quantity: 1,
-        unit: 'pcs',
-        notes: 'Steel shaft for anilox',
-        sequenceNo: 1
-      },
-      {
-        id: 'cp-006',
-        productTemplateId: 'pt-002',
-        childPartName: 'Ceramic Coating Material',
-        childPartCode: 'CER-ANI',
-        quantity: 0.5,
-        unit: 'kg',
-        notes: 'Ceramic coating material',
-        sequenceNo: 2
-      },
-      {
-        id: 'cp-007',
-        productTemplateId: 'pt-002',
-        childPartName: 'End Journals',
-        childPartCode: 'JRNL-ANI',
-        quantity: 2,
-        unit: 'pcs',
-        notes: 'Precision end journals',
-        sequenceNo: 3
-      }
-    ],
-    processTemplateId: 'tpl-002',
-    processTemplateName: 'Anilox Roller Process',
-    isActive: true,
-    createdAt: new Date('2024-01-12'),
-    updatedAt: new Date('2024-01-12'),
-    createdBy: 'admin'
-  },
-  {
-    id: 'pt-003',
-    templateCode: 'TPL-RUB-STD',
-    templateName: 'Rubber Roller Standard',
-    description: 'Standard rubber roller with polyurethane coating',
-    rollerType: RollerType.RUBBER,
-    childParts: [
-      {
-        id: 'cp-008',
-        productTemplateId: 'pt-003',
-        childPartName: 'Core Shaft',
-        childPartCode: 'SHAFT-RUB',
-        quantity: 1,
-        unit: 'pcs',
-        notes: 'Steel core for rubber roller',
-        sequenceNo: 1
-      },
-      {
-        id: 'cp-009',
-        productTemplateId: 'pt-003',
-        childPartName: 'Polyurethane Material',
-        childPartCode: 'PU-RUB',
-        quantity: 2,
-        unit: 'kg',
-        notes: 'PU coating material',
-        sequenceNo: 2
-      },
-      {
-        id: 'cp-010',
-        productTemplateId: 'pt-003',
-        childPartName: 'Bearing Housing',
-        childPartCode: 'BRG-RUB',
-        quantity: 2,
-        unit: 'pcs',
-        notes: 'Bearing housing assembly',
-        sequenceNo: 3
-      }
-    ],
-    processTemplateId: 'tpl-003',
-    processTemplateName: 'Rubber Roller Process',
-    isActive: true,
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-    createdBy: 'admin'
-  },
-  {
-    id: 'pt-004',
     templateCode: 'TPL-MAG-PREM',
     templateName: 'Magnetic Roller Premium',
     description: 'Premium magnetic roller with enhanced magnetization and precision grinding',
     rollerType: RollerType.MAGNETIC,
     childParts: [
       {
-        id: 'cp-011',
-        productTemplateId: 'pt-004',
+        id: 'cp-005',
+        productTemplateId: 'pt-002',
         childPartName: 'Premium Shaft',
         childPartCode: 'SHAFT-MAG-P',
         quantity: 1,
         unit: 'pcs',
         notes: 'High-grade steel shaft',
-        sequenceNo: 1
+        sequenceNo: 1,
+        childPartTemplateId: 'cpt-001'
       },
       {
-        id: 'cp-012',
-        productTemplateId: 'pt-004',
+        id: 'cp-006',
+        productTemplateId: 'pt-002',
         childPartName: 'Premium Magnet Core',
         childPartCode: 'CORE-MAG-P',
         quantity: 1,
         unit: 'pcs',
         notes: 'High-strength magnet core',
-        sequenceNo: 2
+        sequenceNo: 2,
+        childPartTemplateId: 'cpt-003'
       },
       {
-        id: 'cp-013',
-        productTemplateId: 'pt-004',
+        id: 'cp-007',
+        productTemplateId: 'pt-002',
         childPartName: 'Stainless Steel Shell',
         childPartCode: 'SHELL-SS',
         quantity: 1,
         unit: 'pcs',
         notes: 'Stainless steel shell',
-        sequenceNo: 3
+        sequenceNo: 3,
+        childPartTemplateId: 'cpt-004'
       },
       {
-        id: 'cp-014',
-        productTemplateId: 'pt-004',
-        childPartName: 'Premium End Caps',
-        childPartCode: 'CAP-END-P',
+        id: 'cp-008',
+        productTemplateId: 'pt-002',
+        childPartName: 'Premium End Disks',
+        childPartCode: 'DISK-END-P',
         quantity: 2,
         unit: 'pcs',
-        notes: 'Precision end caps',
-        sequenceNo: 4
-      },
-      {
-        id: 'cp-015',
-        productTemplateId: 'pt-004',
-        childPartName: 'Protective Coating',
-        childPartCode: 'COAT-PROT',
-        quantity: 0.2,
-        unit: 'L',
-        notes: 'Anti-corrosion coating',
-        sequenceNo: 5
+        notes: 'Precision end disks',
+        sequenceNo: 4,
+        childPartTemplateId: 'cpt-005'
       }
     ],
     processTemplateId: 'tpl-001',
     processTemplateName: 'Magnetic Roller Complete Process',
     isActive: true,
     createdAt: new Date('2024-01-18'),
-    updatedAt: new Date('2024-01-18'),
+    updatedAt: new Date('2024-10-20'),
     createdBy: 'admin'
   },
+
+  // ===== PRINTING ROLLERS =====
   {
-    id: 'pt-005',
+    id: 'pt-003',
     templateCode: 'TPL-PRT-STD',
     templateName: 'Printing Roller Standard',
     description: 'Standard printing roller for flexo and offset printing',
     rollerType: RollerType.PRINTING,
     childParts: [
       {
-        id: 'cp-016',
-        productTemplateId: 'pt-005',
+        id: 'cp-009',
+        productTemplateId: 'pt-003',
         childPartName: 'Printing Shaft',
         childPartCode: 'SHAFT-PRT',
         quantity: 1,
         unit: 'pcs',
         notes: 'Precision ground shaft',
-        sequenceNo: 1
+        sequenceNo: 1,
+        childPartTemplateId: 'cpt-006'
       },
       {
-        id: 'cp-017',
-        productTemplateId: 'pt-005',
-        childPartName: 'Copper Sleeve',
-        childPartCode: 'SLV-CU',
+        id: 'cp-010',
+        productTemplateId: 'pt-003',
+        childPartName: 'Aluminum Core',
+        childPartCode: 'CORE-ALU',
         quantity: 1,
         unit: 'pcs',
-        notes: 'Copper printing surface',
-        sequenceNo: 2
+        notes: 'Lightweight aluminum core',
+        sequenceNo: 2,
+        childPartTemplateId: 'cpt-007'
       },
       {
-        id: 'cp-018',
-        productTemplateId: 'pt-005',
-        childPartName: 'Chrome Plating Material',
-        childPartCode: 'CHR-PLT',
-        quantity: 0.3,
-        unit: 'kg',
-        notes: 'Hard chrome plating',
-        sequenceNo: 3
+        id: 'cp-011',
+        productTemplateId: 'pt-003',
+        childPartName: 'Rubber Sleeve',
+        childPartCode: 'SLV-RUB',
+        quantity: 1,
+        unit: 'pcs',
+        notes: 'Rubber printing surface',
+        sequenceNo: 3,
+        childPartTemplateId: 'cpt-008'
+      },
+      {
+        id: 'cp-012',
+        productTemplateId: 'pt-003',
+        childPartName: 'End Disks',
+        childPartCode: 'DISK-PRT',
+        quantity: 2,
+        unit: 'pcs',
+        notes: 'Heavy duty end disks',
+        sequenceNo: 4,
+        childPartTemplateId: 'cpt-009'
       }
     ],
-    processTemplateId: 'tpl-004',
+    processTemplateId: 'tpl-002',
     processTemplateName: 'Printing Roller Process',
     isActive: true,
     createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-20'),
+    updatedAt: new Date('2024-12-05'),
+    createdBy: 'admin'
+  },
+  {
+    id: 'pt-004',
+    templateCode: 'TPL-PRT-HD',
+    templateName: 'Printing Roller Heavy Duty',
+    description: 'Heavy duty printing roller for industrial applications',
+    rollerType: RollerType.PRINTING,
+    childParts: [
+      {
+        id: 'cp-013',
+        productTemplateId: 'pt-004',
+        childPartName: 'Heavy Duty Shaft',
+        childPartCode: 'SHAFT-PRT-HD',
+        quantity: 1,
+        unit: 'pcs',
+        notes: 'Chrome plated shaft',
+        sequenceNo: 1,
+        childPartTemplateId: 'cpt-006'
+      },
+      {
+        id: 'cp-014',
+        productTemplateId: 'pt-004',
+        childPartName: 'Reinforced Core',
+        childPartCode: 'CORE-ALU-HD',
+        quantity: 1,
+        unit: 'pcs',
+        notes: 'Reinforced aluminum core',
+        sequenceNo: 2,
+        childPartTemplateId: 'cpt-007'
+      },
+      {
+        id: 'cp-015',
+        productTemplateId: 'pt-004',
+        childPartName: 'Industrial Rubber Sleeve',
+        childPartCode: 'SLV-RUB-HD',
+        quantity: 1,
+        unit: 'pcs',
+        notes: 'High durability rubber sleeve',
+        sequenceNo: 3,
+        childPartTemplateId: 'cpt-008'
+      },
+      {
+        id: 'cp-016',
+        productTemplateId: 'pt-004',
+        childPartName: 'Heavy Duty End Disks',
+        childPartCode: 'DISK-PRT-HD',
+        quantity: 2,
+        unit: 'pcs',
+        notes: 'Extra strength end disks',
+        sequenceNo: 4,
+        childPartTemplateId: 'cpt-009'
+      }
+    ],
+    processTemplateId: 'tpl-002',
+    processTemplateName: 'Printing Roller Process',
+    isActive: true,
+    createdAt: new Date('2024-02-10'),
+    updatedAt: new Date('2024-11-25'),
     createdBy: 'admin'
   }
 ]

@@ -40,6 +40,7 @@ const navItems: NavItem[] = [
       { title: 'Customers', href: '/masters/customers', icon: Package },
       { title: 'Products', href: '/masters/products', icon: Package },
       { title: 'Product Templates', href: '/masters/product-templates', icon: Package },
+      { title: 'Child Part Templates', href: '/masters/child-part-templates', icon: Package },
       { title: 'Raw Materials', href: '/masters/raw-materials', icon: Package },
       { title: 'Components', href: '/masters/components', icon: Package },
       { title: 'Processes', href: '/masters/processes', icon: Package },

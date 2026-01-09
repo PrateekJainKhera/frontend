@@ -90,6 +90,18 @@ export function ViewProcessDialog({
                 </div>
               </div>
 
+              {process.restTimeHours && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
+                    <Clock className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Rest Time</p>
+                    <p className="font-medium">{process.restTimeHours} hours</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                   <Award className="h-5 w-5 text-primary" />

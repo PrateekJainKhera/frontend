@@ -88,14 +88,14 @@ export const mockProcesses: Process[] = [
 
 export const mockProcessTemplates: ProcessTemplate[] = [
   {
-    id: 'template-1',
-    templateName: 'Magnetic Roller Standard',
+    id: 'tpl-001',
+    templateName: 'Magnetic Roller Complete Process',
     description: 'Standard process for magnetic rollers',
     applicableTypes: [RollerType.MAGNETIC],
     steps: [
       {
         id: 'step-1-1',
-        templateId: 'template-1',
+        templateId: 'tpl-001',
         processId: 'proc-1',
         processName: 'CNC Turning',
         stepNo: 1,
@@ -104,7 +104,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
       },
       {
         id: 'step-1-2',
-        templateId: 'template-1',
+        templateId: 'tpl-001',
         processId: 'proc-2',
         processName: 'Heat Treatment',
         stepNo: 2,
@@ -113,7 +113,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
       },
       {
         id: 'step-1-3',
-        templateId: 'template-1',
+        templateId: 'tpl-001',
         processId: 'proc-3',
         processName: 'Grinding',
         stepNo: 3,
@@ -122,7 +122,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
       },
       {
         id: 'step-1-4',
-        templateId: 'template-1',
+        templateId: 'tpl-001',
         processId: 'proc-4',
         processName: 'Balancing',
         stepNo: 4,
@@ -131,7 +131,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
       },
       {
         id: 'step-1-5',
-        templateId: 'template-1',
+        templateId: 'tpl-001',
         processId: 'proc-6',
         processName: 'Final Inspection',
         stepNo: 5,
@@ -140,7 +140,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
       },
       {
         id: 'step-1-6',
-        templateId: 'template-1',
+        templateId: 'tpl-001',
         processId: 'proc-7',
         processName: 'Dispatch',
         stepNo: 6,
@@ -152,14 +152,14 @@ export const mockProcessTemplates: ProcessTemplate[] = [
     updatedAt: new Date('2024-01-05')
   },
   {
-    id: 'template-2',
-    templateName: 'Rubber Roller Standard',
-    description: 'Standard process for rubber rollers',
-    applicableTypes: [RollerType.RUBBER],
+    id: 'tpl-002',
+    templateName: 'Printing Roller Process',
+    description: 'Standard process for printing rollers',
+    applicableTypes: [RollerType.PRINTING],
     steps: [
       {
         id: 'step-2-1',
-        templateId: 'template-2',
+        templateId: 'tpl-002',
         processId: 'proc-1',
         processName: 'CNC Turning',
         stepNo: 1,
@@ -168,7 +168,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
       },
       {
         id: 'step-2-2',
-        templateId: 'template-2',
+        templateId: 'tpl-002',
         processId: 'proc-5',
         processName: 'Assembly',
         stepNo: 2,
@@ -177,7 +177,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
       },
       {
         id: 'step-2-3',
-        templateId: 'template-2',
+        templateId: 'tpl-002',
         processId: 'proc-6',
         processName: 'Final Inspection',
         stepNo: 3,
@@ -186,7 +186,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
       },
       {
         id: 'step-2-4',
-        templateId: 'template-2',
+        templateId: 'tpl-002',
         processId: 'proc-7',
         processName: 'Dispatch',
         stepNo: 4,

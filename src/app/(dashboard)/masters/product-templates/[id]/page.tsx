@@ -3,32 +3,57 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, ListTree, Edit, Trash2 } from 'lucide-react'
+import { ArrowLeft, Package, ListTree, Edit, Trash2, Plus, Link as LinkIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockProductTemplates, mockProcessTemplates } from '@/lib/mock-data'
+import { mockProductTemplates, mockProcessTemplates, mockChildPartTemplates } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ProductTemplate, RollerType } from '@/types'
+import { ProductTemplate, RollerType, ChildPartTemplate } from '@/types'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 export default function ProductTemplateDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const [template, setTemplate] = useState<ProductTemplate | null>(null)
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadTemplate()
-  }, [params.id])
+  const [addChildPartDialogOpen, setAddChildPartDialogOpen] = useState(false)
+  const [editingChildPart, setEditingChildPart] = useState<any>(null)
+  const [availableChildPartTemplates, setAvailableChildPartTemplates] = useState<ChildPartTemplate[]>([])
 
   const loadTemplate = async () => {
     setLoading(true)
     const found = mockProductTemplates.find(t => t.id === params.id)
     const data = await simulateApiCall(found || null, 500)
     setTemplate(data)
+
+    // Load child part templates matching the roller type
+    if (data) {
+      const filteredTemplates = mockChildPartTemplates.filter(
+        cpt => cpt.rollerType === data.rollerType && cpt.isActive
+      )
+      setAvailableChildPartTemplates(filteredTemplates)
+    }
+
     setLoading(false)
   }
+
+  // Helper function to get child part template name by ID
+  const getChildPartTemplateName = (templateId?: string) => {
+    if (!templateId) return null
+    const cpt = mockChildPartTemplates.find(t => t.id === templateId)
+    return cpt?.templateName
+  }
+
+  useEffect(() => {
+    loadTemplate()
+  }, [params.id])
 
   const getRollerTypeBadge = (type: RollerType) => {
     const colors: Record<RollerType, string> = {
@@ -138,12 +163,18 @@ export default function ProductTemplateDetailPage() {
       {/* Child Parts BOM */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            <div>
-              <CardTitle>Child Parts Required</CardTitle>
-              <CardDescription>Bill of Materials for this roller type</CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              <div>
+                <CardTitle>Child Parts Required</CardTitle>
+                <CardDescription>Bill of Materials for this roller type</CardDescription>
+              </div>
             </div>
+            <Button size="sm" onClick={() => setAddChildPartDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Child Part
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -157,25 +188,66 @@ export default function ProductTemplateDetailPage() {
                   <th className="pb-3 text-sm font-medium text-muted-foreground">Quantity</th>
                   <th className="pb-3 text-sm font-medium text-muted-foreground">Unit</th>
                   <th className="pb-3 text-sm font-medium text-muted-foreground">Notes</th>
+                  <th className="pb-3 text-sm font-medium text-muted-foreground">Linked Template</th>
+                  <th className="pb-3 text-sm font-medium text-muted-foreground w-24">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {template.childParts
                   .sort((a, b) => a.sequenceNo - b.sequenceNo)
-                  .map((part) => (
-                    <tr key={part.id} className="border-b last:border-0">
-                      <td className="py-3 text-sm text-muted-foreground">{part.sequenceNo}</td>
-                      <td className="py-3 text-sm font-medium">{part.childPartName}</td>
-                      <td className="py-3 text-sm text-muted-foreground">
-                        {part.childPartCode || '-'}
-                      </td>
-                      <td className="py-3 text-sm">{part.quantity}</td>
-                      <td className="py-3 text-sm text-muted-foreground">{part.unit}</td>
-                      <td className="py-3 text-sm text-muted-foreground max-w-xs truncate">
-                        {part.notes || '-'}
-                      </td>
-                    </tr>
-                  ))}
+                  .map((part) => {
+                    const linkedTemplate = getChildPartTemplateName(part.childPartTemplateId)
+                    return (
+                      <tr key={part.id} className="border-b last:border-0">
+                        <td className="py-3 text-sm text-muted-foreground">{part.sequenceNo}</td>
+                        <td className="py-3 text-sm font-medium">{part.childPartName}</td>
+                        <td className="py-3 text-sm text-muted-foreground">
+                          {part.childPartCode || '-'}
+                        </td>
+                        <td className="py-3 text-sm">{part.quantity}</td>
+                        <td className="py-3 text-sm text-muted-foreground">{part.unit}</td>
+                        <td className="py-3 text-sm text-muted-foreground max-w-xs truncate">
+                          {part.notes || '-'}
+                        </td>
+                        <td className="py-3">
+                          {part.childPartTemplateId ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-primary hover:text-primary"
+                              asChild
+                            >
+                              <Link href={`/masters/child-part-templates/${part.childPartTemplateId}`}>
+                                <LinkIcon className="h-3 w-3 mr-1" />
+                                {linkedTemplate}
+                              </Link>
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Not linked</span>
+                          )}
+                        </td>
+                        <td className="py-3">
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => setEditingChildPart(part)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
               </tbody>
             </table>
           </div>
@@ -224,6 +296,190 @@ export default function ProductTemplateDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Child Part Dialog */}
+      <Dialog open={addChildPartDialogOpen} onOpenChange={setAddChildPartDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Child Part</DialogTitle>
+            <DialogDescription>
+              Add a new child part to this product template
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Part Name</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="e.g., Shaft, Core, Sleeve"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Part Code</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="e.g., SHAFT-MAG-001"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Quantity</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="1"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Unit</label>
+                <select className="w-full px-3 py-2 border rounded-md">
+                  <option value="pcs">pcs</option>
+                  <option value="kg">kg</option>
+                  <option value="meter">meter</option>
+                  <option value="set">set</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Notes (Optional)</label>
+              <textarea
+                className="w-full px-3 py-2 border rounded-md"
+                rows={3}
+                placeholder="Additional notes or specifications"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Link to Child Part Template (Optional)</label>
+              <div className="flex gap-2">
+                <select className="flex-1 px-3 py-2 border rounded-md">
+                  <option value="">Select a template...</option>
+                  {availableChildPartTemplates.map((cpt) => (
+                    <option key={cpt.id} value={cpt.id}>
+                      {cpt.templateName} ({cpt.childPartType})
+                    </option>
+                  ))}
+                </select>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/masters/child-part-templates">
+                    Browse
+                  </Link>
+                </Button>
+              </div>
+              {availableChildPartTemplates.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No child part templates available for {template?.rollerType} rollers
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAddChildPartDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setAddChildPartDialogOpen(false)}>
+              Add Child Part
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Child Part Dialog */}
+      <Dialog open={!!editingChildPart} onOpenChange={(open) => !open && setEditingChildPart(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Child Part</DialogTitle>
+            <DialogDescription>
+              Update child part details
+            </DialogDescription>
+          </DialogHeader>
+          {editingChildPart && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Part Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border rounded-md"
+                    defaultValue={editingChildPart.childPartName}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Part Code</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border rounded-md"
+                    defaultValue={editingChildPart.childPartCode}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full px-3 py-2 border rounded-md"
+                    defaultValue={editingChildPart.quantity}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Unit</label>
+                  <select className="w-full px-3 py-2 border rounded-md" defaultValue={editingChildPart.unit}>
+                    <option value="pcs">pcs</option>
+                    <option value="kg">kg</option>
+                    <option value="meter">meter</option>
+                    <option value="set">set</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notes (Optional)</label>
+                <textarea
+                  className="w-full px-3 py-2 border rounded-md"
+                  rows={3}
+                  defaultValue={editingChildPart.notes}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Link to Child Part Template (Optional)</label>
+                <div className="flex gap-2">
+                  <select className="flex-1 px-3 py-2 border rounded-md">
+                    <option value="">Select a template...</option>
+                    {availableChildPartTemplates.map((cpt) => (
+                      <option key={cpt.id} value={cpt.id}>
+                        {cpt.templateName} ({cpt.childPartType})
+                      </option>
+                    ))}
+                  </select>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/masters/child-part-templates">
+                      Browse
+                    </Link>
+                  </Button>
+                </div>
+                {availableChildPartTemplates.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No child part templates available for {template?.rollerType} rollers
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditingChildPart(null)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setEditingChildPart(null)}>
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

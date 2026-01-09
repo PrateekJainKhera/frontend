@@ -72,6 +72,7 @@ export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
             <TableHead>Category</TableHead>
             <TableHead>Default Machine</TableHead>
             <TableHead>Standard Time</TableHead>
+            <TableHead>Rest Time</TableHead>
             <TableHead>Skill Required</TableHead>
             <TableHead>Type</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -98,6 +99,11 @@ export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
                 <div className="flex items-center gap-1 text-sm">
                   <Clock className="h-3 w-3 text-muted-foreground" />
                   {process.standardTimeMin} min
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="text-sm text-muted-foreground">
+                  {process.restTimeHours ? `${process.restTimeHours} hrs` : '-'}
                 </div>
               </TableCell>
               <TableCell>

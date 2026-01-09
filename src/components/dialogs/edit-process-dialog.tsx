@@ -34,6 +34,7 @@ const formSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   defaultMachine: z.string().optional(),
   standardTimeMin: z.number().positive('Standard time must be positive'),
+  restTimeHours: z.number().min(0, 'Rest time cannot be negative').optional(),
   skillRequired: z.string().min(1, 'Skill level is required'),
   isOutsourced: z.boolean(),
 })
@@ -63,6 +64,7 @@ export function EditProcessDialog({
       category: process.category,
       defaultMachine: process.defaultMachine || '',
       standardTimeMin: process.standardTimeMin,
+      restTimeHours: process.restTimeHours || 0,
       skillRequired: process.skillRequired,
       isOutsourced: process.isOutsourced,
     },
@@ -186,6 +188,31 @@ export function EditProcessDialog({
                         onChange={(e) => field.onChange(parseFloat(e.target.value))}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="restTimeHours"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rest Time (hours)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        placeholder="Enter rest time in hours"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Optional: Cooling/settling time after process
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

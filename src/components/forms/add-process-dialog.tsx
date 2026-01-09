@@ -39,6 +39,7 @@ const formSchema = z.object({
   category: z.nativeEnum(ProcessCategory, { message: 'Category is required' }),
   description: z.string().optional(),
   standardTimeHours: z.number().min(0, 'Standard time cannot be negative'),
+  restTimeHours: z.number().min(0, 'Rest time cannot be negative').optional(),
   costPerHour: z.number().min(0, 'Cost per hour cannot be negative'),
   isOutsourced: z.boolean(),
 })
@@ -60,6 +61,7 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
       processCode: '',
       description: '',
       standardTimeHours: 0,
+      restTimeHours: 0,
       costPerHour: 0,
       isOutsourced: false,
     },
@@ -151,6 +153,26 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Standard Time (hours)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        placeholder="0"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="restTimeHours"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rest Time (hours)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
