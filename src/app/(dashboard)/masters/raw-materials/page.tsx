@@ -12,6 +12,7 @@ import { RawMaterial } from '@/types'
 import { RawMaterialsTable } from '@/components/tables/raw-materials-table'
 import { MaterialCalculatorDialog } from '@/components/forms/material-calculator-dialog'
 import { AddRawMaterialDialog } from '@/components/forms/add-raw-material-dialog'
+import { GRNEntryDialog } from '@/components/forms/grn-entry-dialog'
 
 export default function RawMaterialsPage() {
   const [materials, setMaterials] = useState<RawMaterial[]>([])
@@ -19,6 +20,7 @@ export default function RawMaterialsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false)
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false)
+  const [isGRNOpen, setIsGRNOpen] = useState(false) // Restored GRN State
 
   useEffect(() => {
     loadMaterials()
@@ -49,6 +51,9 @@ export default function RawMaterialsPage() {
           <Button variant="outline" onClick={() => setIsCalculatorOpen(true)}>
             <Calculator className="mr-2 h-4 w-4" />
             Weight Calculator
+          </Button>
+          <Button variant="secondary" onClick={() => setIsGRNOpen(true)}>
+            Inward Material (GRN)
           </Button>
           <Button onClick={() => setIsAddMaterialOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -117,6 +122,13 @@ export default function RawMaterialsPage() {
       <AddRawMaterialDialog
         open={isAddMaterialOpen}
         onOpenChange={setIsAddMaterialOpen}
+      />
+
+      {/* Restored GRN Dialog */}
+      <GRNEntryDialog
+        open={isGRNOpen}
+        onOpenChange={setIsGRNOpen}
+        onSuccess={loadMaterials}
       />
     </div>
   )

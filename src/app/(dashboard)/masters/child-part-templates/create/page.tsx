@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Plus, Trash2, Package, Wrench } from 'lucide-react'
+import { mockChildPartTemplates } from '@/lib/mock-data/child-part-templates'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -37,11 +38,94 @@ interface ProcessStep {
   description: string
 }
 
-export default function CreateChildPartTemplatePage() {
+function CreateChildPartTemplateContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const copyFromId = searchParams.get('copyFrom')
+
   const [loading, setLoading] = useState(false)
+
+  // Basic Information
+  const [templateCode, setTemplateCode] = useState('')
+  const [templateName, setTemplateName] = useState('')
+  const [childPartType, setChildPartType] = useState('')
+  const [rollerType, setRollerType] = useState('')
+  const [description, setDescription] = useState('')
+
+  // Drawing Details
+  const [drawingNumber, setDrawingNumber] = useState('')
+  const [drawingRevision, setDrawingRevision] = useState('')
+
+  // Dimensions
+  const [length, setLength] = useState('')
+  const [diameter, setDiameter] = useState('')
+  const [dimensionUnit, setDimensionUnit] = useState('mm')
+  const [outerDiameter, setOuterDiameter] = useState('')
+  const [innerDiameter, setInnerDiameter] = useState('')
+  const [thickness, setThickness] = useState('')
+
+  // Technical Notes
+  const [technicalNotes, setTechnicalNotes] = useState('')
+
   const [materialRequirements, setMaterialRequirements] = useState<MaterialRequirement[]>([])
   const [processSteps, setProcessSteps] = useState<ProcessStep[]>([])
+
+  // Pre-fill form when copying from template
+  useEffect(() => {
+    if (copyFromId) {
+      const template = mockChildPartTemplates.find(t => t.id === copyFromId)
+      if (template) {
+        // Basic Information
+        setTemplateCode(template.templateCode)
+        setTemplateName(template.templateName)
+        setChildPartType(template.childPartType)
+        setRollerType(template.rollerType)
+        setDescription(template.description || '')
+
+        // Drawing Details
+        setDrawingNumber(template.drawingNumber || '')
+        setDrawingRevision(template.drawingRevision || '')
+
+        // Dimensions
+        setLength(template.length?.toString() || '')
+        setDiameter(template.diameter?.toString() || '')
+        setDimensionUnit(template.dimensionUnit || 'mm')
+        setOuterDiameter(template.outerDiameter?.toString() || '')
+        setInnerDiameter(template.innerDiameter?.toString() || '')
+        setThickness(template.thickness?.toString() || '')
+
+        // Technical Notes
+        setTechnicalNotes(template.technicalNotes || '')
+
+        // Material Requirements
+        if (template.materialRequirements && template.materialRequirements.length > 0) {
+          const materials = template.materialRequirements.map((mat, index) => ({
+            id: `mat-${Date.now()}-${index}`,
+            rawMaterialName: mat.rawMaterialName,
+            materialGrade: mat.materialGrade,
+            quantityRequired: mat.quantityRequired.toString(),
+            unit: mat.unit,
+            wastagePercent: mat.wastagePercent?.toString() || '5'
+          }))
+          setMaterialRequirements(materials)
+        }
+
+        // Process Steps
+        if (template.processSteps && template.processSteps.length > 0) {
+          const steps = template.processSteps.map((step, index) => ({
+            id: `step-${Date.now()}-${index}`,
+            processName: step.processName,
+            stepNumber: step.stepNumber,
+            machineName: step.machineName || '',
+            standardTimeHours: step.standardTimeHours.toString(),
+            restTimeHours: step.restTimeHours?.toString() || '',
+            description: step.description || ''
+          }))
+          setProcessSteps(steps)
+        }
+      }
+    }
+  }, [copyFromId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -119,8 +203,15 @@ export default function CreateChildPartTemplatePage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-primary">Create Child Part Template</h1>
-          <p className="text-muted-foreground">Define how to manufacture this child part from raw materials</p>
+          <h1 className="text-3xl font-bold text-primary">
+            {copyFromId ? 'Copy Child Part Template' : 'Create Child Part Template'}
+          </h1>
+          <p className="text-muted-foreground">
+            {copyFromId
+              ? 'Edit the template details and save as a new template'
+              : 'Define how to manufacture this child part from raw materials'
+            }
+          </p>
         </div>
       </div>
 
@@ -136,18 +227,34 @@ export default function CreateChildPartTemplatePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="templateCode">Template Code *</Label>
-                  <Input id="templateCode" placeholder="e.g., CPT-MAG-SHAFT-001" required />
+                  <Input
+                    id="templateCode"
+                    placeholder="e.g., CPT-MAG-SHAFT-001"
+                    value={templateCode}
+                    onChange={(e) => setTemplateCode(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="templateName">Template Name *</Label>
-                  <Input id="templateName" placeholder="e.g., Magnetic Roller Shaft - Standard" required />
+                  <Input
+                    id="templateName"
+                    placeholder="e.g., Magnetic Roller Shaft - Standard"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    required
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="childPartType">Child Part Type *</Label>
-                  <Select required>
+                  <Select
+                    value={childPartType}
+                    onValueChange={setChildPartType}
+                    required
+                  >
                     <SelectTrigger id="childPartType">
                       <SelectValue placeholder="Select part type" />
                     </SelectTrigger>
@@ -164,7 +271,11 @@ export default function CreateChildPartTemplatePage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rollerType">Roller Type *</Label>
-                  <Select required>
+                  <Select
+                    value={rollerType}
+                    onValueChange={setRollerType}
+                    required
+                  >
                     <SelectTrigger id="rollerType">
                       <SelectValue placeholder="Select roller type" />
                     </SelectTrigger>
@@ -181,6 +292,8 @@ export default function CreateChildPartTemplatePage() {
                 <Textarea
                   id="description"
                   placeholder="Describe the child part and its purpose"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                 />
               </div>
@@ -197,11 +310,21 @@ export default function CreateChildPartTemplatePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="drawingNumber">Drawing Number</Label>
-                  <Input id="drawingNumber" placeholder="e.g., DWG-MAG-SH-001" />
+                  <Input
+                    id="drawingNumber"
+                    placeholder="e.g., DWG-MAG-SH-001"
+                    value={drawingNumber}
+                    onChange={(e) => setDrawingNumber(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="drawingRevision">Drawing Revision</Label>
-                  <Input id="drawingRevision" placeholder="e.g., Rev-02" />
+                  <Input
+                    id="drawingRevision"
+                    placeholder="e.g., Rev-02"
+                    value={drawingRevision}
+                    onChange={(e) => setDrawingRevision(e.target.value)}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -217,15 +340,30 @@ export default function CreateChildPartTemplatePage() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="length">Length</Label>
-                  <Input id="length" type="number" placeholder="1200" />
+                  <Input
+                    id="length"
+                    type="number"
+                    placeholder="1200"
+                    value={length}
+                    onChange={(e) => setLength(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="diameter">Diameter</Label>
-                  <Input id="diameter" type="number" placeholder="50" />
+                  <Input
+                    id="diameter"
+                    type="number"
+                    placeholder="50"
+                    value={diameter}
+                    onChange={(e) => setDiameter(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dimensionUnit">Unit</Label>
-                  <Select defaultValue="mm">
+                  <Select
+                    value={dimensionUnit}
+                    onValueChange={setDimensionUnit}
+                  >
                     <SelectTrigger id="dimensionUnit">
                       <SelectValue />
                     </SelectTrigger>
@@ -240,15 +378,33 @@ export default function CreateChildPartTemplatePage() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="outerDiameter">Outer Diameter (for cores)</Label>
-                  <Input id="outerDiameter" type="number" placeholder="150" />
+                  <Input
+                    id="outerDiameter"
+                    type="number"
+                    placeholder="150"
+                    value={outerDiameter}
+                    onChange={(e) => setOuterDiameter(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="innerDiameter">Inner Diameter (for cores)</Label>
-                  <Input id="innerDiameter" type="number" placeholder="52" />
+                  <Input
+                    id="innerDiameter"
+                    type="number"
+                    placeholder="52"
+                    value={innerDiameter}
+                    onChange={(e) => setInnerDiameter(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="thickness">Thickness (for disks/sleeves)</Label>
-                  <Input id="thickness" type="number" placeholder="12" />
+                  <Input
+                    id="thickness"
+                    type="number"
+                    placeholder="12"
+                    value={thickness}
+                    onChange={(e) => setThickness(e.target.value)}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -473,6 +629,8 @@ export default function CreateChildPartTemplatePage() {
                 <Textarea
                   id="technicalNotes"
                   placeholder="e.g., Material hardness: 45-50 HRC after heat treatment. Surface finish: Ra 0.8 μm"
+                  value={technicalNotes}
+                  onChange={(e) => setTechnicalNotes(e.target.value)}
                   rows={3}
                 />
               </div>
@@ -492,5 +650,13 @@ export default function CreateChildPartTemplatePage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function CreateChildPartTemplatePage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading...</div>}>
+      <CreateChildPartTemplateContent />
+    </Suspense>
   )
 }
