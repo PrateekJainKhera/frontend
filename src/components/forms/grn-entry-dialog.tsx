@@ -1,15 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, AlertTriangle, Calculator, Scale, Ruler, CheckCircle2, FileText, Truck } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { mockRawMaterials } from "@/lib/mock-data"
-import { RawMaterial } from "@/types"
 import { toast } from "sonner"
 
 interface GRNEntryDialogProps {
@@ -18,94 +18,173 @@ interface GRNEntryDialogProps {
     onSuccess: () => void
 }
 
+interface PieceBreakdown {
+    id: string
+    length: number // in meters
+}
+
+interface MaterialLine {
+    id: string
+    materialId: string
+    materialName: string
+    grade: string
+    diameter: number
+    weight: number
+    calculatedLength: number
+    pieces: PieceBreakdown[]
+    densityFormula: string // Editable formula
+}
+
 export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialogProps) {
-    // Form State
-    const [selectedMaterialId, setSelectedMaterialId] = useState<string>("")
-    const [supplierName, setSupplierName] = useState("")
-    const [challanNo, setChallanNo] = useState("")
-    const [heatNumber, setHeatNumber] = useState("")
-    const [entryMode, setEntryMode] = useState<"standard" | "cut-piece">("standard")
-
-    // Measurement State
-    const [weightInput, setWeightInput] = useState<string>("")
-    const [quantityInput, setQuantityInput] = useState<string>("1")
-
-    // Cut Piece Specifics
-    const [cutDiameter, setCutDiameter] = useState<string>("")
-    const [cutLength, setCutLength] = useState<string>("") // mm
-
-    // Validation State
-    const [calculatedValue, setCalculatedValue] = useState<number | null>(null)
-    const [variance, setVariance] = useState<number>(0)
+    const [grnNumber, setGrnNumber] = useState("")
+    const [grnDate, setGrnDate] = useState("")
+    const [vendorName, setVendorName] = useState("")
+    const [materialLines, setMaterialLines] = useState<MaterialLine[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Derived
-    const selectedMaterial = mockRawMaterials.find(m => m.id === selectedMaterialId)
-
-    // Reset form on open
+    // Reset form when dialog opens
     useEffect(() => {
         if (open) {
-            setSupplierName("")
-            setChallanNo("")
-            setHeatNumber("")
-            setWeightInput("")
-            setQuantityInput("1")
-            setCutDiameter("")
-            setCutLength("")
-            setCalculatedValue(null)
-            setVariance(0)
+            const today = new Date().toISOString().split('T')[0]
+            setGrnNumber(`GRN-${Date.now()}`)
+            setGrnDate(today)
+            setVendorName("")
+            setMaterialLines([])
         }
     }, [open])
 
-    // Auto-Calculation Logic
-    useEffect(() => {
-        if (!selectedMaterial) return
+    const addMaterialLine = () => {
+        const newLine: MaterialLine = {
+            id: `line-${Date.now()}`,
+            materialId: "",
+            materialName: "",
+            grade: "",
+            diameter: 0,
+            weight: 0,
+            calculatedLength: 0,
+            pieces: [],
+            densityFormula: "weight / (diameter * diameter * 0.00617)" // Default formula
+        }
+        setMaterialLines([...materialLines, newLine])
+    }
 
-        const weight = parseFloat(weightInput) || 0
-        const qty = parseInt(quantityInput) || 1
-        const diameter = parseFloat(cutDiameter) || selectedMaterial.diameter || 0
-        const length = parseFloat(cutLength) || 0
+    const removeMaterialLine = (id: string) => {
+        setMaterialLines(materialLines.filter(line => line.id !== id))
+    }
 
-        const DENSITY_STEEL_G_CM3 = 7.85
+    const updateMaterialLine = (id: string, field: string, value: any) => {
+        setMaterialLines(materialLines.map(line => {
+            if (line.id === id) {
+                const updatedLine = { ...line, [field]: value }
 
-        if (entryMode === "standard") {
-            // Standard Mode: Have Weight -> Calculate Length
-            if (weight > 0 && diameter > 0) {
-                // Length (m) = Weight / (Dia^2 * 0.00617)
-                const specificWeightPerMeter = (diameter * diameter * 0.00617) // kg/m
-                const expectedLengthMeters = weight / specificWeightPerMeter
-                setCalculatedValue(expectedLengthMeters * 1000) // Convert to mm
+                // If material selection changes, update material details
+                if (field === 'materialId') {
+                    const material = mockRawMaterials.find(m => m.id === value)
+                    if (material) {
+                        updatedLine.materialName = material.materialName
+                        updatedLine.grade = material.grade
+                        updatedLine.diameter = material.diameter || 0
+                    }
+                }
+
+                // Recalculate length when weight or diameter changes
+                if (field === 'weight' || field === 'diameter') {
+                    const weight = field === 'weight' ? parseFloat(value) || 0 : updatedLine.weight
+                    const diameter = field === 'diameter' ? parseFloat(value) || 0 : updatedLine.diameter
+
+                    if (weight > 0 && diameter > 0) {
+                        // Formula: Length (m) = Weight / (Diameter^2 * 0.00617)
+                        updatedLine.calculatedLength = weight / (diameter * diameter * 0.00617)
+                    }
+                }
+
+                return updatedLine
             }
-        } else {
-            // Cut Piece Mode: Have Length -> Calculate Weight
-            if (length > 0 && diameter > 0) {
-                // Weight = Length(m) * (Dia^2 * 0.00617)
-                const specificWeightPerMeter = (diameter * diameter * 0.00617) // kg/m
-                const expectedWeight = (length / 1000) * specificWeightPerMeter * qty
-                setCalculatedValue(expectedWeight)
+            return line
+        }))
+    }
 
-                if (weight > 0) {
-                    const diff = Math.abs(weight - expectedWeight)
-                    setVariance((diff / expectedWeight) * 100)
+    const addPiece = (lineId: string) => {
+        setMaterialLines(materialLines.map(line => {
+            if (line.id === lineId) {
+                const newPiece: PieceBreakdown = {
+                    id: `piece-${Date.now()}`,
+                    length: 0
+                }
+                return {
+                    ...line,
+                    pieces: [...line.pieces, newPiece]
                 }
             }
-        }
-    }, [entryMode, weightInput, cutLength, cutDiameter, quantityInput, selectedMaterialId])
+            return line
+        }))
+    }
+
+    const removePiece = (lineId: string, pieceId: string) => {
+        setMaterialLines(materialLines.map(line => {
+            if (line.id === lineId) {
+                return {
+                    ...line,
+                    pieces: line.pieces.filter(p => p.id !== pieceId)
+                }
+            }
+            return line
+        }))
+    }
+
+    const updatePiece = (lineId: string, pieceId: string, length: number) => {
+        setMaterialLines(materialLines.map(line => {
+            if (line.id === lineId) {
+                return {
+                    ...line,
+                    pieces: line.pieces.map(p =>
+                        p.id === pieceId ? { ...p, length } : p
+                    )
+                }
+            }
+            return line
+        }))
+    }
+
+    const getTotalPieceLength = (pieces: PieceBreakdown[]) => {
+        return pieces.reduce((sum, p) => sum + p.length, 0)
+    }
 
     const handleSubmit = async () => {
-        if (!selectedMaterial || !supplierName || !heatNumber) {
-            toast.error("Please fill all mandatory fields")
+        if (!vendorName) {
+            toast.error("Please enter vendor name")
             return
         }
 
+        if (materialLines.length === 0) {
+            toast.error("Please add at least one material")
+            return
+        }
+
+        // Validate each material line
+        for (const line of materialLines) {
+            if (!line.materialId) {
+                toast.error("Please select material for all lines")
+                return
+            }
+            if (line.weight <= 0) {
+                toast.error("Please enter valid weight for all materials")
+                return
+            }
+
+            const totalPieceLength = getTotalPieceLength(line.pieces)
+            if (totalPieceLength > 0 && Math.abs(totalPieceLength - line.calculatedLength) > 0.1) {
+                toast.error(`Piece lengths don't match calculated length for ${line.materialName}`)
+                return
+            }
+        }
+
         setIsSubmitting(true)
+
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1000))
 
-        toast.success("Material Inwarded Successfully", {
-            description: `Generated ${quantityInput} IDs for ${selectedMaterial.materialName}`
-        })
-
+        toast.success("GRN saved successfully")
         setIsSubmitting(false)
         onSuccess()
         onOpenChange(false)
@@ -113,179 +192,209 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[90vw] h-[90vh] flex flex-col p-0 gap-0">
-                <DialogHeader className="p-6 pb-2 border-b shrink-0">
-                    <DialogTitle className="flex items-center gap-2 text-xl">
-                        <Truck className="h-6 w-6 text-primary" />
-                        Inward Material (GRN)
-                    </DialogTitle>
-                    <DialogDescription>
-                        Record receipt of raw material with heat number and dimension validation.
+            <DialogContent className="sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
+                <DialogHeader className="px-6 pt-6 pb-4 border-b">
+                    <DialogTitle className="text-2xl">Inward Material (GRN Entry)</DialogTitle>
+                    <DialogDescription className="mt-2">
+                        Record goods receipt with material details and piece breakdown
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Section 1: Supplier & Traceability */}
-                        <div className="space-y-4">
-                            <h3 className="font-semibold flex items-center gap-2 text-sm text-muted-foreground border-b pb-1">
-                                <FileText className="h-4 w-4" /> Supplier & Traceability
-                            </h3>
-
-                            <div className="space-y-2">
-                                <Label>Material Selection <span className="text-destructive">*</span></Label>
-                                <Select value={selectedMaterialId} onValueChange={setSelectedMaterialId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Material" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {mockRawMaterials.map(m => (
-                                            <SelectItem key={m.id} value={m.id}>
-                                                {m.materialName} ({m.grade}) - {m.shape}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Supplier Name <span className="text-destructive">*</span></Label>
-                                    <Input placeholder="e.g. Tata Steel" value={supplierName} onChange={e => setSupplierName(e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Challan / Invoice No</Label>
-                                    <Input placeholder="e.g. CH-2025-001" value={challanNo} onChange={e => setChallanNo(e.target.value)} />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-blue-600 font-semibold">Heat / Batch Number <span className="text-destructive">*</span></Label>
-                                <Input
-                                    placeholder="CRITICAL: Stamped Heat No"
-                                    value={heatNumber}
-                                    onChange={e => setHeatNumber(e.target.value)}
-                                    className="border-blue-200 focus:border-blue-500 bg-blue-50/50"
-                                />
-                                <p className="text-xs text-muted-foreground">This ID will follow the material through production.</p>
-                            </div>
+                <div className="flex-1 overflow-y-auto px-6 pb-6">
+                    <div className="space-y-6 mt-4">
+                    {/* GRN Header */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <Label>GRN Number</Label>
+                            <Input value={grnNumber} readOnly className="bg-muted" />
                         </div>
+                        <div className="space-y-2">
+                            <Label>GRN Date</Label>
+                            <Input
+                                type="date"
+                                value={grnDate}
+                                onChange={(e) => setGrnDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Vendor Name *</Label>
+                            <Input
+                                placeholder="Enter vendor name"
+                                value={vendorName}
+                                onChange={(e) => setVendorName(e.target.value)}
+                            />
+                        </div>
+                    </div>
 
-                        {/* Section 2: Validation & Entry */}
+                    {/* Add Material Button */}
+                    <div className="flex justify-between items-center border-t pt-4">
+                        <h3 className="font-semibold">Materials</h3>
+                        <Button type="button" onClick={addMaterialLine} size="sm">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Material
+                        </Button>
+                    </div>
+
+                    {/* Material Lines */}
+                    {materialLines.length === 0 ? (
+                        <Card className="p-8">
+                            <p className="text-center text-muted-foreground">
+                                No materials added. Click "Add Material" to start.
+                            </p>
+                        </Card>
+                    ) : (
                         <div className="space-y-4">
-                            <h3 className="font-semibold flex items-center gap-2 text-sm text-muted-foreground border-b pb-1">
-                                <Scale className="h-4 w-4" /> Measurement & Validation
-                            </h3>
+                            {materialLines.map((line, index) => (
+                                <Card key={line.id} className="p-4">
+                                    <div className="space-y-4">
+                                        {/* Material Header */}
+                                        <div className="flex items-center justify-between">
+                                            <Badge variant="outline">Material #{index + 1}</Badge>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => removeMaterialLine(line.id)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
 
-                            {/* Mode Toggle */}
-                            <div className="flex gap-2 p-1 bg-muted rounded-lg">
-                                <Button
-                                    variant={entryMode === "standard" ? "default" : "ghost"}
-                                    size="sm"
-                                    className="flex-1"
-                                    onClick={() => setEntryMode("standard")}
-                                >
-                                    Standard (Weight)
-                                </Button>
-                                <Button
-                                    variant={entryMode === "cut-piece" ? "default" : "ghost"}
-                                    size="sm"
-                                    className="flex-1"
-                                    onClick={() => setEntryMode("cut-piece")}
-                                >
-                                    Cut Piece (Dim)
-                                </Button>
-                            </div>
+                                        {/* Material Selection */}
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Select Material *</Label>
+                                                <Select
+                                                    value={line.materialId}
+                                                    onValueChange={(value) => updateMaterialLine(line.id, 'materialId', value)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Choose material" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {mockRawMaterials.map((material) => (
+                                                            <SelectItem key={material.id} value={material.id}>
+                                                                {material.materialName} - {material.grade}
+                                                                {material.diameter && ` (Ø${material.diameter}mm)`}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Weight (kg) *</Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    placeholder="Enter weight"
+                                                    value={line.weight || ''}
+                                                    onChange={(e) => updateMaterialLine(line.id, 'weight', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Calculated Length (m)</Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={line.calculatedLength > 0 ? line.calculatedLength.toFixed(2) : ''}
+                                                    readOnly
+                                                    className="bg-blue-50 font-semibold text-blue-700"
+                                                    placeholder="Auto-calculated"
+                                                />
+                                            </div>
+                                        </div>
 
-                            {/* Dynamic Inputs */}
-                            {entryMode === "standard" ? (
-                                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                                    <div className="space-y-2">
-                                        <Label>Total Received Weight (kg) <span className="text-destructive">*</span></Label>
-                                        <Input type="number" value={weightInput} onChange={e => setWeightInput(e.target.value)} />
-                                    </div>
-                                    {calculatedValue !== null && (
-                                        <Card className="bg-muted/50 border-dashed">
-                                            <CardContent className="pt-4 flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <Calculator className="h-4 w-4 text-muted-foreground" />
-                                                    <span className="text-sm font-medium">Est. Total Length:</span>
-                                                </div>
-                                                <span className="text-xl font-bold text-primary">{(calculatedValue / 1000).toFixed(2)} m</span>
-                                            </CardContent>
-                                        </Card>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label>Diameter (mm)</Label>
+                                        {/* Editable Formula */}
+                                        <div className="space-y-2 bg-gray-50 p-3 rounded border">
+                                            <Label>Length Calculation Formula (editable)</Label>
                                             <Input
-                                                type="number"
-                                                value={cutDiameter}
-                                                onChange={e => setCutDiameter(e.target.value)}
-                                                placeholder={selectedMaterial?.diameter?.toString() || ""}
+                                                placeholder="e.g., weight / (diameter * diameter * 0.00617)"
+                                                value={line.densityFormula}
+                                                onChange={(e) => updateMaterialLine(line.id, 'densityFormula', e.target.value)}
+                                                className="font-mono text-sm"
                                             />
+                                            <p className="text-xs text-muted-foreground">
+                                                Variables: weight (kg), diameter (mm). Result in meters.
+                                            </p>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label>Cut Length (mm)</Label>
-                                            <Input type="number" value={cutLength} onChange={e => setCutLength(e.target.value)} />
-                                        </div>
-                                    </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label>Quantity (Nos)</Label>
-                                            <Input type="number" value={quantityInput} onChange={e => setQuantityInput(e.target.value)} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Inv/Bill Weight (kg)</Label>
-                                            <Input type="number" value={weightInput} onChange={e => setWeightInput(e.target.value)} />
-                                        </div>
-                                    </div>
-
-                                    {calculatedValue !== null && (
-                                        <Card className={`border-l-4 ${variance > 5 ? 'border-l-destructive bg-destructive/10' : 'border-l-green-500 bg-green-50/50'}`}>
-                                            <CardContent className="pt-4 space-y-2">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm text-muted-foreground">Formula Weight:</span>
-                                                    <span className="font-mono font-bold">{calculatedValue.toFixed(3)} kg</span>
+                                        {/* Piece Breakdown */}
+                                        {line.calculatedLength > 0 && (
+                                            <div className="space-y-3 border-t pt-3">
+                                                <div className="flex items-center justify-between">
+                                                    <Label>Piece Breakdown (optional)</Label>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => addPiece(line.id)}
+                                                    >
+                                                        <Plus className="mr-2 h-3 w-3" />
+                                                        Add Piece
+                                                    </Button>
                                                 </div>
-                                                <div className="flex justify-between items-center text-xs">
-                                                    <span className="text-muted-foreground">Variance:</span>
-                                                    <span className={`${variance > 5 ? 'text-destructive' : 'text-green-600'} font-bold`}>
-                                                        {variance.toFixed(1)}% {variance > 5 ? '(Abnormal)' : '(OK)'}
-                                                    </span>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    )}
-                                </div>
-                            )}
 
+                                                {line.pieces.length > 0 && (
+                                                    <div className="space-y-2">
+                                                        {line.pieces.map((piece, pieceIndex) => (
+                                                            <div key={piece.id} className="flex items-center gap-2">
+                                                                <span className="text-sm text-muted-foreground w-16">
+                                                                    Piece {pieceIndex + 1}:
+                                                                </span>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.1"
+                                                                    placeholder="Length (m)"
+                                                                    value={piece.length || ''}
+                                                                    onChange={(e) => updatePiece(line.id, piece.id, parseFloat(e.target.value) || 0)}
+                                                                    className="w-32"
+                                                                />
+                                                                <span className="text-sm">m</span>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => removePiece(line.id, piece.id)}
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+
+                                                        {/* Total Validation */}
+                                                        <div className="flex items-center justify-between text-sm pt-2 border-t">
+                                                            <span className="font-medium">Total Pieces:</span>
+                                                            <span className={
+                                                                Math.abs(getTotalPieceLength(line.pieces) - line.calculatedLength) < 0.1
+                                                                    ? 'text-green-600 font-semibold'
+                                                                    : 'text-red-600 font-semibold'
+                                                            }>
+                                                                {getTotalPieceLength(line.pieces).toFixed(2)} m
+                                                                {Math.abs(getTotalPieceLength(line.pieces) - line.calculatedLength) < 0.1
+                                                                    ? ' ✓'
+                                                                    : ` (Expected: ${line.calculatedLength.toFixed(2)}m)`
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </Card>
+                            ))}
                         </div>
+                    )}
                     </div>
                 </div>
 
-                <DialogFooter className="p-6 border-t shrink-0 sm:justify-between items-center bg-muted/10">
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                        {variance > 5 && entryMode === "cut-piece" && (
-                            <span className="text-destructive flex items-center gap-1 font-medium">
-                                <AlertTriangle className="h-4 w-4" /> Verify Weight!
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                        <Button onClick={handleSubmit} disabled={isSubmitting}>
-                            {isSubmitting ? "Processing..." : (
-                                <span className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4" /> Confirm & Inward
-                                </span>
-                            )}
-                        </Button>
-                    </div>
+                <DialogFooter className="px-6 py-4 border-t">
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSubmit} disabled={isSubmitting}>
+                        {isSubmitting ? 'Saving...' : 'Save GRN'}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

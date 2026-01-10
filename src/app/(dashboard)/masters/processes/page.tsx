@@ -41,7 +41,7 @@ export default function ProcessesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="sr-only">Process Master</h1>
-        <Button onClick={() => setIsAddProcessOpen(true)}>
+        <Button onClick={() => setIsAddProcessOpen(true)} className="ml-auto">
           <Plus className="mr-2 h-4 w-4" />
           Add Process
         </Button>

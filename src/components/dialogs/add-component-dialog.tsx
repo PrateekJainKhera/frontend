@@ -29,7 +29,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { simulateApiCall } from '@/lib/utils/mock-api'
@@ -39,15 +38,10 @@ const formSchema = z.object({
   componentName: z.string().min(2, 'Component name is required'),
   category: z.nativeEnum(ComponentCategory),
   manufacturer: z.string().optional(),
-  supplierName: z.string().optional(),
-  specifications: z.string().optional(),
   unitCost: z.number().positive('Unit cost must be positive'),
   stockQty: z.number().min(0, 'Stock quantity cannot be negative'),
   minStockLevel: z.number().min(0, 'Min stock level cannot be negative'),
-  leadTimeDays: z.number().min(1, 'Lead time must be at least 1 day'),
   unit: z.string().min(1, 'Unit is required'),
-  location: z.string().optional(),
-  notes: z.string().optional(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -72,15 +66,10 @@ export function AddComponentDialog({
       componentName: '',
       category: ComponentCategory.BEARING,
       manufacturer: '',
-      supplierName: '',
-      specifications: '',
       unitCost: 0,
       stockQty: 0,
       minStockLevel: 0,
-      leadTimeDays: 7,
       unit: 'pcs',
-      location: '',
-      notes: '',
     },
   })
 
@@ -106,7 +95,7 @@ export function AddComponentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Component</DialogTitle>
           <DialogDescription>
@@ -116,7 +105,7 @@ export function AddComponentDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Basic Info */}
+            {/* Part Number & Category */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -158,6 +147,7 @@ export function AddComponentDialog({
               />
             </div>
 
+            {/* Component Name */}
             <FormField
               control={form.control}
               name="componentName"
@@ -172,36 +162,20 @@ export function AddComponentDialog({
               )}
             />
 
-            {/* Manufacturer & Supplier */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="manufacturer"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Manufacturer</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter manufacturer" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="supplierName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Supplier Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter supplier" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            {/* Manufacturer */}
+            <FormField
+              control={form.control}
+              name="manufacturer"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Manufacturer</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter manufacturer" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Stock & Cost */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -210,7 +184,7 @@ export function AddComponentDialog({
                 name="stockQty"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stock Quantity *</FormLabel>
+                    <FormLabel>Stock Qty *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -229,7 +203,7 @@ export function AddComponentDialog({
                 name="minStockLevel"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Min Stock Level *</FormLabel>
+                    <FormLabel>Min Stock *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -277,80 +251,6 @@ export function AddComponentDialog({
                 )}
               />
             </div>
-
-            {/* Lead Time & Location */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="leadTimeDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lead Time (days) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="7"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Storage Location</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Warehouse A - Rack 12" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Specifications */}
-            <FormField
-              control={form.control}
-              name="specifications"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Technical Specifications</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter technical specifications"
-                      className="min-h-20"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Notes */}
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Additional notes"
-                      className="min-h-20"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <DialogFooter>
               <Button

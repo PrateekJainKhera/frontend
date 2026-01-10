@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, Plus, Trash2, Package, Wrench } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2, Package, Wrench, MoveUp, MoveDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -145,6 +145,42 @@ export default function EditChildPartTemplatePage() {
     setProcessSteps(processSteps.map(s =>
       s.id === id ? { ...s, [field]: value } : s
     ))
+  }
+
+  const moveProcessStepUp = (id: string) => {
+    const index = processSteps.findIndex(s => s.id === id)
+    if (index <= 0) return // Already at top
+
+    const steps = [...processSteps]
+    const temp = steps[index]
+    steps[index] = steps[index - 1]
+    steps[index - 1] = temp
+
+    // Renumber all steps
+    const renumbered = steps.map((step, idx) => ({
+      ...step,
+      stepNumber: idx + 1
+    }))
+
+    setProcessSteps(renumbered)
+  }
+
+  const moveProcessStepDown = (id: string) => {
+    const index = processSteps.findIndex(s => s.id === id)
+    if (index >= processSteps.length - 1) return // Already at bottom
+
+    const steps = [...processSteps]
+    const temp = steps[index]
+    steps[index] = steps[index + 1]
+    steps[index + 1] = temp
+
+    // Renumber all steps
+    const renumbered = steps.map((step, idx) => ({
+      ...step,
+      stepNumber: idx + 1
+    }))
+
+    setProcessSteps(renumbered)
   }
 
   const totalStandardTime = processSteps.reduce((sum, step) =>
@@ -468,14 +504,38 @@ export default function EditChildPartTemplatePage() {
                             </div>
                             <h4 className="font-medium">Step {step.stepNumber}</h4>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeProcessStep(step.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveProcessStepUp(step.id)}
+                              disabled={step.stepNumber === 1}
+                              title="Move Up"
+                            >
+                              <MoveUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveProcessStepDown(step.id)}
+                              disabled={step.stepNumber === processSteps.length}
+                              title="Move Down"
+                            >
+                              <MoveDown className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeProcessStep(step.id)}
+                              className="text-destructive hover:text-destructive"
+                              title="Delete Step"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">

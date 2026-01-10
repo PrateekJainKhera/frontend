@@ -93,12 +93,7 @@ export default function ChildPartTemplatesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Child Part Templates</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Define how to manufacture child parts from raw materials
-          </p>
-        </div>
+        <h1 className="sr-only">Child Part Templates</h1>
         <Button asChild className="ml-auto">
           <Link href="/masters/child-part-templates/create">
             <Plus className="mr-2 h-4 w-4" />

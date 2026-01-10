@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
       { title: 'Product Templates', href: '/masters/product-templates', icon: Package },
       { title: 'Child Part Templates', href: '/masters/child-part-templates', icon: Package },
       { title: 'Raw Materials', href: '/masters/raw-materials', icon: Package },
+      { title: 'Material Categories', href: '/masters/material-categories', icon: Package },
       { title: 'Components', href: '/masters/components', icon: Package },
       { title: 'Processes', href: '/masters/processes', icon: Package },
       { title: 'Process Templates', href: '/masters/process-templates', icon: Package }

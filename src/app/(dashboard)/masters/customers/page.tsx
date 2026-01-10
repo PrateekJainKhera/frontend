@@ -41,7 +41,7 @@ export default function CustomersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="sr-only">Customer Master</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={() => setIsCreateDialogOpen(true)} className="ml-auto">
           <Plus className="mr-2 h-4 w-4" />
           Add Customer
         </Button>

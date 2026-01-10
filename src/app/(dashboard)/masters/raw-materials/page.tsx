@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Calculator } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,7 +10,6 @@ import { mockRawMaterials } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { RawMaterial } from '@/types'
 import { RawMaterialsTable } from '@/components/tables/raw-materials-table'
-import { MaterialCalculatorDialog } from '@/components/forms/material-calculator-dialog'
 import { AddRawMaterialDialog } from '@/components/forms/add-raw-material-dialog'
 import { GRNEntryDialog } from '@/components/forms/grn-entry-dialog'
 
@@ -18,7 +17,6 @@ export default function RawMaterialsPage() {
   const [materials, setMaterials] = useState<RawMaterial[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false)
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false)
   const [isGRNOpen, setIsGRNOpen] = useState(false) // Restored GRN State
 
@@ -48,10 +46,6 @@ export default function RawMaterialsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="sr-only">Raw Material Master</h1>
         <div className="flex gap-2 ml-auto">
-          <Button variant="outline" onClick={() => setIsCalculatorOpen(true)}>
-            <Calculator className="mr-2 h-4 w-4" />
-            Weight Calculator
-          </Button>
           <Button variant="secondary" onClick={() => setIsGRNOpen(true)}>
             Inward Material (GRN)
           </Button>
@@ -111,12 +105,6 @@ export default function RawMaterialsPage() {
       ) : (
         <RawMaterialsTable materials={filteredMaterials} onUpdate={loadMaterials} />
       )}
-
-      {/* Calculator Dialog */}
-      <MaterialCalculatorDialog
-        open={isCalculatorOpen}
-        onOpenChange={setIsCalculatorOpen}
-      />
 
       {/* Add Material Dialog */}
       <AddRawMaterialDialog
