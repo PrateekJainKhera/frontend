@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { mockRawMaterials } from "@/lib/mock-data"
@@ -28,11 +29,15 @@ interface MaterialLine {
     materialId: string
     materialName: string
     grade: string
-    diameter: number
-    weight: number
-    calculatedLength: number
-    pieces: PieceBreakdown[]
-    densityFormula: string // Editable formula
+    materialType: 'rod' | 'pipe' // Rod (solid) or Pipe (hollow)
+    diameter: number // For rod (solid bar)
+    outerDiameter: number // OD for pipe
+    innerDiameter: number // ID for pipe
+    materialDensity: number // Material density g/cm³ (7.85 for MS/EN8, 7.9 for SS)
+    weight: number // Total weight in kg
+    calculatedLength: number // Auto-calculated total length in meters
+    weightPerMeter: number // Auto-calculated kg/m
+    pieces: PieceBreakdown[] // Physical pieces
 }
 
 export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialogProps) {
@@ -59,17 +64,50 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             materialId: "",
             materialName: "",
             grade: "",
+            materialType: "rod",
             diameter: 0,
+            outerDiameter: 0,
+            innerDiameter: 0,
+            materialDensity: 7.85, // Default MS/EN8
             weight: 0,
             calculatedLength: 0,
-            pieces: [],
-            densityFormula: "weight / (diameter * diameter * 0.00617)" // Default formula
+            weightPerMeter: 0,
+            pieces: []
         }
         setMaterialLines([...materialLines, newLine])
     }
 
     const removeMaterialLine = (id: string) => {
         setMaterialLines(materialLines.filter(line => line.id !== id))
+    }
+
+    const calculateLength = (line: MaterialLine) => {
+        const { materialType, diameter, outerDiameter, innerDiameter, weight, materialDensity } = line
+
+        if (weight <= 0 || materialDensity <= 0) return { length: 0, weightPerMeter: 0 }
+
+        let area = 0 // in cm²
+
+        if (materialType === 'rod') {
+            // Rod (solid): Area = (π/4) × D²
+            if (diameter <= 0) return { length: 0, weightPerMeter: 0 }
+            const diameterCm = diameter / 10 // mm to cm
+            area = (Math.PI / 4) * diameterCm * diameterCm
+        } else {
+            // Pipe (hollow): Area = (π/4) × (OD² - ID²)
+            if (outerDiameter <= 0) return { length: 0, weightPerMeter: 0 }
+            const odCm = outerDiameter / 10 // mm to cm
+            const idCm = innerDiameter / 10 // mm to cm
+            area = (Math.PI / 4) * (odCm * odCm - idCm * idCm)
+        }
+
+        // Weight per meter = Area (cm²) × Density (g/cm³) × 100 cm / 1000 (to convert g to kg)
+        const weightPerMeter = (area * materialDensity * 100) / 1000 // kg/m
+
+        // Length = Weight / Weight per meter
+        const length = weight / weightPerMeter
+
+        return { length, weightPerMeter }
     }
 
     const updateMaterialLine = (id: string, field: string, value: any) => {
@@ -84,18 +122,23 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                         updatedLine.materialName = material.materialName
                         updatedLine.grade = material.grade
                         updatedLine.diameter = material.diameter || 0
+                        updatedLine.outerDiameter = material.diameter || 0
+
+                        // Set default density based on material grade
+                        if (material.grade.includes('SS') || material.grade.includes('Stainless')) {
+                            updatedLine.materialDensity = 7.9
+                        } else {
+                            updatedLine.materialDensity = 7.85 // MS/EN8 default
+                        }
                     }
                 }
 
-                // Recalculate length when weight or diameter changes
-                if (field === 'weight' || field === 'diameter') {
-                    const weight = field === 'weight' ? parseFloat(value) || 0 : updatedLine.weight
-                    const diameter = field === 'diameter' ? parseFloat(value) || 0 : updatedLine.diameter
-
-                    if (weight > 0 && diameter > 0) {
-                        // Formula: Length (m) = Weight / (Diameter^2 * 0.00617)
-                        updatedLine.calculatedLength = weight / (diameter * diameter * 0.00617)
-                    }
+                // Recalculate when any dimension or weight changes
+                if (field === 'weight' || field === 'diameter' || field === 'outerDiameter' ||
+                    field === 'innerDiameter' || field === 'materialDensity' || field === 'materialType') {
+                    const { length, weightPerMeter } = calculateLength(updatedLine)
+                    updatedLine.calculatedLength = length
+                    updatedLine.weightPerMeter = weightPerMeter
                 }
 
                 return updatedLine
@@ -261,7 +304,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                         </div>
 
                                         {/* Material Selection */}
-                                        <div className="grid grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label>Select Material *</Label>
                                                 <Select
@@ -282,47 +325,139 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                 </Select>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label>Weight (kg) *</Label>
+                                                <Label>Total Weight (kg) *</Label>
                                                 <Input
                                                     type="number"
                                                     step="0.01"
-                                                    placeholder="Enter weight"
+                                                    placeholder="Enter total weight"
                                                     value={line.weight || ''}
                                                     onChange={(e) => updateMaterialLine(line.id, 'weight', e.target.value)}
                                                 />
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label>Calculated Length (m)</Label>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={line.calculatedLength > 0 ? line.calculatedLength.toFixed(2) : ''}
-                                                    readOnly
-                                                    className="bg-blue-50 font-semibold text-blue-700"
-                                                    placeholder="Auto-calculated"
-                                                />
-                                            </div>
                                         </div>
 
-                                        {/* Editable Formula */}
-                                        <div className="space-y-2 bg-gray-50 p-3 rounded border">
-                                            <Label>Length Calculation Formula (editable)</Label>
-                                            <Input
-                                                placeholder="e.g., weight / (diameter * diameter * 0.00617)"
-                                                value={line.densityFormula}
-                                                onChange={(e) => updateMaterialLine(line.id, 'densityFormula', e.target.value)}
-                                                className="font-mono text-sm"
-                                            />
-                                            <p className="text-xs text-muted-foreground">
-                                                Variables: weight (kg), diameter (mm). Result in meters.
-                                            </p>
+                                        {/* Weight to Length Converter */}
+                                        <div className="space-y-3 bg-gray-50 p-4 rounded border">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600">
+                                                    <span className="text-white text-sm">⚖️</span>
+                                                </div>
+                                                <Label className="text-base font-semibold">Weight to Length Converter</Label>
+                                            </div>
+
+                                            {/* Material Type Selection */}
+                                            <div className="space-y-2">
+                                                <Label>Material Type *</Label>
+                                                <RadioGroup
+                                                    value={line.materialType}
+                                                    onValueChange={(value) => updateMaterialLine(line.id, 'materialType', value)}
+                                                    className="flex gap-4"
+                                                >
+                                                    <div className="flex items-center space-x-2">
+                                                        <RadioGroupItem value="rod" id={`rod-${line.id}`} />
+                                                        <Label htmlFor={`rod-${line.id}`} className="font-normal cursor-pointer">
+                                                            Rod (Solid)
+                                                        </Label>
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                        <RadioGroupItem value="pipe" id={`pipe-${line.id}`} />
+                                                        <Label htmlFor={`pipe-${line.id}`} className="font-normal cursor-pointer">
+                                                            Pipe (Hollow)
+                                                        </Label>
+                                                    </div>
+                                                </RadioGroup>
+                                            </div>
+
+                                            {/* ROD Inputs */}
+                                            {line.materialType === 'rod' && (
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label>Diameter (mm) *</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.1"
+                                                            placeholder="Rod diameter"
+                                                            value={line.diameter || ''}
+                                                            onChange={(e) => updateMaterialLine(line.id, 'diameter', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>Density (g/cm³)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={line.materialDensity || ''}
+                                                            onChange={(e) => updateMaterialLine(line.id, 'materialDensity', e.target.value)}
+                                                            placeholder="7.85"
+                                                        />
+                                                        <p className="text-xs text-muted-foreground">
+                                                            MS/EN8: 7.85 | SS: 7.9
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* PIPE Inputs */}
+                                            {line.materialType === 'pipe' && (
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label>OD (mm) *</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.1"
+                                                            placeholder="Outer diameter"
+                                                            value={line.outerDiameter || ''}
+                                                            onChange={(e) => updateMaterialLine(line.id, 'outerDiameter', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>ID (mm) *</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.1"
+                                                            placeholder="Inner diameter"
+                                                            value={line.innerDiameter || ''}
+                                                            onChange={(e) => updateMaterialLine(line.id, 'innerDiameter', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>Density (g/cm³)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={line.materialDensity || ''}
+                                                            onChange={(e) => updateMaterialLine(line.id, 'materialDensity', e.target.value)}
+                                                            placeholder="7.85"
+                                                        />
+                                                        <p className="text-xs text-muted-foreground">
+                                                            MS: 7.85 | SS: 7.9
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Calculated Results */}
+                                            <div className="grid grid-cols-2 gap-4 pt-3 border-t">
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs text-muted-foreground">Weight per Meter</Label>
+                                                    <div className="font-semibold text-lg">
+                                                        {line.weightPerMeter > 0 ? `${line.weightPerMeter.toFixed(3)} kg/m` : '—'}
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs text-muted-foreground">Total Length</Label>
+                                                    <div className="font-semibold text-lg text-blue-600">
+                                                        {line.calculatedLength > 0 ? `${line.calculatedLength.toFixed(2)} m` : '0.00 m'}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* Piece Breakdown */}
                                         {line.calculatedLength > 0 && (
                                             <div className="space-y-3 border-t pt-3">
                                                 <div className="flex items-center justify-between">
-                                                    <Label>Piece Breakdown (optional)</Label>
+                                                    <Label>Piece Breakdown (Physical {line.materialType === 'rod' ? 'Rods' : 'Pipes'})</Label>
                                                     <Button
                                                         type="button"
                                                         variant="outline"
@@ -377,6 +512,12 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                             </span>
                                                         </div>
                                                     </div>
+                                                )}
+
+                                                {line.pieces.length === 0 && (
+                                                    <p className="text-sm text-muted-foreground text-center py-2">
+                                                        Click "Add Piece" to record individual {line.materialType === 'rod' ? 'rod' : 'pipe'} lengths
+                                                    </p>
                                                 )}
                                             </div>
                                         )}

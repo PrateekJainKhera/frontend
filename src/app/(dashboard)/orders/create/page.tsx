@@ -28,13 +28,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { simulateApiCall } from '@/lib/utils/mock-api'
-import { mockCustomers, mockProducts, mockProcessTemplates, mockBOMs } from '@/lib/mock-data'
-import { Priority, Product, OrderSource, SchedulingStrategy, ProductBOM } from '@/types'
-import { calculateBOMRequirements } from '@/lib/utils/bom-calculations'
-import { BOMTable } from '@/components/tables/bom-table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, Package } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { mockCustomers, mockProducts, mockProcessTemplates } from '@/lib/mock-data'
+import { Priority, Product, OrderSource, SchedulingStrategy } from '@/types'
 import { Separator } from '@/components/ui/separator'
 
 const formSchema = z.object({
@@ -55,7 +50,6 @@ export default function CreateOrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
-  const [productBOM, setProductBOM] = useState<ProductBOM | null>(null)
   const [orderSource, setOrderSource] = useState<OrderSource>(OrderSource.DIRECT)
 
   // Get default due date (today + 14 days)
@@ -97,15 +91,6 @@ export default function CreateOrderPage() {
         t.applicableTypes.includes(selectedProduct.rollerType)
       )
     : null
-
-  // Calculate BOM requirements if product and quantity are selected
-  const quantity = form.watch('quantity')
-  const bomRequirements = productBOM && quantity > 0
-    ? calculateBOMRequirements(productBOM, quantity)
-    : []
-
-  // Check if materials are available
-  const hasMaterialShortage = bomRequirements.some(item => item.shortfall > 0)
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -205,9 +190,6 @@ export default function CreateOrderPage() {
                           field.onChange(value)
                           const product = mockProducts.find(p => p.id === value)
                           setSelectedProduct(product || null)
-                          // Load BOM for selected product
-                          const bom = mockBOMs.find(b => b.productId === value && b.isActive)
-                          setProductBOM(bom || null)
                         }}
                         value={field.value}
                         disabled={!selectedCustomerId}
@@ -441,52 +423,6 @@ export default function CreateOrderPage() {
                 />
 
                 <Separator />
-
-                {/* BOM Review Section */}
-                {productBOM && quantity > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Bill of Materials Review</h3>
-                      <Badge variant="outline" className="ml-auto">
-                        {productBOM.bomItems.length} items
-                      </Badge>
-                    </div>
-
-                    <Alert variant={hasMaterialShortage ? "destructive" : "default"}>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        {hasMaterialShortage
-                          ? `Material shortage detected! Some items are out of stock.`
-                          : `All materials are available for production.`}
-                      </AlertDescription>
-                    </Alert>
-
-                    <div className="rounded-lg border p-4 bg-muted/30">
-                      <p className="text-sm font-semibold mb-3">Material Requirements (for {quantity} units):</p>
-                      <BOMTable bomItems={bomRequirements} showStockInfo={true} />
-                    </div>
-
-                    {hasMaterialShortage && (
-                      <Alert>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
-                          ⚠️ Orders with material shortages may experience production delays.
-                          Please coordinate with procurement before confirming this order.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-                )}
-
-                {!productBOM && selectedProduct && (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      No BOM configured for this product. Please configure BOM in product master before creating orders.
-                    </AlertDescription>
-                  </Alert>
-                )}
 
                 {/* Submit Buttons */}
                 <div className="flex gap-3 pt-4">
