@@ -16,7 +16,9 @@ import {
   Warehouse,
   ChevronLeft,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Calendar,
+  PackageCheck
 } from 'lucide-react'
 
 interface NavItem {
@@ -45,6 +47,7 @@ const navItems: NavItem[] = [
       { title: 'Material Categories', href: '/masters/material-categories', icon: Package },
       { title: 'Components', href: '/masters/components', icon: Package },
       { title: 'Drawings', href: '/masters/drawings', icon: Package },
+      { title: 'Machines', href: '/masters/machines', icon: Factory },
       { title: 'Processes', href: '/masters/processes', icon: Package },
       { title: 'Process Templates', href: '/masters/process-templates', icon: Package }
     ]
@@ -57,6 +60,15 @@ const navItems: NavItem[] = [
       { title: 'All Orders', href: '/orders', icon: ShoppingCart },
       { title: 'Create Order', href: '/orders/create', icon: ShoppingCart },
       { title: 'Live Tracking', href: '/orders/live-tracking', icon: ShoppingCart }
+    ]
+  },
+  {
+    title: 'Planning',
+    href: '/planning',
+    icon: Calendar,
+    children: [
+      { title: 'Dashboard', href: '/planning', icon: Calendar },
+      { title: 'Job Cards', href: '/planning/job-cards', icon: Factory }
     ]
   },
   {
@@ -76,6 +88,15 @@ const navItems: NavItem[] = [
     icon: Warehouse,
     children: [
       { title: 'Raw Materials', href: '/inventory/raw-materials', icon: Package }
+    ]
+  },
+  {
+    title: 'Stores',
+    href: '/stores',
+    icon: PackageCheck,
+    children: [
+      { title: 'Material Requisitions', href: '/stores/material-requisitions', icon: PackageCheck },
+      { title: 'Material Issues', href: '/stores/material-issues', icon: Package }
     ]
   },
   {

@@ -1,12 +1,20 @@
 import { Priority } from './enums'
+import type { ManufacturingDimensions } from '@/lib/mock-data'
 
 export enum JobCardStatus {
   PENDING = 'Pending',
+  PENDING_MATERIAL = 'Pending Material',  // Blocked by material shortage
   READY = 'Ready',           // Dependencies met, can start
   IN_PROGRESS = 'In Progress',
   PAUSED = 'Paused',
   COMPLETED = 'Completed',
   BLOCKED = 'Blocked'         // Waiting for previous step
+}
+
+export enum MaterialStatus {
+  AVAILABLE = 'Available',
+  PENDING = 'Pending Material',
+  PARTIAL = 'Partially Available'
 }
 
 export enum JobCardCreationType {
@@ -24,6 +32,20 @@ export interface JobCard {
   // Order linkage
   orderId: string
   orderNo: string
+
+  // Drawing linkage (CRITICAL - enforced for new job cards)
+  drawingId?: string | null
+  drawingNumber?: string | null
+  drawingRevision?: string | null
+  drawingName?: string | null
+  drawingSelectionType?: 'auto' | 'manual'  // Track if auto-selected or manually chosen
+  autoSelectedDrawingId?: string | null     // Original auto-selection if manually changed
+  drawingChangeReason?: string | null       // Reason for manual change
+
+  // Child Part linkage
+  childPartId?: string | null
+  childPartName?: string | null
+  childPartTemplateId?: string | null
 
   // Process details
   processId: string
@@ -67,6 +89,15 @@ export interface JobCard {
 
   // Material allocation
   allocatedMaterials?: JobCardMaterial[]
+
+  // Material status tracking (for planning)
+  materialStatus?: MaterialStatus | null
+  materialShortfall?: MaterialShortfall | null
+  materialStatusUpdatedAt?: Date | null
+  daysWaitingForMaterial?: number | null
+
+  // Manufacturing dimensions (copied from drawing)
+  manufacturingDimensions?: ManufacturingDimensions | null
 
   // Customer & Product info (denormalized for display)
   customerName: string
@@ -142,4 +173,31 @@ export interface MaterialCheckResult {
     available: boolean
     unit: string
   }[]
+}
+
+export interface MaterialShortfall {
+  materialId: string
+  materialName: string
+  materialCode: string
+  required: number
+  available: number
+  shortfall: number
+  unit: string
+  notificationSentAt?: Date | null
+  lastReminderSentAt?: Date | null
+  reminderCount: number
+}
+
+export interface MaterialNotification {
+  id: string
+  jobCardId: string
+  jobCardNo: string
+  orderId: string
+  orderNo: string
+  materialShortfall: MaterialShortfall
+  notificationType: 'INITIAL' | 'REMINDER' | 'RESOLVED'
+  sentTo: string[]
+  sentAt: Date
+  status: 'SENT' | 'FAILED' | 'PENDING'
+  resolvedAt?: Date | null
 }

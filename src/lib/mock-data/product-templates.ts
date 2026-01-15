@@ -41,7 +41,7 @@ export const mockProductTemplates: ProductTemplate[] = [
         unit: 'pcs',
         notes: 'Aluminum shell',
         sequenceNo: 3,
-        childPartTemplateId: 'cpt-004' // Links to Aluminum Shell
+        childPartTemplateId: 'cpt-008' // Links to Aluminum Shell
       },
       {
         id: 'cp-004',
@@ -52,7 +52,7 @@ export const mockProductTemplates: ProductTemplate[] = [
         unit: 'pcs',
         notes: 'Both side end disks',
         sequenceNo: 4,
-        childPartTemplateId: 'cpt-005' // Links to End Disk Template
+        childPartTemplateId: 'cpt-009' // Links to End Disk Template
       }
     ],
     processTemplateId: 'tpl-001',

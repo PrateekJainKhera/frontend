@@ -1,4 +1,4 @@
-import { Order, OrderStatus, Priority, DelayReason, OrderSource, SchedulingStrategy } from '@/types'
+import { Order, OrderStatus, Priority, DelayReason, OrderSource, SchedulingStrategy, PlanningStatus } from '@/types'
 import { mockCustomers } from './customers'
 import { mockProducts } from './products'
 
@@ -21,6 +21,7 @@ export const mockOrders: Order[] = [
     delayReason: null,
     status: OrderStatus.IN_PROGRESS,
     priority: Priority.MEDIUM,
+    planningStatus: PlanningStatus.RELEASED,
     currentProcess: 'Grinding',
     currentMachine: 'GRD-02',
     currentOperator: 'Ramesh Patel',
@@ -49,6 +50,7 @@ export const mockOrders: Order[] = [
     delayReason: DelayReason.QUALITY_ISSUE,
     status: OrderStatus.IN_PROGRESS,
     priority: Priority.HIGH,
+    planningStatus: PlanningStatus.RELEASED,
     currentProcess: 'CNC Turning',
     currentMachine: 'CNC-01',
     currentOperator: 'Suresh Kumar',
@@ -92,6 +94,7 @@ export const mockOrders: Order[] = [
     delayReason: null,
     status: OrderStatus.COMPLETED,
     priority: Priority.MEDIUM,
+    planningStatus: PlanningStatus.RELEASED,
     currentProcess: null,
     currentMachine: null,
     currentOperator: null,
@@ -120,6 +123,7 @@ export const mockOrders: Order[] = [
     delayReason: DelayReason.MACHINE_BREAKDOWN,
     status: OrderStatus.IN_PROGRESS,
     priority: Priority.URGENT,
+    planningStatus: PlanningStatus.RELEASED,
     currentProcess: 'Heat Treatment',
     currentMachine: 'Outsourced',
     currentOperator: 'Vendor-A',
@@ -163,6 +167,7 @@ export const mockOrders: Order[] = [
     delayReason: null,
     status: OrderStatus.PENDING,
     priority: Priority.LOW,
+    planningStatus: PlanningStatus.NOT_PLANNED,
     currentProcess: null,
     currentMachine: null,
     currentOperator: null,
@@ -171,6 +176,42 @@ export const mockOrders: Order[] = [
     canReschedule: true,
     createdAt: new Date('2024-03-12'),
     updatedAt: new Date('2024-03-12'),
+    createdBy: 'sales-user'
+  },
+  {
+    id: 'ord-6',
+    orderNo: 'ORD-2024-006',
+    customerId: 'cust-1',
+    customer: mockCustomers[0],
+    productId: 'prod-1',
+    product: mockProducts[0],
+    quantity: 10,
+    originalQuantity: 10,
+    qtyCompleted: 0,
+    qtyRejected: 0,
+    qtyInProgress: 0,
+    orderDate: new Date('2024-03-14'),
+    dueDate: new Date('2024-04-15'),
+    adjustedDueDate: null,
+    delayReason: null,
+    status: OrderStatus.PENDING,
+    priority: Priority.URGENT,
+    planningStatus: PlanningStatus.NOT_PLANNED,
+
+    // Drawing-driven order (customer provided drawing)
+    primaryDrawingId: '4',
+    primaryDrawingNumber: 'FINAL-PR100',
+    primaryDrawingRevision: 'D',
+    drawingSource: 'customer',
+
+    currentProcess: null,
+    currentMachine: null,
+    currentOperator: null,
+    orderSource: OrderSource.DIRECT,
+    schedulingStrategy: SchedulingStrategy.PRIORITY_FLAG,
+    canReschedule: true,
+    createdAt: new Date('2024-03-14'),
+    updatedAt: new Date('2024-03-14'),
     createdBy: 'sales-user'
   }
 ]

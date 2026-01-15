@@ -1,5 +1,5 @@
 import { subDays, subHours } from 'date-fns'
-import { JobCard, JobCardStatus, JobCardCreationType, JobCardMaterial } from '@/types/job-card'
+import { JobCard, JobCardStatus, JobCardCreationType, JobCardMaterial, MaterialStatus } from '@/types/job-card'
 import { Priority } from '@/types/enums'
 
 // Sample job cards for Order ORD-128: 10 Printing Rollers
@@ -14,6 +14,18 @@ export const mockJobCards: JobCard[] = [
 
     orderId: 'ord-1',
     orderNo: 'ORD-128',
+
+    // Drawing linkage
+    drawingId: 'drw-001',
+    drawingNumber: 'SHAFT-001',
+    drawingRevision: 'C',
+    drawingName: 'Main Shaft Assembly',
+    drawingSelectionType: 'auto',
+
+    // Child Part linkage
+    childPartId: 'cp-001',
+    childPartName: 'Magnetic Roller Shaft',
+    childPartTemplateId: 'cpt-001',
 
     processId: 'proc-cut-001',
     processName: 'Cutting',
@@ -65,6 +77,19 @@ export const mockJobCards: JobCard[] = [
       }
     ],
 
+    // Material status
+    materialStatus: MaterialStatus.AVAILABLE,
+
+    // Manufacturing dimensions (from drawing)
+    manufacturingDimensions: {
+      rodDiameter: 50,
+      finishedLength: 800,
+      finishedDiameter: 48,
+      materialGrade: 'EN8',
+      tolerance: '±0.01mm',
+      surfaceFinish: 'N6'
+    },
+
     customerName: 'ABC Industries',
     customerCode: 'CUST-001',
     productName: 'Magnetic Roller 250mm',
@@ -88,6 +113,18 @@ export const mockJobCards: JobCard[] = [
 
     orderId: 'ord-1',
     orderNo: 'ORD-128',
+
+    // Drawing linkage
+    drawingId: 'drw-001',
+    drawingNumber: 'SHAFT-001',
+    drawingRevision: 'C',
+    drawingName: 'Main Shaft Assembly',
+    drawingSelectionType: 'auto',
+
+    // Child Part linkage
+    childPartId: 'cp-001',
+    childPartName: 'Magnetic Roller Shaft',
+    childPartTemplateId: 'cpt-001',
 
     processId: 'proc-cnc-001',
     processName: 'CNC Turning',
@@ -373,6 +410,105 @@ export const mockJobCards: JobCard[] = [
     createdBy: 'production-supervisor',
     updatedAt: subDays(new Date(), 1),
     updatedBy: 'production-supervisor'
+  },
+
+  // Example of a job card PENDING MATERIAL
+  {
+    id: 'jc-pending-001',
+    jobCardNo: 'JC-ORD-130-1',
+    creationType: JobCardCreationType.AUTO_GENERATED,
+
+    orderId: 'ord-3',
+    orderNo: 'ORD-130',
+
+    // Drawing linkage
+    drawingId: 'drw-003',
+    drawingNumber: 'PIPE-002',
+    drawingRevision: 'A',
+    drawingName: 'Steel Pipe Assembly',
+    drawingSelectionType: 'auto',
+
+    // Child Part linkage
+    childPartId: 'cp-003',
+    childPartName: 'Steel Pipe Sleeve',
+    childPartTemplateId: 'cpt-003',
+
+    processId: 'proc-cut-002',
+    processName: 'Pipe Cutting',
+    processCode: 'CUT-PIPE',
+    stepNo: 1,
+    processTemplateId: 'template-industrial-001',
+
+    dependsOnJobCardIds: [],
+    blockedBy: [],
+
+    quantity: 50,
+    completedQty: 0,
+    rejectedQty: 0,
+    reworkQty: 0,
+    inProgressQty: 0,
+
+    status: JobCardStatus.PENDING_MATERIAL,
+    priority: Priority.HIGH,
+
+    assignedMachineId: null,
+    assignedMachineName: null,
+    assignedOperatorId: null,
+    assignedOperatorName: null,
+
+    estimatedSetupTimeMin: 10,
+    estimatedCycleTimeMin: 8,
+    estimatedTotalTimeMin: 410,
+    actualSetupTimeMin: null,
+    actualCycleTimeMin: null,
+    actualTotalTimeMin: null,
+
+    scheduledStartTime: null,
+    actualStartTime: null,
+    actualEndTime: null,
+
+    allocatedMaterials: [],
+
+    // Material status - PENDING with shortfall
+    materialStatus: MaterialStatus.PENDING,
+    materialShortfall: {
+      materialId: 'rm-ms-pipe-001',
+      materialName: 'MS Pipe',
+      materialCode: 'MS-PIPE-40x35',
+      required: 25,
+      available: 10,
+      shortfall: 15,
+      unit: 'meters',
+      notificationSentAt: subDays(new Date(), 5),
+      lastReminderSentAt: subDays(new Date(), 2),
+      reminderCount: 2
+    },
+    materialStatusUpdatedAt: subDays(new Date(), 5),
+    daysWaitingForMaterial: 5,
+
+    // Manufacturing dimensions (from drawing)
+    manufacturingDimensions: {
+      pipeOD: 40,
+      pipeID: 35,
+      pipeThickness: 2.5,
+      cutLength: 500,
+      materialGrade: 'MS',
+      tolerance: '±0.1mm'
+    },
+
+    customerName: 'Industrial Corp',
+    customerCode: 'CUST-003',
+    productName: 'Industrial Roller 300mm',
+    productCode: 'PROD-I-300',
+
+    workInstructions: 'Cut MS pipe to 500mm length. Ensure clean cuts without burrs.',
+    qualityCheckpoints: 'Check length tolerance ±0.5mm. Verify no cracks or defects.',
+    specialNotes: 'BLOCKED: Waiting for MS Pipe material delivery from supplier.',
+
+    createdAt: subDays(new Date(), 5),
+    createdBy: 'production-planner',
+    updatedAt: subDays(new Date(), 1),
+    updatedBy: 'production-planner'
   }
 ]
 

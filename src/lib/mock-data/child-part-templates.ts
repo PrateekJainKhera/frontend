@@ -532,5 +532,141 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
     updatedAt: new Date('2024-09-20'),
     createdBy: 'admin',
     updatedBy: 'engineering'
+  },
+
+  // ===== SHELL FOR MAGNETIC ROLLER =====
+  {
+    id: 'cpt-008',
+    templateCode: 'CPT-MAG-SHELL-001',
+    templateName: 'Magnetic Roller Shell - Aluminum',
+    childPartType: ChildPartType.CORE,
+    rollerType: RollerType.MAGNETIC,
+    drawingNumber: 'DWG-MAG-SHELL-001',
+    drawingRevision: 'Rev-01',
+
+    length: 950,
+    outerDiameter: 145,
+    innerDiameter: 135,
+    dimensionUnit: 'mm',
+
+    materialRequirements: [
+      {
+        id: 'mr-008',
+        rawMaterialId: 'rm-006',
+        rawMaterialName: 'Aluminum 6061 Tube',
+        materialGrade: 'Aluminum 6061',
+        quantityRequired: 1.0,
+        unit: 'meter',
+        wastagePercent: 4
+      }
+    ],
+
+    processSteps: [
+      {
+        id: 'ps-024',
+        processId: 'proc-001',
+        processName: 'CNC Turning',
+        stepNumber: 1,
+        machineName: 'CNC-01',
+        standardTimeHours: 2.5,
+        restTimeHours: 1.0,
+        description: 'Machine OD and ID to final dimensions'
+      },
+      {
+        id: 'ps-025',
+        processId: 'proc-012',
+        processName: 'Anodizing',
+        stepNumber: 2,
+        standardTimeHours: 3.0,
+        description: 'Anodize aluminum surface OSP'
+      }
+    ],
+
+    totalStandardTimeHours: 5.5,
+    description: 'Aluminum shell for magnetic roller',
+    technicalNotes: 'Lightweight construction. Anodizing thickness: 15-25 microns',
+    qualityCheckpoints: [
+      'Dimensional verification',
+      'Anodizing thickness check',
+      'Surface quality inspection'
+    ],
+
+    isActive: true,
+    createdAt: new Date('2024-02-15'),
+    updatedAt: new Date('2024-03-01'),
+    createdBy: 'admin',
+    updatedBy: 'production-manager'
+  },
+
+  // ===== END DISK FOR MAGNETIC ROLLER =====
+  {
+    id: 'cpt-009',
+    templateCode: 'CPT-MAG-ENDDISK-001',
+    templateName: 'Magnetic Roller End Disk',
+    childPartType: ChildPartType.END_DISK,
+    rollerType: RollerType.MAGNETIC,
+    drawingNumber: 'DWG-MAG-DISK-001',
+    drawingRevision: 'Rev-01',
+
+    diameter: 160,
+    thickness: 12,
+    innerDiameter: 50.5,
+    dimensionUnit: 'mm',
+
+    materialRequirements: [
+      {
+        id: 'mr-009',
+        rawMaterialId: 'rm-003',
+        rawMaterialName: 'MS Plate',
+        materialGrade: 'MS',
+        quantityRequired: 0.5,
+        unit: 'kg',
+        wastagePercent: 8
+      }
+    ],
+
+    processSteps: [
+      {
+        id: 'ps-026',
+        processId: 'proc-004',
+        processName: 'Laser Cutting',
+        stepNumber: 1,
+        machineName: 'Laser-01',
+        standardTimeHours: 0.5,
+        description: 'Cut disk blank from plate'
+      },
+      {
+        id: 'ps-027',
+        processId: 'proc-001',
+        processName: 'CNC Turning',
+        stepNumber: 2,
+        machineName: 'CNC-01',
+        standardTimeHours: 1.5,
+        description: 'Machine center bore and face'
+      },
+      {
+        id: 'ps-028',
+        processId: 'proc-005',
+        processName: 'Drilling',
+        stepNumber: 3,
+        standardTimeHours: 1.0,
+        description: 'Drill mounting holes'
+      }
+    ],
+
+    totalStandardTimeHours: 3.0,
+    description: 'End disk for magnetic roller assembly',
+    technicalNotes: 'Bore tolerance: H7. 6 mounting holes M8 on 120mm PCD',
+    qualityCheckpoints: [
+      'Bore diameter check',
+      'Flatness verification',
+      'Hole position accuracy'
+    ],
+
+    isActive: true,
+    createdAt: new Date('2024-02-10'),
+    updatedAt: new Date('2024-02-25'),
+    createdBy: 'admin',
+    updatedBy: 'engineering'
   }
 ]

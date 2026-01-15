@@ -47,6 +47,12 @@ export enum OrderStatus {
   CANCELLED = 'Cancelled'
 }
 
+export enum PlanningStatus {
+  NOT_PLANNED = 'Not Planned',
+  PLANNED = 'Planned',
+  RELEASED = 'Released'
+}
+
 export enum Priority {
   LOW = 'Low',
   MEDIUM = 'Medium',
