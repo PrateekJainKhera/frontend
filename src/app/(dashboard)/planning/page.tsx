@@ -34,8 +34,9 @@ export default function PlanningDashboardPage() {
     setLoading(false)
   }
 
-  // Orders pending planning (explicit planning status check)
+  // 🔒 BUSINESS RULE: Planning blocked until drawingReviewStatus === 'APPROVED'
   const pendingPlanningOrders = orders.filter(order =>
+    order.drawingReviewStatus === 'Approved' &&
     order.planningStatus === 'Not Planned' &&
     (order.status === OrderStatus.PENDING || order.status === OrderStatus.IN_PROGRESS)
   )
@@ -94,7 +95,7 @@ export default function PlanningDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
             <TrendingUp className="h-4 w-4 text-gray-600" />
@@ -105,7 +106,7 @@ export default function PlanningDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Planning</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-600" />
@@ -116,7 +117,7 @@ export default function PlanningDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Planned</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -127,7 +128,7 @@ export default function PlanningDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Material Shortage</CardTitle>
             <Package className="h-4 w-4 text-red-600" />

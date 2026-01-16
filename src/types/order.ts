@@ -1,4 +1,4 @@
-import { OrderStatus, Priority, DelayReason, ProcessStatus, OrderSource, SchedulingStrategy, PlanningStatus } from './enums'
+import { OrderStatus, Priority, DelayReason, ProcessStatus, OrderSource, SchedulingStrategy, PlanningStatus, DrawingReviewStatus } from './enums'
 import { Customer } from './customer'
 import { Product } from './product'
 import { ChildPartStatus } from './child-part-production'
@@ -22,6 +22,14 @@ export interface Order {
   status: OrderStatus
   priority: Priority
   planningStatus: PlanningStatus  // Planning state - NOT_PLANNED, PLANNED, RELEASED
+
+  // Drawing Review - BUSINESS RULE: Planning blocked until APPROVED
+  drawingReviewStatus: DrawingReviewStatus
+  drawingReviewNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | null
+  linkedProductTemplateId?: string | null
+  linkedChildPartTemplateIds?: string[]
 
   // Drawing linkage (optional - for drawing-driven orders)
   primaryDrawingId?: string | null

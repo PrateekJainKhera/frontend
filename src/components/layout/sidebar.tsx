@@ -18,7 +18,8 @@ import {
   ChevronDown,
   ChevronRight,
   Calendar,
-  PackageCheck
+  PackageCheck,
+  FileText
 } from 'lucide-react'
 
 interface NavItem {
@@ -60,6 +61,14 @@ const navItems: NavItem[] = [
       { title: 'All Orders', href: '/orders', icon: ShoppingCart },
       { title: 'Create Order', href: '/orders/create', icon: ShoppingCart },
       { title: 'Live Tracking', href: '/orders/live-tracking', icon: ShoppingCart }
+    ]
+  },
+  {
+    title: 'Drawing Review',
+    href: '/drawing-review',
+    icon: FileText,
+    children: [
+      { title: 'Dashboard', href: '/drawing-review', icon: FileText }
     ]
   },
   {

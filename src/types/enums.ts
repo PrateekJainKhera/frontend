@@ -134,3 +134,10 @@ export enum SchedulingStrategy {
   CUSTOMER_IMPORTANCE = 'Customer Importance',
   RESOURCE_AVAILABILITY = 'Resource Availability'
 }
+
+export enum DrawingReviewStatus {
+  PENDING = 'Pending',
+  IN_REVIEW = 'In Review',
+  APPROVED = 'Approved',
+  NEEDS_REVISION = 'Needs Revision'
+}

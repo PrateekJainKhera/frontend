@@ -1,4 +1,4 @@
-import { Order, OrderStatus, Priority, DelayReason, OrderSource, SchedulingStrategy, PlanningStatus } from '@/types'
+import { Order, OrderStatus, Priority, DelayReason, OrderSource, SchedulingStrategy, PlanningStatus, DrawingReviewStatus } from '@/types'
 import { mockCustomers } from './customers'
 import { mockProducts } from './products'
 
@@ -22,6 +22,10 @@ export const mockOrders: Order[] = [
     status: OrderStatus.IN_PROGRESS,
     priority: Priority.MEDIUM,
     planningStatus: PlanningStatus.RELEASED,
+    drawingReviewStatus: DrawingReviewStatus.APPROVED,
+    reviewedBy: 'drawing-engineer',
+    reviewedAt: new Date('2024-03-01'),
+    linkedProductTemplateId: 'pt-001',
     currentProcess: 'Grinding',
     currentMachine: 'GRD-02',
     currentOperator: 'Ramesh Patel',
@@ -51,6 +55,10 @@ export const mockOrders: Order[] = [
     status: OrderStatus.IN_PROGRESS,
     priority: Priority.HIGH,
     planningStatus: PlanningStatus.RELEASED,
+    drawingReviewStatus: DrawingReviewStatus.APPROVED,
+    reviewedBy: 'drawing-engineer',
+    reviewedAt: new Date('2024-02-25'),
+    linkedProductTemplateId: 'pt-002',
     currentProcess: 'CNC Turning',
     currentMachine: 'CNC-01',
     currentOperator: 'Suresh Kumar',
@@ -95,6 +103,10 @@ export const mockOrders: Order[] = [
     status: OrderStatus.COMPLETED,
     priority: Priority.MEDIUM,
     planningStatus: PlanningStatus.RELEASED,
+    drawingReviewStatus: DrawingReviewStatus.APPROVED,
+    reviewedBy: 'drawing-engineer',
+    reviewedAt: new Date('2024-02-20'),
+    linkedProductTemplateId: 'pt-003',
     currentProcess: null,
     currentMachine: null,
     currentOperator: null,
@@ -124,6 +136,10 @@ export const mockOrders: Order[] = [
     status: OrderStatus.IN_PROGRESS,
     priority: Priority.URGENT,
     planningStatus: PlanningStatus.RELEASED,
+    drawingReviewStatus: DrawingReviewStatus.APPROVED,
+    reviewedBy: 'drawing-engineer',
+    reviewedAt: new Date('2024-02-15'),
+    linkedProductTemplateId: 'pt-004',
     currentProcess: 'Heat Treatment',
     currentMachine: 'Outsourced',
     currentOperator: 'Vendor-A',
@@ -168,6 +184,7 @@ export const mockOrders: Order[] = [
     status: OrderStatus.PENDING,
     priority: Priority.LOW,
     planningStatus: PlanningStatus.NOT_PLANNED,
+    drawingReviewStatus: DrawingReviewStatus.PENDING,
     currentProcess: null,
     currentMachine: null,
     currentOperator: null,
@@ -197,6 +214,8 @@ export const mockOrders: Order[] = [
     status: OrderStatus.PENDING,
     priority: Priority.URGENT,
     planningStatus: PlanningStatus.NOT_PLANNED,
+    drawingReviewStatus: DrawingReviewStatus.IN_REVIEW,
+    drawingReviewNotes: 'Customer drawing requires clarification on tolerances',
 
     // Drawing-driven order (customer provided drawing)
     primaryDrawingId: '4',
