@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Plus, FileText, Upload, Send } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,9 +28,26 @@ import {
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { simulateApiCall } from '@/lib/utils/mock-api'
-import { mockCustomers, mockProducts, mockProcessTemplates } from '@/lib/mock-data'
+import { mockCustomers, mockProducts, mockProcessTemplates, mockDrawings } from '@/lib/mock-data'
+import { Drawing } from '@/lib/mock-data/drawings'
 import { Priority, Product, OrderSource, SchedulingStrategy } from '@/types'
 import { Separator } from '@/components/ui/separator'
+import { CreateCustomerDialog } from '@/components/forms/create-customer-dialog'
+import { CreateProductDialog } from '@/components/forms/create-product-dialog'
+import { UploadDrawingDialog } from '@/components/forms/upload-drawing-dialog'
+import { BulkUploadDrawingsDialog } from '@/components/forms/bulk-upload-drawings-dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
+
+// Drawing Source options
+const DRAWING_SOURCES = [
+  { value: 'customer_provides', label: 'Customer Provides' },
+  { value: 'create_new', label: 'Create New (In-house)' },
+  { value: 'from_master', label: 'Select from Drawing Master' },
+] as const
+
+type DrawingSource = typeof DRAWING_SOURCES[number]['value']
 
 const formSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
@@ -41,6 +58,13 @@ const formSchema = z.object({
   orderSource: z.nativeEnum(OrderSource),
   agentCustomerId: z.string().optional(),
   schedulingStrategy: z.nativeEnum(SchedulingStrategy),
+  // Drawing fields
+  drawingSource: z.string().min(1, 'Drawing source is required'),
+  drawingId: z.string().optional(),
+  drawingNotes: z.string().optional(),
+  // Machine and Grade fields
+  customerMachine: z.string().optional(),
+  materialGradeRemark: z.string().optional(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -51,6 +75,14 @@ export default function CreateOrderPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
   const [orderSource, setOrderSource] = useState<OrderSource>(OrderSource.DIRECT)
+  const [createCustomerDialogOpen, setCreateCustomerDialogOpen] = useState(false)
+  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false)
+  const [uploadDrawingDialogOpen, setUploadDrawingDialogOpen] = useState(false)
+  const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false)
+  const [drawingSource, setDrawingSource] = useState<DrawingSource | ''>('')
+  const [selectedDrawing, setSelectedDrawing] = useState<Drawing | null>(null)
+  const [customerDrawingTiming, setCustomerDrawingTiming] = useState<'now' | 'later'>('now')
+  const [customerDrawingsUploaded, setCustomerDrawingsUploaded] = useState(false)
 
   // Get default due date (today + 14 days)
   const getDefaultDueDate = () => {
@@ -70,15 +102,20 @@ export default function CreateOrderPage() {
       orderSource: OrderSource.DIRECT,
       agentCustomerId: '',
       schedulingStrategy: SchedulingStrategy.DUE_DATE,
+      drawingSource: '',
+      drawingId: '',
+      drawingNotes: '',
+      customerMachine: '',
+      materialGradeRemark: '',
     },
   })
 
   // Filter products by selected customer
   const filteredProducts = selectedCustomerId
     ? mockProducts.filter(p => {
-        const customer = mockCustomers.find(c => c.id === selectedCustomerId)
-        return customer && p.customerName === customer.name
-      })
+      const customer = mockCustomers.find(c => c.id === selectedCustomerId)
+      return customer && p.customerName === customer.name
+    })
     : mockProducts
 
   // Filter agent customers only
@@ -87,9 +124,9 @@ export default function CreateOrderPage() {
   // Find linked process template
   const linkedTemplate = selectedProduct
     ? mockProcessTemplates.find(t =>
-        t.id === selectedProduct.processTemplateId ||
-        t.applicableTypes.includes(selectedProduct.rollerType)
-      )
+      t.id === selectedProduct.processTemplateId ||
+      t.applicableTypes.includes(selectedProduct.rollerType)
+    )
     : null
 
   const onSubmit = async (data: FormData) => {
@@ -147,29 +184,40 @@ export default function CreateOrderPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer Name *</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value)
-                          setSelectedCustomerId(value)
-                          // Reset product selection when customer changes
-                          form.setValue('productId', '')
-                          setSelectedProduct(null)
-                        }}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select customer" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {mockCustomers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value)
+                            setSelectedCustomerId(value)
+                            // Reset product selection when customer changes
+                            form.setValue('productId', '')
+                            setSelectedProduct(null)
+                          }}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Select customer" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {mockCustomers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setCreateCustomerDialogOpen(true)}
+                          title="Add New Customer"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <FormDescription>
                         ⚠️ Dropdown only - no free text allowed
                       </FormDescription>
@@ -185,32 +233,43 @@ export default function CreateOrderPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Part Code / Product *</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value)
-                          const product = mockProducts.find(p => p.id === value)
-                          setSelectedProduct(product || null)
-                        }}
-                        value={field.value}
-                        disabled={!selectedCustomerId}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={
-                              selectedCustomerId
-                                ? "Select part code"
-                                : "Select customer first"
-                            } />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {filteredProducts.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.partCode} - {product.modelName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value)
+                            const product = mockProducts.find(p => p.id === value)
+                            setSelectedProduct(product || null)
+                          }}
+                          value={field.value}
+                          disabled={!selectedCustomerId}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder={
+                                selectedCustomerId
+                                  ? "Select part code"
+                                  : "Select customer first"
+                              } />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {filteredProducts.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.partCode} - {product.modelName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setCreateProductDialogOpen(true)}
+                          title="Add New Product"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <FormDescription>
                         ⚠️ Dropdown only - filtered by selected customer
                       </FormDescription>
@@ -243,6 +302,310 @@ export default function CreateOrderPage() {
                     </div>
                   </div>
                 )}
+
+                <Separator />
+
+                {/* Drawing Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold text-lg">Drawing Information</h3>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="drawingSource"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Drawing Source *</FormLabel>
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value)
+                            setDrawingSource(value as DrawingSource)
+                            // Reset drawing selection when source changes
+                            form.setValue('drawingId', '')
+                            setSelectedDrawing(null)
+                          }}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select drawing source" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {DRAWING_SOURCES.map((source) => (
+                              <SelectItem key={source.value} value={source.value}>
+                                {source.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Customer Provides Drawing */}
+                  {drawingSource === 'customer_provides' && (
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
+                      <p className="text-sm font-semibold text-blue-900">
+                        📄 Customer will provide the drawing
+                      </p>
+
+                      {/* Upload Timing Options */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">When will you upload the drawing?</Label>
+                        <RadioGroup
+                          value={customerDrawingTiming}
+                          onValueChange={(value) => setCustomerDrawingTiming(value as 'now' | 'later')}
+                          className="flex gap-4"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="now" id="upload-now" />
+                            <Label htmlFor="upload-now" className="font-normal cursor-pointer">
+                              Upload Now
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="later" id="upload-later" />
+                            <Label htmlFor="upload-later" className="font-normal cursor-pointer">
+                              Upload Later
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+
+                      {/* Upload Now Options */}
+                      {customerDrawingTiming === 'now' && (
+                        <div className="space-y-3">
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setUploadDrawingDialogOpen(true)}
+                            >
+                              <Upload className="mr-2 h-4 w-4" />
+                              Single Upload
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setBulkUploadDialogOpen(true)}
+                            >
+                              <Upload className="mr-2 h-4 w-4" />
+                              Bulk Upload
+                            </Button>
+                          </div>
+
+                          {/* Upload Status */}
+                          {customerDrawingsUploaded && (
+                            <div className="p-3 bg-green-100 rounded-lg border border-green-300">
+                              <p className="text-sm font-semibold text-green-800">
+                                ✅ Drawings uploaded successfully
+                              </p>
+                              <Button
+                                type="button"
+                                variant="default"
+                                size="sm"
+                                className="mt-2"
+                                onClick={() => {
+                                  toast.success('Drawings sent to Drawing Team for review!')
+                                }}
+                              >
+                                <Send className="mr-2 h-4 w-4" />
+                                Send to Drawing Team for Review
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Upload Later Message */}
+                      {customerDrawingTiming === 'later' && (
+                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <p className="text-sm text-amber-800">
+                            ⏳ Drawing will be uploaded later. You can upload from the order details page after creating the order.
+                          </p>
+                        </div>
+                      )}
+
+                      <FormField
+                        control={form.control}
+                        name="drawingNotes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Notes / Instructions</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Enter any notes about the customer-provided drawing (e.g., expected delivery date, format, revisions needed, etc.)"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {/* Create New Drawing */}
+                  {drawingSource === 'create_new' && (
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200 space-y-3">
+                      <p className="text-sm font-semibold text-green-900">
+                        🛠️ Drawing will be created in-house
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setUploadDrawingDialogOpen(true)}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create New Drawing
+                        </Button>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="drawingNotes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Requirements / Specifications</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Enter detailed requirements for the new drawing (dimensions, tolerances, special features, etc.)"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {/* Select from Drawing Master */}
+                  {drawingSource === 'from_master' && (
+                    <div className="space-y-3">
+                      <FormField
+                        control={form.control}
+                        name="drawingId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Select Drawing *</FormLabel>
+                            <Select
+                              onValueChange={(value) => {
+                                field.onChange(value)
+                                const drawing = mockDrawings.find(d => d.id === value)
+                                setSelectedDrawing(drawing || null)
+                              }}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select from approved drawings" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {mockDrawings
+                                  .filter(d => d.status === 'approved')
+                                  .map((drawing) => (
+                                    <SelectItem key={drawing.id} value={drawing.id}>
+                                      {drawing.drawingNumber} - {drawing.drawingName} (Rev {drawing.revision})
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Only approved drawings are shown
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Selected Drawing Preview */}
+                      {selectedDrawing && (
+                        <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
+                          <p className="font-semibold text-primary">Selected Drawing Details:</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-muted-foreground">Drawing No:</span>
+                              <span className="ml-2 font-mono font-semibold">{selectedDrawing.drawingNumber}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Revision:</span>
+                              <span className="ml-2">{selectedDrawing.revision}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Part Type:</span>
+                              <span className="ml-2 capitalize">{selectedDrawing.partType}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">File:</span>
+                              <span className="ml-2 text-xs">{selectedDrawing.fileName}</span>
+                            </div>
+                          </div>
+                          {selectedDrawing.description && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              <span className="font-medium">Description:</span> {selectedDrawing.description}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Customer Machine Details */}
+                <FormField
+                  control={form.control}
+                  name="customerMachine"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Machine Details</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., Flexo 8-Color, Rotogravure 6-Color, Offset Press 4-Color"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Specify which machine the customer uses (helps in product compatibility)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Quality Grade */}
+                <FormField
+                  control={form.control}
+                  name="materialGradeRemark"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quality Grade</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select quality grade" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="A">A Grade (Premium Quality)</SelectItem>
+                          <SelectItem value="B">B Grade (Standard Quality)</SelectItem>
+                          <SelectItem value="C">C Grade (Economy Quality)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Specify the quality grade of raw material for this order
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <Separator />
 
@@ -530,6 +893,50 @@ export default function CreateOrderPage() {
           )}
         </div>
       </div>
+
+      {/* Create Customer Dialog */}
+      <CreateCustomerDialog
+        open={createCustomerDialogOpen}
+        onOpenChange={setCreateCustomerDialogOpen}
+        onSuccess={() => {
+          // In a real app, you would refresh customers list here
+          toast.success('Customer created! Please refresh to see the new customer.')
+        }}
+      />
+
+      {/* Create Product Dialog */}
+      <CreateProductDialog
+        open={createProductDialogOpen}
+        onOpenChange={setCreateProductDialogOpen}
+        onSuccess={() => {
+          // In a real app, you would refresh products list here
+          toast.success('Product created! Please refresh to see the new product.')
+        }}
+      />
+
+      {/* Upload Drawing Dialog */}
+      <UploadDrawingDialog
+        open={uploadDrawingDialogOpen}
+        onOpenChange={setUploadDrawingDialogOpen}
+        onSuccess={() => {
+          toast.success('Drawing uploaded successfully!')
+          if (drawingSource === 'customer_provides') {
+            setCustomerDrawingsUploaded(true)
+          }
+        }}
+      />
+
+      {/* Bulk Upload Drawings Dialog */}
+      <BulkUploadDrawingsDialog
+        open={bulkUploadDialogOpen}
+        onOpenChange={setBulkUploadDialogOpen}
+        onSuccess={() => {
+          toast.success('Drawings uploaded successfully!')
+          if (drawingSource === 'customer_provides') {
+            setCustomerDrawingsUploaded(true)
+          }
+        }}
+      />
     </div>
   )
 }

@@ -83,102 +83,93 @@ export default function PlanningDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Planning Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage order planning and job card generation
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Planning Dashboard</h1>
+        <p className="text-muted-foreground">
+          Manage order planning and job card generation
+        </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Total Orders</CardDescription>
-            <CardTitle className="text-3xl">{stats.totalOrders}</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <TrendingUp className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              Active orders in system
-            </div>
+            <div className="text-2xl font-bold">{stats.totalOrders}</div>
+            <p className="text-xs text-muted-foreground">Active orders in system</p>
           </CardContent>
         </Card>
 
-        <Card className="border-orange-200 bg-orange-50">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-orange-700">Pending Planning</CardDescription>
-            <CardTitle className="text-3xl text-orange-900">{stats.pendingPlanning}</CardTitle>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Planning</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-orange-600 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              Orders awaiting job cards
-            </div>
+            <div className="text-2xl font-bold">{stats.pendingPlanning}</div>
+            <p className="text-xs text-muted-foreground">Awaiting job cards</p>
           </CardContent>
         </Card>
 
-        <Card className="border-green-200 bg-green-50">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-green-700">Planned</CardDescription>
-            <CardTitle className="text-3xl text-green-900">{stats.planned}</CardTitle>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Planned</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-green-600 flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              Job cards generated
-            </div>
+            <div className="text-2xl font-bold">{stats.planned}</div>
+            <p className="text-xs text-muted-foreground">Job cards generated</p>
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-red-700">Material Shortage</CardDescription>
-            <CardTitle className="text-3xl text-red-900">{stats.materialShortage}</CardTitle>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Material Shortage</CardTitle>
+            <Package className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-red-600 flex items-center gap-1">
-              <Package className="h-3 w-3" />
-              Jobs blocked by material
-            </div>
+            <div className="text-2xl font-bold">{stats.materialShortage}</div>
+            <p className="text-xs text-muted-foreground">Jobs blocked by material</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Material Shortage Alerts - Priority Section */}
+      {/* Material Shortage Alert */}
       {materialPendingJobCards.length > 0 && (
-        <Alert variant="destructive" className="border-2">
-          <AlertTriangle className="h-5 w-5" />
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold">🔴 Material Shortage Alert</p>
+                <p className="font-semibold">Material Shortage Alert</p>
                 <p className="text-sm mt-1">
                   {materialPendingJobCards.length} job card{materialPendingJobCards.length > 1 ? 's' : ''} blocked by material unavailability
                 </p>
               </div>
-              <Button variant="outline" size="sm" className="bg-white">
-                View Details
-              </Button>
             </div>
           </AlertDescription>
         </Alert>
       )}
 
       {materialPendingJobCards.length > 0 && (
-        <Card className="border-2 border-red-200">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-red-900 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Material Shortage Alerts
-            </CardTitle>
-            <CardDescription>
-              Job cards waiting for material availability
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Material Shortage Details</CardTitle>
+                <CardDescription>
+                  Job cards waiting for material availability
+                </CardDescription>
+              </div>
+              <Badge variant="destructive">
+                {materialPendingJobCards.length} Blocked
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -187,7 +178,7 @@ export default function PlanningDashboardPage() {
                 return (
                   <div
                     key={jc.id}
-                    className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200"
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -197,7 +188,7 @@ export default function PlanningDashboardPage() {
                         </Badge>
                         {daysWaiting > 3 && (
                           <Badge variant="destructive" className="text-xs">
-                            🔥 {daysWaiting} days
+                            {daysWaiting} days
                           </Badge>
                         )}
                       </div>
@@ -210,9 +201,6 @@ export default function PlanningDashboardPage() {
                           Need {jc.materialShortfall.shortfall} {jc.materialShortfall.unit}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Contact Stores/Procurement team to arrange material
-                      </p>
                     </div>
                   </div>
                 )
@@ -228,11 +216,11 @@ export default function PlanningDashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Orders Pending Planning</CardTitle>
-              <CardDescription className="mt-1">
+              <CardDescription>
                 Orders without job cards - ready for planning
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-lg px-3 py-1">
+            <Badge variant="outline">
               {pendingPlanningOrders.length}
             </Badge>
           </div>
@@ -297,11 +285,11 @@ export default function PlanningDashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Planned Orders</CardTitle>
-              <CardDescription className="mt-1">
+              <CardDescription>
                 Orders with job cards generated
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-lg px-3 py-1">
+            <Badge variant="outline">
               {plannedOrders.length}
             </Badge>
           </div>
