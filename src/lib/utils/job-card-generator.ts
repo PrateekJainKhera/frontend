@@ -1,4 +1,4 @@
-import { JobCard, JobCardStatus, JobCardCreationType, JobCardGenerationConfig } from '@/types/job-card'
+import { JobCard, JobCardStatus, JobCardCreationType, JobCardGenerationConfig, ScheduleStatus } from '@/types/job-card'
 import { Order, ProcessTemplate, Priority } from '@/types'
 
 export interface GenerateJobCardsParams {
@@ -67,6 +67,7 @@ export function generateJobCardsFromOrder(params: GenerateJobCardsParams): JobCa
 
       status,
       priority: order.priority as Priority,
+      scheduleStatus: ScheduleStatus.UNSCHEDULED,
 
       // Machine assignment (if auto-assign enabled)
       assignedMachineId: null,

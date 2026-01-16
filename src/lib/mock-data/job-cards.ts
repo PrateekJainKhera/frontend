@@ -1,5 +1,5 @@
 import { subDays, subHours } from 'date-fns'
-import { JobCard, JobCardStatus, JobCardCreationType, JobCardMaterial, MaterialStatus } from '@/types/job-card'
+import { JobCard, JobCardStatus, JobCardCreationType, JobCardMaterial, MaterialStatus, ScheduleStatus } from '@/types/job-card'
 import { Priority } from '@/types/enums'
 
 // Sample job cards for Order ORD-128: 10 Printing Rollers
@@ -44,6 +44,7 @@ export const mockJobCards: JobCard[] = [
 
     status: JobCardStatus.COMPLETED,
     priority: Priority.URGENT,
+    scheduleStatus: ScheduleStatus.UNSCHEDULED,
 
     assignedMachineId: 'saw-01',
     assignedMachineName: 'SAW-01',
@@ -143,6 +144,7 @@ export const mockJobCards: JobCard[] = [
 
     status: JobCardStatus.IN_PROGRESS,
     priority: Priority.URGENT,
+    scheduleStatus: ScheduleStatus.UNSCHEDULED,
 
     assignedMachineId: 'cnc-01',
     assignedMachineName: 'CNC-01',
@@ -218,6 +220,7 @@ export const mockJobCards: JobCard[] = [
 
     status: JobCardStatus.BLOCKED,
     priority: Priority.URGENT,
+    scheduleStatus: ScheduleStatus.UNSCHEDULED,
 
     assignedMachineId: 'grn-01',
     assignedMachineName: 'GRN-01',
@@ -278,6 +281,7 @@ export const mockJobCards: JobCard[] = [
 
     status: JobCardStatus.BLOCKED,
     priority: Priority.URGENT,
+    scheduleStatus: ScheduleStatus.UNSCHEDULED,
 
     assignedMachineId: null,  // Manual operation
     assignedMachineName: 'Manual Workbench',
@@ -378,6 +382,7 @@ export const mockJobCards: JobCard[] = [
 
     status: JobCardStatus.READY,
     priority: Priority.HIGH,
+    scheduleStatus: ScheduleStatus.UNSCHEDULED,
 
     assignedMachineId: 'grn-02',
     assignedMachineName: 'GRN-02',
@@ -450,6 +455,7 @@ export const mockJobCards: JobCard[] = [
 
     status: JobCardStatus.PENDING_MATERIAL,
     priority: Priority.HIGH,
+    scheduleStatus: ScheduleStatus.UNSCHEDULED,
 
     assignedMachineId: null,
     assignedMachineName: null,

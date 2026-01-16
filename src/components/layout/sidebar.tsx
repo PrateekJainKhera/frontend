@@ -72,10 +72,19 @@ const navItems: NavItem[] = [
     ]
   },
   {
+    title: 'Scheduling',
+    href: '/scheduling',
+    icon: Calendar,
+    children: [
+      { title: 'Dashboard', href: '/scheduling', icon: Calendar }
+    ]
+  },
+  {
     title: 'Production',
     href: '/production',
     icon: Factory,
     children: [
+      { title: 'Dashboard', href: '/production', icon: Factory },
       { title: 'Job Cards', href: '/production/job-cards', icon: Factory },
       { title: 'Child Parts', href: '/production/child-parts', icon: Factory },
       { title: 'Machines', href: '/production/machines', icon: Factory },

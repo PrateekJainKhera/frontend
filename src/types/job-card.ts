@@ -23,6 +23,11 @@ export enum JobCardCreationType {
   REWORK = 'Rework'
 }
 
+export enum ScheduleStatus {
+  UNSCHEDULED = 'UNSCHEDULED',
+  SCHEDULED = 'SCHEDULED'
+}
+
 export interface JobCard {
   // Identity
   id: string
@@ -68,6 +73,11 @@ export interface JobCard {
   // Status & Priority
   status: JobCardStatus
   priority: Priority
+
+  // Scheduling
+  scheduleStatus: ScheduleStatus
+  scheduledBy?: string | null
+  scheduledAt?: Date | null
 
   // Machine & Operator assignment
   assignedMachineId?: string | null
