@@ -1,83 +1,35 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { mockProducts } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Product } from '@/types'
-import { ProductsTable } from '@/components/tables/products-table'
-import { CreateProductDialog } from '@/components/forms/create-product-dialog'
+import { useState } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ProductsTab } from '@/components/masters/products-tab'
+import { ProductTemplatesTab } from '@/components/masters/product-templates-tab'
+import { ChildPartTemplatesTab } from '@/components/masters/child-part-templates-tab'
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-
-  useEffect(() => {
-    loadProducts()
-  }, [])
-
-  const loadProducts = async () => {
-    setLoading(true)
-    const data = await simulateApiCall(mockProducts, 800)
-    setProducts(data)
-    setLoading(false)
-  }
-
-  const filteredProducts = products.filter(
-    (product) =>
-      product.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.modelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.rollerType.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const [activeTab, setActiveTab] = useState('products')
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="sr-only">Product / Part Master</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)} className="ml-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Product
-        </Button>
-      </div>
+    <div className="space-y-6 ">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="templates">Product Templates</TabsTrigger>
+          <TabsTrigger value="child-parts">Child Part Templates</TabsTrigger>
+        </TabsList>
 
-      {/* Search & Filters */}
-      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-        <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by part code, customer, model, or type..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-      </Card>
+        <TabsContent value="products" className="mt-6">
+          <ProductsTab />
+        </TabsContent>
 
-      {/* Table */}
-      {loading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-      ) : (
-        <ProductsTable products={filteredProducts} onUpdate={loadProducts} />
-      )}
+        <TabsContent value="templates" className="mt-6">
+          <ProductTemplatesTab />
+        </TabsContent>
 
-      {/* Create Dialog */}
-      <CreateProductDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-        onSuccess={loadProducts}
-      />
+        <TabsContent value="child-parts" className="mt-6">
+          <ChildPartTemplatesTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

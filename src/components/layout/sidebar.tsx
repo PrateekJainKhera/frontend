@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Calendar,
   PackageCheck,
-  FileText
+  FileText,
+  Truck
 } from 'lucide-react'
 
 interface NavItem {
@@ -42,51 +43,31 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Customers', href: '/masters/customers', icon: Package },
       { title: 'Products', href: '/masters/products', icon: Package },
-      { title: 'Product Templates', href: '/masters/product-templates', icon: Package },
-      { title: 'Child Part Templates', href: '/masters/child-part-templates', icon: Package },
-      { title: 'Raw Materials', href: '/masters/raw-materials', icon: Package },
-      { title: 'Material Categories', href: '/masters/material-categories', icon: Package },
-      { title: 'Components', href: '/masters/components', icon: Package },
-      { title: 'Drawings', href: '/masters/drawings', icon: Package },
-      { title: 'Machines', href: '/masters/machines', icon: Factory },
+      { title: 'Materials', href: '/masters/materials', icon: Package },
       { title: 'Processes', href: '/masters/processes', icon: Package },
-      { title: 'Process Templates', href: '/masters/process-templates', icon: Package }
+      { title: 'Drawings', href: '/masters/drawings', icon: Package },
+      { title: 'Machines', href: '/masters/machines', icon: Factory }
     ]
   },
   {
     title: 'Orders',
     href: '/orders',
-    icon: ShoppingCart,
-    children: [
-      { title: 'All Orders', href: '/orders', icon: ShoppingCart },
-      { title: 'Create Order', href: '/orders/create', icon: ShoppingCart },
-      { title: 'Live Tracking', href: '/orders/live-tracking', icon: ShoppingCart }
-    ]
+    icon: ShoppingCart
   },
   {
     title: 'Drawing Review',
     href: '/drawing-review',
-    icon: FileText,
-    children: [
-      { title: 'Dashboard', href: '/drawing-review', icon: FileText }
-    ]
+    icon: FileText
   },
   {
     title: 'Planning',
     href: '/planning',
-    icon: Calendar,
-    children: [
-      { title: 'Dashboard', href: '/planning', icon: Calendar },
-      { title: 'Job Cards', href: '/planning/job-cards', icon: Factory }
-    ]
+    icon: Calendar
   },
   {
     title: 'Scheduling',
     href: '/scheduling',
-    icon: Calendar,
-    children: [
-      { title: 'Dashboard', href: '/scheduling', icon: Calendar }
-    ]
+    icon: Calendar
   },
   {
     title: 'Production',
@@ -102,20 +83,18 @@ const navItems: NavItem[] = [
   },
   {
     title: 'Inventory',
-    href: '/inventory',
-    icon: Warehouse,
-    children: [
-      { title: 'Raw Materials', href: '/inventory/raw-materials', icon: Package }
-    ]
+    href: '/inventory/raw-materials',
+    icon: Warehouse
   },
   {
     title: 'Stores',
     href: '/stores',
-    icon: PackageCheck,
-    children: [
-      { title: 'Material Requisitions', href: '/stores/material-requisitions', icon: PackageCheck },
-      { title: 'Material Issues', href: '/stores/material-issues', icon: Package }
-    ]
+    icon: PackageCheck
+  },
+  {
+    title: 'Dispatch',
+    href: '/dispatch',
+    icon: Truck
   },
   {
     title: 'Quality',

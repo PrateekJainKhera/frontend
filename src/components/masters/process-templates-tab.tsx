@@ -12,7 +12,7 @@ import { mockProcessTemplates } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { ProcessTemplate } from '@/types'
 
-export default function ProcessTemplatesPage() {
+export function ProcessTemplatesTab() {
   const [templates, setTemplates] = useState<ProcessTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')

@@ -120,15 +120,7 @@ export default function SchedulingDashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Scheduling Dashboard</h1>
-        <p className="text-muted-foreground">
-          Review planned job cards and release them to Production
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-6">
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

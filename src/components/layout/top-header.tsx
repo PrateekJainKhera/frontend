@@ -1,7 +1,15 @@
 "use client"
 
 import { usePathname } from 'next/navigation'
+import { Info } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
+import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 // Map of routes to page titles
 const pageTitles: Record<string, string> = {
@@ -15,6 +23,10 @@ const pageTitles: Record<string, string> = {
   '/masters/processes': 'Process Master',
   '/masters/process-templates': 'Process Templates',
   '/masters/process-templates/create': 'Create Process Template',
+  '/masters/machines': 'Machines Master',
+  '/drawing-review': 'Drawing Review',
+  '/scheduling': 'Scheduling Dashboard',
+  '/stores': 'Stores',
   '/orders': 'Orders',
   '/orders/create': 'Create New Order',
   '/orders/live-tracking': 'Live Order Tracking',
@@ -32,6 +44,19 @@ const pageTitles: Record<string, string> = {
   '/mis/production': 'Production Dashboard',
   '/mis/sales': 'Sales Dashboard',
   '/mis/agents': 'Agent Performance Dashboard',
+}
+
+// Map of routes to page descriptions (for info tooltip)
+const pageDescriptions: Record<string, string> = {
+  '/orders': 'Manage customer orders and track production progress. View all orders, monitor live tracking, and create new orders.',
+  '/masters/products': 'Manage products, templates, and child part configurations. Create and organize your product catalog.',
+  '/masters/materials': 'Manage raw materials, components, and material categories. Track inventory, GRN entries, and material specifications.',
+  '/masters/processes': 'Manage manufacturing processes and process templates. Define process flows and standard operating procedures.',
+  '/masters/machines': 'Manage factory machines, maintenance schedules, and specifications. Track machine status, utilization, and upcoming maintenance.',
+  '/drawing-review': 'Review customer drawings and link product templates before releasing orders to planning. Approve or request revisions for drawings.',
+  '/planning': 'Generate job cards for approved orders and monitor material availability. Track planning progress and manage job card generation workflow.',
+  '/scheduling': 'Review planned job cards and release them to production. Monitor material availability, dependencies, and send ready job cards to the shop floor.',
+  '/stores': 'Manage material requisitions and issues from stores to production. Allocate materials, track issued quantities, and monitor inventory movements.',
 }
 
 interface TopHeaderProps {
@@ -64,10 +89,26 @@ export function TopHeader({ sidebarOpen, sidebarExpanded }: TopHeaderProps) {
       .join(' ') || 'Dashboard'
   }
 
+  const pageDescription = pageDescriptions[pathname]
+
   return (
     <header className="sticky top-0 z-40 h-16 bg-white border-b border-gray-200 shadow-sm">
-      <div className="flex h-full items-center px-6">
+      <div className="flex h-full items-center px-6 gap-2">
         <h1 className="text-2xl font-bold text-primary">{getPageTitle()}</h1>
+        {pageDescription && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p>{pageDescription}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
     </header>
   )

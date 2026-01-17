@@ -6,34 +6,35 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockCustomers } from '@/lib/mock-data'
+import { mockProducts } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Customer } from '@/types'
-import { CustomersTable } from '@/components/tables/customers-table'
-import { CreateCustomerDialog } from '@/components/forms/create-customer-dialog'
+import { Product } from '@/types'
+import { ProductsTable } from '@/components/tables/products-table'
+import { CreateProductDialog } from '@/components/forms/create-product-dialog'
 
-export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([])
+export function ProductsTab() {
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   useEffect(() => {
-    loadCustomers()
+    loadProducts()
   }, [])
 
-  const loadCustomers = async () => {
+  const loadProducts = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockCustomers, 800)
-    setCustomers(data)
+    const data = await simulateApiCall(mockProducts, 800)
+    setProducts(data)
     setLoading(false)
   }
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.contactPerson?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProducts = products.filter(
+    (product) =>
+      product.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.modelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.rollerType.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
@@ -43,7 +44,7 @@ export default function CustomersPage() {
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, code, or contact person..."
+            placeholder="Search by part code, customer, model, or type..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="max-w-sm"
@@ -55,18 +56,18 @@ export default function CustomersPage() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
       ) : (
-        <CustomersTable customers={filteredCustomers} onUpdate={loadCustomers} />
+        <ProductsTable products={filteredProducts} onUpdate={loadProducts} />
       )}
 
       {/* Create Dialog */}
-      <CreateCustomerDialog
+      <CreateProductDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
-        onSuccess={loadCustomers}
+        onSuccess={loadProducts}
       />
 
       {/* Floating Action Button */}

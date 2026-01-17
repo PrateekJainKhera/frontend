@@ -90,21 +90,7 @@ export default function MachinesMasterPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Machines Master</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage factory machines, maintenance schedules, and specifications
-          </p>
-        </div>
-        <Button onClick={() => setAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Machine
-        </Button>
-      </div>
-
+    <div className="flex flex-col gap-6">
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
@@ -337,6 +323,15 @@ export default function MachinesMasterPage() {
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
       />
+
+      {/* Floating Action Button */}
+      <Button
+        onClick={() => setAddDialogOpen(true)}
+        className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+        size="icon"
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
     </div>
   )
 }
