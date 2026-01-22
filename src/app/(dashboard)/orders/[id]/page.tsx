@@ -106,7 +106,7 @@ export default function OrderDetailPage() {
               {order.status}
             </Badge>
           </div>
-          <p className="text-muted-foreground">{order.customer?.name}</p>
+          <p className="text-muted-foreground">{order.customer?.customerName}</p>
         </div>
         <div className="flex gap-2">
           {order.canReschedule && order.status !== 'Completed' && (

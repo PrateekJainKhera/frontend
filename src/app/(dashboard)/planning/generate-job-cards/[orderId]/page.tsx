@@ -377,7 +377,7 @@ export default function GenerateJobCardsPage() {
           <div className="grid grid-cols-4 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Customer:</span>
-              <span className="ml-2 font-medium">{order.customer?.name}</span>
+              <span className="ml-2 font-medium">{order.customer?.customerName}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Product:</span>

@@ -77,7 +77,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                 </TableCell>
                 <TableCell className="max-w-50 truncate">
                   <div>
-                    {order.customer?.name}
+                    {order.customer?.customerName}
                     {order.orderSource === 'Through Agent' && order.agentCustomer && (
                       <div className="text-xs text-muted-foreground mt-1">
                         via {order.agentCustomer.name}

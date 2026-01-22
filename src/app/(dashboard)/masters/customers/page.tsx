@@ -31,8 +31,8 @@ export default function CustomersPage() {
 
   const filteredCustomers = customers.filter(
     (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.customerCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.contactPerson?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 

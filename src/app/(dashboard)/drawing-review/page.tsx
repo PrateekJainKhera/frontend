@@ -171,7 +171,7 @@ export default function DrawingReviewDashboardPage() {
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customer?.name}</span>
+                        <span className="ml-2">{order.customer?.customerName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
@@ -234,7 +234,7 @@ export default function DrawingReviewDashboardPage() {
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customer?.name}</span>
+                        <span className="ml-2">{order.customer?.customerName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
@@ -295,7 +295,7 @@ export default function DrawingReviewDashboardPage() {
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customer?.name}</span>
+                        <span className="ml-2">{order.customer?.customerName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
@@ -353,7 +353,7 @@ export default function DrawingReviewDashboardPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <p className="font-semibold">{order.orderNo}</p>
-                      <Badge variant="outline">{order.customer?.name}</Badge>
+                      <Badge variant="outline">{order.customer?.customerName}</Badge>
                       {getStatusBadge(order.drawingReviewStatus)}
                       {order.linkedProductTemplateId && (
                         <Badge variant="secondary" className="text-xs">

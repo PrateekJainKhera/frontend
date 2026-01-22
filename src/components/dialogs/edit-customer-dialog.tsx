@@ -64,8 +64,8 @@ export function EditCustomerDialog({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: customer.name,
-      code: customer.code,
+      name: customer.customerName,
+      code: customer.customerCode,
       contactPerson: customer.contactPerson || '',
       email: customer.email || '',
       phone: customer.phone || '',

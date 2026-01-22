@@ -38,7 +38,7 @@ export function AllOrdersTab() {
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customer?.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.product?.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.agentCustomer?.name.toLowerCase().includes(searchQuery.toLowerCase())
 

@@ -158,8 +158,8 @@ export function CreateProductDialog({
                       </FormControl>
                       <SelectContent>
                         {mockCustomers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.name}>
-                            {customer.name}
+                          <SelectItem key={customer.id} value={customer.customerName}>
+                            {customer.customerName}
                           </SelectItem>
                         ))}
                       </SelectContent>

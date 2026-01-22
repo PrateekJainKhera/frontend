@@ -39,7 +39,7 @@ export default function AgentPerformancePage() {
 
   // Calculate agent metrics from orders
   const agentOrders = mockOrders.filter(order => order.orderSource === OrderSource.AGENT)
-  const agentCustomers = mockCustomers.filter(c => c.isAgent)
+  const agentCustomers = mockCustomers.filter(c => c.customerType === 'Agent')
 
   // Agent performance data
   const agentPerformanceData = agentCustomers.map(agent => {
@@ -50,9 +50,9 @@ export default function AgentPerformancePage() {
 
     return {
       id: agent.id,
-      name: agent.name,
+      name: agent.customerName,
       contactPerson: agent.contactPerson,
-      commissionPercent: agent.commissionPercent || 0,
+      commissionPercent: 0, // Commission percent removed from Customer model
       totalOrders,
       totalCommission,
       avgCommission,

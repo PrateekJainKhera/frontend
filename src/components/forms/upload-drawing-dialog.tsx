@@ -342,7 +342,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
                                         <SelectContent>
                                             {mockCustomers.slice(0, 5).map((customer) => (
                                                 <SelectItem key={customer.id} value={customer.id}>
-                                                    {customer.name}
+                                                    {customer.customerName}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

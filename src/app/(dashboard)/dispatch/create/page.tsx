@@ -101,7 +101,7 @@ export default function CreateDeliveryChallanPage() {
                   <SelectContent>
                     {completedOrders.map(order => (
                       <SelectItem key={order.id} value={order.id}>
-                        {order.orderNo} - {order.customer?.name} - {order.product?.modelName} ({order.qtyCompleted} pcs)
+                        {order.orderNo} - {order.customer?.customerName} - {order.product?.modelName} ({order.qtyCompleted} pcs)
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -113,7 +113,7 @@ export default function CreateDeliveryChallanPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Customer:</span>
-                      <p className="font-medium">{selectedOrder.customer?.name}</p>
+                      <p className="font-medium">{selectedOrder.customer?.customerName}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Product:</span>

@@ -62,8 +62,8 @@ export function CustomersTable({ customers, onUpdate }: CustomersTableProps) {
         <TableBody>
           {customers.map((customer) => (
             <TableRow key={customer.id}>
-              <TableCell className="font-medium">{customer.code}</TableCell>
-              <TableCell>{customer.name}</TableCell>
+              <TableCell className="font-medium">{customer.customerCode}</TableCell>
+              <TableCell>{customer.customerName}</TableCell>
               <TableCell>{customer.contactPerson || '-'}</TableCell>
               <TableCell>{customer.phone || '-'}</TableCell>
               <TableCell className="text-sm">{customer.email || '-'}</TableCell>

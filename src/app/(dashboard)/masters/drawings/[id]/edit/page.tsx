@@ -322,7 +322,7 @@ export default function EditDrawingPage() {
                       <SelectItem value="">None</SelectItem>
                       {mockCustomers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
+                          {customer.customerName}
                         </SelectItem>
                       ))}
                     </SelectContent>

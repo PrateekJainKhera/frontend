@@ -167,7 +167,7 @@ export default function DrawingReviewDetailPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Drawing Review</h1>
             <p className="text-muted-foreground">
-              Order {order.orderNo} - {order.customer?.name}
+              Order {order.orderNo} - {order.customer?.customerName}
             </p>
           </div>
         </div>
@@ -196,7 +196,7 @@ export default function DrawingReviewDetailPage() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Customer</Label>
-                  <p className="font-medium">{order.customer?.name}</p>
+                  <p className="font-medium">{order.customer?.customerName}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Product</Label>

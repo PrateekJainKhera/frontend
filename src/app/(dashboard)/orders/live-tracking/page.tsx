@@ -131,7 +131,7 @@ export default function LiveTrackingPage() {
                     <Badge variant="secondary">In Progress</Badge>
                   </div>
                   <CardDescription>
-                    {order.customer?.name} • {order.product?.partCode}
+                    {order.customer?.customerName} • {order.product?.partCode}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

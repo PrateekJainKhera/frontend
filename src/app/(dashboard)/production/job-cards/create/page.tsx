@@ -121,7 +121,7 @@ export default function CreateJobCardPage() {
         assignedMachineName: data.assignedMachineName || null,
         dependsOnJobCardIds: [],
         blockedBy: [],
-        customerName: selectedOrder?.customer?.name || 'N/A',
+        customerName: selectedOrder?.customer?.customerName || 'N/A',
         customerCode: selectedOrder?.customer?.code || 'N/A',
         productName: selectedOrder?.product?.modelName || 'N/A',
         productCode: selectedOrder?.product?.partCode || 'N/A',
@@ -268,7 +268,7 @@ export default function CreateJobCardPage() {
                                   <div className="flex flex-col items-start">
                                     <span className="font-medium">{order.orderNo}</span>
                                     <span className="text-xs text-muted-foreground">
-                                      {order.customer?.name} - {order.product?.modelName} ({order.quantity} units)
+                                      {order.customer?.customerName} - {order.product?.modelName} ({order.quantity} units)
                                     </span>
                                   </div>
                                 </SelectItem>
@@ -285,7 +285,7 @@ export default function CreateJobCardPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Customer</p>
-                            <p className="font-medium">{selectedOrder.customer?.name}</p>
+                            <p className="font-medium">{selectedOrder.customer?.customerName}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Product</p>
@@ -580,7 +580,7 @@ export default function CreateJobCardPage() {
                         </div>
                         <div>
                           <p className="text-muted-foreground">Customer</p>
-                          <p className="font-medium">{selectedOrder.customer?.name}</p>
+                          <p className="font-medium">{selectedOrder.customer?.customerName}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Product</p>

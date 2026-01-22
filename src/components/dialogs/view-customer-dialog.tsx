@@ -33,11 +33,11 @@ export function ViewCustomerDialog({
           {/* Header Info */}
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-xl font-bold">{customer.name}</h3>
+              <h3 className="text-xl font-bold">{customer.customerName}</h3>
               <div className="flex items-center gap-2 mt-1">
                 <Code className="h-4 w-4 text-muted-foreground" />
                 <span className="font-mono text-sm text-muted-foreground">
-                  {customer.code}
+                  {customer.customerCode}
                 </span>
               </div>
             </div>

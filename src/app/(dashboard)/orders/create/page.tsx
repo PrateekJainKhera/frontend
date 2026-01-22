@@ -114,12 +114,12 @@ export default function CreateOrderPage() {
   const filteredProducts = selectedCustomerId
     ? mockProducts.filter(p => {
       const customer = mockCustomers.find(c => c.id === selectedCustomerId)
-      return customer && p.customerName === customer.name
+      return customer && p.customerName === customer.customerName
     })
     : mockProducts
 
   // Filter agent customers only
-  const agentCustomers = mockCustomers.filter(c => c.isAgent)
+  const agentCustomers = mockCustomers.filter(c => c.customerType === 'Agent')
 
   // Find linked process template
   const linkedTemplate = selectedProduct
@@ -203,7 +203,7 @@ export default function CreateOrderPage() {
                           <SelectContent>
                             {mockCustomers.map((customer) => (
                               <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name}
+                                {customer.customerName}
                               </SelectItem>
                             ))}
                           </SelectContent>
