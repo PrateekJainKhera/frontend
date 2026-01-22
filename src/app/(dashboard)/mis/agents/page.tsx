@@ -198,9 +198,6 @@ export default function AgentPerformancePage() {
                       <p className="font-semibold text-lg">{agent.name}</p>
                       <p className="text-sm text-muted-foreground">{agent.contactPerson}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          {agent.commissionPercent}% commission
-                        </Badge>
                         <Badge variant="secondary" className="text-xs">
                           {agent.totalOrders} orders
                         </Badge>
@@ -330,10 +327,6 @@ export default function AgentPerformancePage() {
                   <CardDescription>{agent.contactPerson}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Commission Rate:</span>
-                    <Badge variant="outline">{agent.commissionPercent}%</Badge>
-                  </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Total Orders:</span>
                     <span className="font-semibold">{agent.totalOrders}</span>

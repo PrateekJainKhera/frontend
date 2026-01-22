@@ -122,7 +122,7 @@ export default function CreateJobCardPage() {
         dependsOnJobCardIds: [],
         blockedBy: [],
         customerName: selectedOrder?.customer?.customerName || 'N/A',
-        customerCode: selectedOrder?.customer?.code || 'N/A',
+        customerCode: selectedOrder?.customer?.customerCode || 'N/A',
         productName: selectedOrder?.product?.modelName || 'N/A',
         productCode: selectedOrder?.product?.partCode || 'N/A',
         workInstructions: data.workInstructions,

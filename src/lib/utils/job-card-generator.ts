@@ -91,7 +91,7 @@ export function generateJobCardsFromOrder(params: GenerateJobCardsParams): JobCa
       allocatedMaterials: [],
 
       customerName: order.customer?.customerName || 'Unknown Customer',
-      customerCode: order.customer?.code || 'CUST-000',
+      customerCode: order.customer?.customerCode || 'CUST-000',
       productName: order.product?.modelName || 'Unknown Product',
       productCode: order.product?.partCode || 'PROD-000',
 

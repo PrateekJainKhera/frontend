@@ -665,10 +665,7 @@ export default function CreateOrderPage() {
                           <SelectContent>
                             {agentCustomers.map((agent) => (
                               <SelectItem key={agent.id} value={agent.id}>
-                                {agent.name}
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({agent.commissionPercent}% commission)
-                                </span>
+                                {agent.customerName}
                               </SelectItem>
                             ))}
                           </SelectContent>

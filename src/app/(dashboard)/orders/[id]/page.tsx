@@ -347,7 +347,7 @@ export default function OrderDetailPage() {
                   <Separator />
                   <div>
                     <p className="text-muted-foreground mb-1">Agent:</p>
-                    <p className="font-semibold">{order.agentCustomer.name}</p>
+                    <p className="font-semibold">{order.agentCustomer.customerName}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {order.agentCustomer.contactPerson}
                     </p>
@@ -359,7 +359,7 @@ export default function OrderDetailPage() {
                         ₹{order.agentCommission.toLocaleString('en-IN')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {order.agentCustomer.commissionPercent}% of order value
+                        Agent/Distributor
                       </p>
                     </div>
                   )}

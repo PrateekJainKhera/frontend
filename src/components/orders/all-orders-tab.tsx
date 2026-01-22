@@ -40,7 +40,7 @@ export function AllOrdersTab() {
       order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer?.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.product?.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.agentCustomer?.name.toLowerCase().includes(searchQuery.toLowerCase())
+      order.agentCustomer?.customerName.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus =
       statusFilter === 'all' || order.status === statusFilter

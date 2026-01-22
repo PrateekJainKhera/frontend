@@ -80,7 +80,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                     {order.customer?.customerName}
                     {order.orderSource === 'Through Agent' && order.agentCustomer && (
                       <div className="text-xs text-muted-foreground mt-1">
-                        via {order.agentCustomer.name}
+                        via {order.agentCustomer.customerName}
                       </div>
                     )}
                   </div>
