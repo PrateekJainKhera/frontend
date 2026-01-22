@@ -1,19 +1,24 @@
-import { CustomerType } from './enums'
-
 export interface Customer {
   id: string
-  name: string
-  code: string
+  customerCode: string
+  customerName: string
+  customerType: string // 'Direct', 'Agent', 'Dealer'
   contactPerson?: string
   email?: string
   phone?: string
   address?: string
-  isActive: boolean
-  customerType: CustomerType
-  commissionPercent?: number
-  creditLimit?: number
+  city?: string
+  state?: string
+  country?: string
+  pinCode?: string
+  gstNo?: string
+  panNo?: string
+  creditDays: number
+  creditLimit: number
   paymentTerms?: string
-  isAgent: boolean
+  isActive: boolean
   createdAt: Date
-  updatedAt: Date
+  createdBy?: string
+  updatedAt?: Date
+  updatedBy?: string
 }
