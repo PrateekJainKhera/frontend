@@ -5,16 +5,19 @@ import { Package, TrendingDown, AlertTriangle, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { simulateApiCall } from "@/lib/utils/mock-api";
 import { en8SteelRodInventory, en8SteelRodPieces } from "@/lib/mock-data/raw-material-inventory";
 import { formatLength, formatWeight, calculateInventoryValue } from "@/lib/utils/material-usage-calculations";
 import { MaterialUsageStatus } from "@/types/raw-material-inventory";
+import { GRNEntryDialog } from "@/components/forms/grn-entry-dialog";
 
 export default function RawMaterialInventoryPage() {
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState(en8SteelRodInventory);
+  const [isGRNOpen, setIsGRNOpen] = useState(false);
 
   useEffect(() => {
     loadInventory();
@@ -61,8 +64,22 @@ export default function RawMaterialInventoryPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <h1 className="sr-only">Raw Material Inventory</h1>
+      {/* Header with GRN Button */}
+      <div className="flex items-center justify-between">
+        <h1 className="sr-only">Raw Material Inventory</h1>
+        <div className="ml-auto">
+          <Button onClick={() => setIsGRNOpen(true)}>
+            Inward Material (GRN)
+          </Button>
+        </div>
+      </div>
+
+      {/* GRN Dialog */}
+      <GRNEntryDialog
+        open={isGRNOpen}
+        onOpenChange={setIsGRNOpen}
+        onSuccess={loadInventory}
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

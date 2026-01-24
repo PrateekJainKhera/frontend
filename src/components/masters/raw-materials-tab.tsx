@@ -4,21 +4,19 @@ import { useState, useEffect } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { mockRawMaterials } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { RawMaterial } from '@/types'
 import { RawMaterialsTable } from '@/components/tables/raw-materials-table'
 import { AddRawMaterialDialog } from '@/components/forms/add-raw-material-dialog'
-import { GRNEntryDialog } from '@/components/forms/grn-entry-dialog'
 
 export function RawMaterialsTab() {
   const [materials, setMaterials] = useState<RawMaterial[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false)
-  const [isGRNOpen, setIsGRNOpen] = useState(false)
 
   useEffect(() => {
     loadMaterials()
@@ -37,47 +35,28 @@ export function RawMaterialsTab() {
       material.grade.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Calculate low stock items
-  const lowStockCount = materials.filter(m => m.stockQty < m.minStockLevel).length
-
   return (
     <div className="space-y-6">
       {/* Header with Actions */}
-      <div className="flex items-center justify-end gap-2">
-        <Button variant="secondary" onClick={() => setIsGRNOpen(true)}>
-          Inward Material (GRN)
-        </Button>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            Reference catalog of materials used in the factory
+          </p>
+        </div>
         <Button onClick={() => setIsAddMaterialOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Material
+          Add Material Type
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-          <CardHeader className="pb-3">
-            <CardDescription>Total Materials</CardDescription>
-            <CardTitle className="text-3xl">{materials.length}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-          <CardHeader className="pb-3">
-            <CardDescription>Total Stock Weight</CardDescription>
-            <CardTitle className="text-3xl text-blue-600">
-              {materials.reduce((sum, m) => sum + (m.weightKG * m.stockQty), 0).toFixed(0)} kg
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-          <CardHeader className="pb-3">
-            <CardDescription>Low Stock Alerts</CardDescription>
-            <CardTitle className={`text-3xl ${lowStockCount > 0 ? 'text-destructive' : 'text-green-600'}`}>
-              {lowStockCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      {/* Stats Card - Only Total Materials (no stock info) */}
+      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] max-w-xs">
+        <CardHeader className="pb-3">
+          <CardDescription>Total Material Types</CardDescription>
+          <CardTitle className="text-3xl">{materials.length}</CardTitle>
+        </CardHeader>
+      </Card>
 
       {/* Search */}
       <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
@@ -107,13 +86,6 @@ export function RawMaterialsTab() {
       <AddRawMaterialDialog
         open={isAddMaterialOpen}
         onOpenChange={setIsAddMaterialOpen}
-      />
-
-      {/* GRN Dialog */}
-      <GRNEntryDialog
-        open={isGRNOpen}
-        onOpenChange={setIsGRNOpen}
-        onSuccess={loadMaterials}
       />
 
       {/* Floating Action Button */}
