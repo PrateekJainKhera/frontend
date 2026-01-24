@@ -42,6 +42,17 @@ export function RawMaterialsTab() {
 
   return (
     <div className="space-y-6">
+      {/* Header with Actions */}
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="secondary" onClick={() => setIsGRNOpen(true)}>
+          Inward Material (GRN)
+        </Button>
+        <Button onClick={() => setIsAddMaterialOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Material
+        </Button>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
