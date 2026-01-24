@@ -34,8 +34,9 @@ const formSchema = z.object({
   diameter: z.number().positive('Diameter must be positive'),
   length: z.number().positive('Length must be positive'),
   materialGrade: z.string().min(1, 'Material grade is required'),
-  drawingNo: z.string(),
-  revisionNo: z.string(),
+  drawingNo: z.string().optional(),
+  revisionNo: z.string().optional(),
+  revisionDate: z.string().optional(),
   numberOfTeeth: z.number().optional().nullable(),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
@@ -68,8 +69,9 @@ export function EditProductDialog({
       diameter: product.diameter,
       length: product.length,
       materialGrade: product.materialGrade,
-      drawingNo: product.drawingNo,
-      revisionNo: product.revisionNo,
+      drawingNo: product.drawingNo || '',
+      revisionNo: product.revisionNo || '',
+      revisionDate: product.revisionDate || '',
       numberOfTeeth: product.numberOfTeeth,
       surfaceFinish: product.surfaceFinish || '',
       hardness: product.hardness || '',
@@ -225,7 +227,7 @@ export function EditProductDialog({
                 name="drawingNo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Drawing Number *</FormLabel>
+                    <FormLabel>Drawing Number</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., DRG-001" {...field} />
                     </FormControl>
@@ -241,9 +243,23 @@ export function EditProductDialog({
                 name="revisionNo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Revision Number *</FormLabel>
+                    <FormLabel>Revision Number</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., R01" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="revisionDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Revision Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

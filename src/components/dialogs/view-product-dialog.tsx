@@ -93,7 +93,7 @@ export function ViewProductDialog({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Drawing No</p>
-                  <p className="font-medium">{product.drawingNo}</p>
+                  <p className="font-medium">{product.drawingNo || '-'}</p>
                 </div>
               </div>
 
@@ -103,9 +103,21 @@ export function ViewProductDialog({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Revision No</p>
-                  <p className="font-medium">{product.revisionNo}</p>
+                  <p className="font-medium">{product.revisionNo || '-'}</p>
                 </div>
               </div>
+
+              {product.revisionDate && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Calendar className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Revision Date</p>
+                    <p className="font-medium">{product.revisionDate}</p>
+                  </div>
+                </div>
+              )}
 
               {product.numberOfTeeth && (
                 <div className="flex items-center gap-3">

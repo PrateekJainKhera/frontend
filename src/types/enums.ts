@@ -2,11 +2,7 @@
 
 export enum RollerType {
   MAGNETIC = 'Magnetic',
-  RUBBER = 'Rubber',
-  ANILOX = 'Anilox',
-  IDLER = 'Idler',
-  PRINTING = 'Printing',
-  EMBOSSING = 'Embossing'
+  PRINTING = 'Printing'
 }
 
 export enum MaterialGrade {

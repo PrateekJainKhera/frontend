@@ -9,8 +9,9 @@ export interface Product {
   diameter: number
   length: number
   materialGrade: string
-  drawingNo: string
-  revisionNo: string
+  drawingNo?: string
+  revisionNo?: string
+  revisionDate?: string
   numberOfTeeth?: number | null
   surfaceFinish?: string
   hardness?: string

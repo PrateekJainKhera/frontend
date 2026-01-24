@@ -30,11 +30,13 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { generatePartCode } from '@/lib/utils/part-code-generator'
-import { RollerType } from '@/types'
+import { RollerType, ChildPartType } from '@/types'
 import { mockCustomers } from '@/lib/mock-data'
+import { Plus, Trash2, Upload, FileImage } from 'lucide-react'
 
 const formSchema = z.object({
   customerName: z.string().min(1, 'Customer is required'),
@@ -43,8 +45,9 @@ const formSchema = z.object({
   diameter: z.number().min(1, 'Diameter must be greater than 0'),
   length: z.number().min(1, 'Length must be greater than 0'),
   materialGrade: z.string().min(1, 'Material grade is required'),
-  drawingNo: z.string().min(1, 'Drawing number is required'),
-  revisionNo: z.string().min(1, 'Revision number is required'),
+  drawingNo: z.string().optional(),
+  revisionNo: z.string().optional(),
+  revisionDate: z.string().optional(),
   numberOfTeeth: z.number().optional().nullable(),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
@@ -58,6 +61,14 @@ interface CreateProductDialogProps {
   onSuccess: () => void
 }
 
+// Child part entry for the form
+interface ChildPartEntry {
+  id: string
+  type: ChildPartType | ''
+  drawingFile: File | null
+  drawingFileName: string
+}
+
 const materialGrades = ['EN8', 'EN19', 'SS304', 'SS316', 'Alloy Steel', 'NBR (Nitrile Rubber)']
 const modelNames = ['Flexo 8-Color Press', 'Offset Press 4-Color', 'Flexo CI Press', 'Rotogravure Press', 'Web Handling System']
 
@@ -68,6 +79,7 @@ export function CreateProductDialog({
 }: CreateProductDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [generatedPartCode, setGeneratedPartCode] = useState<string>('')
+  const [childParts, setChildParts] = useState<ChildPartEntry[]>([])
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -79,12 +91,15 @@ export function CreateProductDialog({
       length: 0,
       materialGrade: '',
       drawingNo: '',
-      revisionNo: 'R1',
+      revisionNo: '',
+      revisionDate: '',
       numberOfTeeth: null,
       surfaceFinish: '',
       hardness: '',
     },
   })
+
+  const watchedRollerType = form.watch('rollerType')
 
   // Auto-generate part code when relevant fields change
   useEffect(() => {
@@ -101,18 +116,70 @@ export function CreateProductDialog({
     return () => subscription.unsubscribe()
   }, [form])
 
+  // Reset child parts when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setChildParts([])
+    }
+  }, [open])
+
+  const addChildPart = () => {
+    const newPart: ChildPartEntry = {
+      id: `cp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: '',
+      drawingFile: null,
+      drawingFileName: '',
+    }
+    setChildParts([...childParts, newPart])
+  }
+
+  const removeChildPart = (id: string) => {
+    setChildParts(childParts.filter((part) => part.id !== id))
+  }
+
+  const updateChildPartType = (id: string, type: ChildPartType) => {
+    setChildParts(
+      childParts.map((part) =>
+        part.id === id ? { ...part, type } : part
+      )
+    )
+  }
+
+  const handleFileChange = (id: string, file: File | null) => {
+    setChildParts(
+      childParts.map((part) =>
+        part.id === id
+          ? { ...part, drawingFile: file, drawingFileName: file?.name || '' }
+          : part
+      )
+    )
+  }
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     toast.loading('Creating product...')
 
     try {
+      // Prepare child parts data (for API - files would be uploaded separately in real implementation)
+      const childPartsData = childParts
+        .filter((part) => part.type) // Only include parts with a type selected
+        .map((part) => ({
+          type: part.type,
+          drawingFileName: part.drawingFileName,
+          // In real implementation, you'd upload files and store URLs here
+        }))
+
       // Simulate API call
-      await simulateApiCall({ ...data, partCode: generatedPartCode }, 1000)
+      await simulateApiCall(
+        { ...data, partCode: generatedPartCode, childParts: childPartsData },
+        1000
+      )
 
       toast.dismiss()
       toast.success(`Product created: ${generatedPartCode}`)
       form.reset()
       setGeneratedPartCode('')
+      setChildParts([])
       onOpenChange(false)
       onSuccess()
     } catch (error) {
@@ -169,33 +236,22 @@ export function CreateProductDialog({
                 )}
               />
 
-              {/* Model Name - DROPDOWN ONLY */}
+              {/* Model Name - TEXT INPUT */}
               <FormField
                 control={form.control}
                 name="modelName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Model Name *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {modelNames.map((model) => (
-                          <SelectItem key={model} value={model}>
-                            {model}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Input placeholder="Enter model name" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Roller Type - ENUM DROPDOWN */}
+              {/* Roller Type - ENUM DROPDOWN (Only MAGNETIC and PRINTING) */}
               <FormField
                 control={form.control}
                 name="rollerType"
@@ -255,7 +311,13 @@ export function CreateProductDialog({
                   <FormItem>
                     <FormLabel>Diameter (mm) *</FormLabel>
                     <FormControl>
-                      <Input type="number" min="1" placeholder="250" {...field} />
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="250"
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -270,7 +332,13 @@ export function CreateProductDialog({
                   <FormItem>
                     <FormLabel>Length (mm) *</FormLabel>
                     <FormControl>
-                      <Input type="number" min="1" placeholder="1200" {...field} />
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="1200"
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -283,7 +351,7 @@ export function CreateProductDialog({
                 name="drawingNo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Drawing Number *</FormLabel>
+                    <FormLabel>Drawing Number</FormLabel>
                     <FormControl>
                       <Input placeholder="DRG-MAG-250-v2" {...field} />
                     </FormControl>
@@ -298,9 +366,24 @@ export function CreateProductDialog({
                 name="revisionNo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Revision Number *</FormLabel>
+                    <FormLabel>Revision Number</FormLabel>
                     <FormControl>
                       <Input placeholder="R1" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Revision Date */}
+              <FormField
+                control={form.control}
+                name="revisionDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Revision Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -320,6 +403,7 @@ export function CreateProductDialog({
                         placeholder="Optional"
                         {...field}
                         value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
                       />
                     </FormControl>
                     <FormDescription className="text-xs">
@@ -360,6 +444,111 @@ export function CreateProductDialog({
                 )}
               />
             </div>
+
+            {/* Child Parts Section - Appears after roller type is selected */}
+            {watchedRollerType && (
+              <Card className="p-4 mt-4 border-dashed">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-sm">Child Parts</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Optional: Add child parts for this {watchedRollerType} roller
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addChildPart}
+                    className="gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Part
+                  </Button>
+                </div>
+
+                {childParts.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm border rounded-md border-dashed">
+                    <FileImage className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No child parts added yet</p>
+                    <p className="text-xs">Click "Add Part" to add child parts with drawings</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {childParts.map((part, index) => (
+                      <div
+                        key={part.id}
+                        className="flex items-center gap-3 p-3 bg-muted/50 rounded-md"
+                      >
+                        <span className="text-xs font-medium text-muted-foreground w-6">
+                          {index + 1}.
+                        </span>
+
+                        {/* Child Part Type Dropdown */}
+                        <Select
+                          value={part.type}
+                          onValueChange={(value) =>
+                            updateChildPartType(part.id, value as ChildPartType)
+                          }
+                        >
+                          <SelectTrigger className="w-[160px]">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.values(ChildPartType).map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* File Upload */}
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            id={`file-${part.id}`}
+                            onChange={(e) =>
+                              handleFileChange(part.id, e.target.files?.[0] || null)
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              document.getElementById(`file-${part.id}`)?.click()
+                            }
+                            className="gap-1"
+                          >
+                            <Upload className="h-3 w-3" />
+                            {part.drawingFileName ? 'Change' : 'Upload Drawing'}
+                          </Button>
+                          {part.drawingFileName && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                              {part.drawingFileName}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Remove Button */}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeChildPart(part.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )}
 
             <DialogFooter>
               <Button

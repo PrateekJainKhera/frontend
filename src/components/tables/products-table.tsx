@@ -63,6 +63,8 @@ export function ProductsTable({ products, onUpdate }: ProductsTableProps) {
             <TableHead>Dimensions</TableHead>
             <TableHead>Material</TableHead>
             <TableHead>Drawing No</TableHead>
+            <TableHead>Revision No</TableHead>
+            <TableHead>Revision Date</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -87,7 +89,13 @@ export function ProductsTable({ products, onUpdate }: ProductsTableProps) {
                 {product.materialGrade}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {product.drawingNo}
+                {product.drawingNo || '-'}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {product.revisionNo || '-'}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {product.revisionDate || '-'}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {formatDate(product.createdAt)}
