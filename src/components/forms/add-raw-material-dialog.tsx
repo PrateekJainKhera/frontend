@@ -28,19 +28,17 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { MaterialShape } from '@/types/enums'
+import { MaterialGrade, MaterialShape } from '@/types/enums'
 import { toast } from 'sonner'
 
 const formSchema = z.object({
   materialName: z.string().min(2, 'Material name is required'),
-  materialType: z.nativeEnum(MaterialShape, { message: 'Material shape is required' }),
-  grade: z.string().min(1, 'Grade is required'),
-  diameter: z.number().min(1, 'Diameter must be greater than 0'),
-  lengthMM: z.number().min(1, 'Length must be greater than 0'),
-  weightKG: z.number().min(0.001, 'Weight must be greater than 0'),
-  stockQty: z.number().min(0, 'Stock quantity cannot be negative'),
-  minStockLevel: z.number().min(0, 'Min stock level cannot be negative'),
-  unitPrice: z.number().min(0, 'Unit price cannot be negative'),
+  grade: z.nativeEnum(MaterialGrade, { message: 'Grade is required' }),
+  shape: z.nativeEnum(MaterialShape, { message: 'Shape is required' }),
+  diameter: z.number().min(0.01, 'Diameter must be greater than 0'),
+  lengthInMM: z.number().min(0.01, 'Length must be greater than 0'),
+  density: z.number().min(0.01, 'Density must be greater than 0'),
+  weightKG: z.number().min(0, 'Weight must be positive'),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -57,13 +55,10 @@ export function AddRawMaterialDialog({ open, onOpenChange }: AddRawMaterialDialo
     resolver: zodResolver(formSchema),
     defaultValues: {
       materialName: '',
-      grade: '',
       diameter: 0,
-      lengthMM: 0,
+      lengthInMM: 3000,
+      density: 7.85,
       weightKG: 0,
-      stockQty: 0,
-      minStockLevel: 10,
-      unitPrice: 0,
     },
   })
 
@@ -87,43 +82,43 @@ export function AddRawMaterialDialog({ open, onOpenChange }: AddRawMaterialDialo
         <DialogHeader>
           <DialogTitle>Add Raw Material</DialogTitle>
           <DialogDescription>
-            Add a new raw material to the inventory
+            Add a new raw material specification to the master catalog
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="materialName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Material Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., EN8 Rod 50mm" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="materialName"
+                name="grade"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Material Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Steel Rod" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="materialType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Material Type</FormLabel>
+                    <FormLabel>Grade *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
+                          <SelectValue placeholder="Select grade" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {Object.values(MaterialShape).map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
+                        {Object.values(MaterialGrade).map((grade) => (
+                          <SelectItem key={grade} value={grade}>
+                            {grade}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -135,28 +130,42 @@ export function AddRawMaterialDialog({ open, onOpenChange }: AddRawMaterialDialo
 
               <FormField
                 control={form.control}
-                name="grade"
+                name="shape"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Grade</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., EN8, EN31" {...field} />
-                    </FormControl>
+                    <FormLabel>Shape *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select shape" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.values(MaterialShape).map((shape) => (
+                          <SelectItem key={shape} value={shape}>
+                            {shape}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="diameter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Diameter (mm)</FormLabel>
+                    <FormLabel>Diameter (mm) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="0"
+                        step="0.01"
+                        placeholder="50"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
@@ -168,14 +177,37 @@ export function AddRawMaterialDialog({ open, onOpenChange }: AddRawMaterialDialo
 
               <FormField
                 control={form.control}
-                name="lengthMM"
+                name="lengthInMM"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Length (mm)</FormLabel>
+                    <FormLabel>Length (mm) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="0"
+                        step="0.01"
+                        placeholder="3000"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="density"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Density (g/cm³) *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.001"
+                        placeholder="7.85"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
@@ -190,70 +222,12 @@ export function AddRawMaterialDialog({ open, onOpenChange }: AddRawMaterialDialo
                 name="weightKG"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Weight (kg)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.001"
-                        placeholder="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="stockQty"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock Quantity</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="minStockLevel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Min Stock Level</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="10"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="unitPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit Price (₹)</FormLabel>
+                    <FormLabel>Weight (kg) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="0"
+                        placeholder="46.2"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />

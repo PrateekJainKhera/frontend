@@ -1,5 +1,4 @@
 import { RawMaterial, MaterialGrade, MaterialShape } from '@/types'
-import { calculateWeightFromLength } from '@/lib/utils/material-calculations'
 
 export const mockRawMaterials: RawMaterial[] = [
   {
@@ -9,10 +8,8 @@ export const mockRawMaterials: RawMaterial[] = [
     shape: MaterialShape.ROD,
     diameter: 50,
     lengthInMM: 3000,
-    density: 0.00000785,
-    weightKG: calculateWeightFromLength(3000, 50, 0.00000785),
-    stockQty: 150,
-    minStockLevel: 50,
+    density: 7.85,
+    weightKG: 46.2,
     createdAt: new Date('2024-01-10'),
     updatedAt: new Date('2024-01-10')
   },
@@ -23,10 +20,8 @@ export const mockRawMaterials: RawMaterial[] = [
     shape: MaterialShape.ROD,
     diameter: 80,
     lengthInMM: 3000,
-    density: 0.00000785,
-    weightKG: calculateWeightFromLength(3000, 80, 0.00000785),
-    stockQty: 85,
-    minStockLevel: 40,
+    density: 7.85,
+    weightKG: 118.4,
     createdAt: new Date('2024-01-10'),
     updatedAt: new Date('2024-01-10')
   },
@@ -37,10 +32,8 @@ export const mockRawMaterials: RawMaterial[] = [
     shape: MaterialShape.ROD,
     diameter: 100,
     lengthInMM: 3000,
-    density: 0.00000785,
-    weightKG: calculateWeightFromLength(3000, 100, 0.00000785),
-    stockQty: 25,
-    minStockLevel: 30,
+    density: 7.85,
+    weightKG: 185.0,
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2024-01-15')
   },
@@ -51,10 +44,8 @@ export const mockRawMaterials: RawMaterial[] = [
     shape: MaterialShape.PIPE,
     diameter: 60,
     lengthInMM: 3000,
-    density: 0.00000793,
-    weightKG: calculateWeightFromLength(3000, 60, 0.00000793),
-    stockQty: 45,
-    minStockLevel: 20,
+    density: 7.93,
+    weightKG: 67.0,
     createdAt: new Date('2024-02-01'),
     updatedAt: new Date('2024-02-01')
   },
@@ -65,10 +56,8 @@ export const mockRawMaterials: RawMaterial[] = [
     shape: MaterialShape.ROD,
     diameter: 75,
     lengthInMM: 3000,
-    density: 0.00000793,
-    weightKG: calculateWeightFromLength(3000, 75, 0.00000793),
-    stockQty: 32,
-    minStockLevel: 25,
+    density: 7.93,
+    weightKG: 104.9,
     createdAt: new Date('2024-02-10'),
     updatedAt: new Date('2024-02-10')
   }

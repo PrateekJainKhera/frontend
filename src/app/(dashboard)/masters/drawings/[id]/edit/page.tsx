@@ -280,12 +280,12 @@ export default function EditDrawingPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Linked Part (Optional)</Label>
-                  <Select value={linkedPartId} onValueChange={setLinkedPartId}>
+                  <Select value={linkedPartId || "none"} onValueChange={(v) => setLinkedPartId(v === "none" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select part" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {mockRawMaterials.map((material) => (
                         <SelectItem key={material.id} value={material.id}>
                           {material.materialName} - {material.grade}
@@ -297,12 +297,12 @@ export default function EditDrawingPage() {
 
                 <div className="space-y-2">
                   <Label>Linked Product/Roller (Optional)</Label>
-                  <Select value={linkedProductId} onValueChange={setLinkedProductId}>
+                  <Select value={linkedProductId || "none"} onValueChange={(v) => setLinkedProductId(v === "none" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {mockProducts.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
                           {product.modelName}
@@ -314,12 +314,12 @@ export default function EditDrawingPage() {
 
                 <div className="space-y-2">
                   <Label>Linked Customer (Optional)</Label>
-                  <Select value={linkedCustomerId} onValueChange={setLinkedCustomerId}>
+                  <Select value={linkedCustomerId || "none"} onValueChange={(v) => setLinkedCustomerId(v === "none" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {mockCustomers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.customerName}

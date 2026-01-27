@@ -18,11 +18,8 @@ export interface Component {
   supplierName?: string
   specifications?: string
   unitCost: number
-  stockQty: number
-  minStockLevel: number
   leadTimeDays: number
   unit: string // e.g., 'pcs', 'sets', 'pairs'
-  location?: string // Storage location
   notes?: string
   createdAt: Date
   updatedAt: Date

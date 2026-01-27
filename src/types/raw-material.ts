@@ -9,8 +9,6 @@ export interface RawMaterial {
   lengthInMM: number
   density: number
   weightKG: number
-  stockQty: number
-  minStockLevel: number
   createdAt: Date
   updatedAt: Date
 }

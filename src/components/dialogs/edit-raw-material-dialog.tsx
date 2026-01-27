@@ -34,8 +34,6 @@ const formSchema = z.object({
   lengthInMM: z.number().positive('Length must be positive'),
   density: z.number().positive('Density must be positive'),
   weightKG: z.number().positive('Weight must be positive'),
-  stockQty: z.number().min(0, 'Stock quantity cannot be negative'),
-  minStockLevel: z.number().min(0, 'Min stock level cannot be negative'),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -65,8 +63,6 @@ export function EditRawMaterialDialog({
       lengthInMM: material.lengthInMM,
       density: material.density,
       weightKG: material.weightKG,
-      stockQty: material.stockQty,
-      minStockLevel: material.minStockLevel,
     },
   })
 
@@ -215,46 +211,6 @@ export function EditRawMaterialDialog({
                         placeholder="Enter weight"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="stockQty"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock Quantity *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Enter stock quantity"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="minStockLevel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Min Stock Level *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Enter minimum stock level"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
