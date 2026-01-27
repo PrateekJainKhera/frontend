@@ -1,21 +1,23 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { mockProducts } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { Product } from '@/types'
-import { ProductsTable } from '@/components/tables/products-table'
+import { ProductsDataGrid } from '@/components/tables/products-data-grid'
 import { CreateProductDialog } from '@/components/forms/create-product-dialog'
 
-export function ProductsTab() {
+interface ProductsTabProps {
+  searchQuery?: string
+}
+
+export function ProductsTab({ searchQuery = '' }: ProductsTabProps) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   useEffect(() => {
@@ -37,22 +39,42 @@ export function ProductsTab() {
       product.rollerType.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  return (
-    <div className="space-y-6">
-      {/* Search & Filters */}
-      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-        <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by part code, customer, model, or type..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-      </Card>
+  // Get unique roller types for stats
+  const rollerTypes = [...new Set(products.map(p => p.rollerType))]
 
-      {/* Table */}
+  return (
+    <div className="space-y-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Total Products</CardDescription>
+            <CardTitle className="text-2xl">{products.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Roller Types</CardDescription>
+            <CardTitle className="text-2xl text-blue-600">{rollerTypes.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>With Drawings</CardDescription>
+            <CardTitle className="text-2xl text-green-600">
+              {products.filter(p => p.drawingNo).length}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Search Results</CardDescription>
+            <CardTitle className="text-2xl">{filteredProducts.length}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* Data Grid Table */}
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
@@ -60,7 +82,7 @@ export function ProductsTab() {
           ))}
         </div>
       ) : (
-        <ProductsTable products={filteredProducts} onUpdate={loadProducts} />
+        <ProductsDataGrid products={filteredProducts} onUpdate={loadProducts} />
       )}
 
       {/* Create Dialog */}

@@ -49,7 +49,7 @@ export default function CustomersPage() {
           placeholder="Search by name, code, or contact person..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="border-0 shadow-none focus-visible:ring-0 h-8 px-0 text-sm flex-1"
+          className="border-0 shadow-none focus-visible:ring-0 h-8 px-0 text-sm flex-1 placeholder:text-muted-foreground/40 focus:placeholder:text-transparent caret-foreground"
         />
         <Button
           variant="ghost"
