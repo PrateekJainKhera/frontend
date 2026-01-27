@@ -9,14 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { simulateApiCall } from "@/lib/utils/mock-api";
-import { en8SteelRodInventory, en8SteelRodPieces } from "@/lib/mock-data/raw-material-inventory";
-import { formatLength, formatWeight, calculateInventoryValue } from "@/lib/utils/material-usage-calculations";
+import { en8SteelRodInventory } from "@/lib/mock-data/raw-material-inventory";
+import { mockMaterialDailyBalance } from "@/lib/mock-data/material-daily-balance";
+import { formatLength, calculateInventoryValue } from "@/lib/utils/material-usage-calculations";
 import { MaterialUsageStatus } from "@/types/raw-material-inventory";
+import { MaterialDailyBalance } from "@/types/material-daily-balance";
 import { GRNEntryDialog } from "@/components/forms/grn-entry-dialog";
+import { MaterialInventoryList } from "@/components/inventory/material-inventory-list";
 
 export default function RawMaterialInventoryPage() {
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState(en8SteelRodInventory);
+  const [materialBalances, setMaterialBalances] = useState<MaterialDailyBalance[]>([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedMaterial, setSelectedMaterial] = useState<MaterialDailyBalance | null>(null);
   const [isGRNOpen, setIsGRNOpen] = useState(false);
 
   useEffect(() => {
@@ -25,12 +31,16 @@ export default function RawMaterialInventoryPage() {
 
   const loadInventory = async () => {
     setLoading(true);
-    const data = await simulateApiCall(en8SteelRodInventory, 800);
-    setInventory(data);
+    const [invData, balanceData] = await Promise.all([
+      simulateApiCall(en8SteelRodInventory, 500),
+      simulateApiCall(mockMaterialDailyBalance, 500)
+    ]);
+    setInventory(invData);
+    setMaterialBalances(balanceData);
     setLoading(false);
   };
 
-  const { totalValue, availableValue, wastageValue } = calculateInventoryValue(inventory.pieces);
+  const { availableValue, wastageValue } = calculateInventoryValue(inventory.pieces);
 
   const getStatusBadge = (status: MaterialUsageStatus) => {
     switch (status) {
@@ -47,6 +57,11 @@ export default function RawMaterialInventoryPage() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const handleMaterialClick = (material: MaterialDailyBalance) => {
+    setSelectedMaterial(material);
+    // Scroll to piece details or switch tab
   };
 
   if (loading) {
@@ -66,12 +81,10 @@ export default function RawMaterialInventoryPage() {
     <div className="space-y-6">
       {/* Header with GRN Button */}
       <div className="flex items-center justify-between">
-        <h1 className="sr-only">Raw Material Inventory</h1>
-        <div className="ml-auto">
-          <Button onClick={() => setIsGRNOpen(true)}>
-            Inward Material (GRN)
-          </Button>
-        </div>
+        <h1 className="text-2xl font-bold">Raw Material Inventory</h1>
+        <Button onClick={() => setIsGRNOpen(true)}>
+          Inward Material (GRN)
+        </Button>
       </div>
 
       {/* GRN Dialog */}
@@ -81,89 +94,101 @@ export default function RawMaterialInventoryPage() {
         onSuccess={loadInventory}
       />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-primary/50 hover:shadow-md transition-all duration-200">
-          <CardHeader className="pb-3">
-            <CardDescription className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Total Pieces
-            </CardDescription>
-            <CardTitle className="text-3xl">{inventory.totalPieces}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <div className="flex justify-between">
-                <span>Available:</span>
-                <span className="text-green-600 font-medium">{inventory.availablePieces}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Scrap:</span>
-                <span className="text-red-600 font-medium">{inventory.scrapPieces}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-blue-400/50 hover:shadow-md transition-all duration-200">
-          <CardHeader className="pb-3">
-            <CardDescription>Total Length</CardDescription>
-            <CardTitle className="text-3xl text-blue-600">
-              {inventory.totalLength ? formatLength(inventory.totalLength) : "N/A"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">
-              Available for production
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-orange-400/50 hover:shadow-md transition-all duration-200">
-          <CardHeader className="pb-3">
-            <CardDescription className="flex items-center gap-2">
-              <TrendingDown className="h-4 w-4" />
-              Wastage
-            </CardDescription>
-            <CardTitle className="text-3xl text-orange-600">
-              {inventory.wastagePercentage?.toFixed(1)}%
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">
-              {inventory.totalWastageLength ? formatLength(inventory.totalWastageLength) : "0 mm"} total waste
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-primary/50 hover:shadow-md transition-all duration-200">
-          <CardHeader className="pb-3">
-            <CardDescription>Inventory Value</CardDescription>
-            <CardTitle className="text-3xl text-primary">
-              ₹{availableValue.toLocaleString()}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <div className="flex justify-between">
-                <span>Scrap value:</span>
-                <span className="text-orange-600">₹{wastageValue}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="pieces" className="space-y-4">
+      {/* Main Tabs */}
+      <Tabs defaultValue="material-list" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="pieces">Material Pieces</TabsTrigger>
-          <TabsTrigger value="usage">Usage History</TabsTrigger>
+          <TabsTrigger value="material-list">Material List</TabsTrigger>
+          <TabsTrigger value="piece-details">Piece Details</TabsTrigger>
+          <TabsTrigger value="usage-history">Usage History</TabsTrigger>
           <TabsTrigger value="wastage">Wastage Analysis</TabsTrigger>
         </TabsList>
 
-        {/* Material Pieces Tab */}
-        <TabsContent value="pieces" className="space-y-4">
+        {/* Material List Tab - NEW */}
+        <TabsContent value="material-list">
+          <MaterialInventoryList
+            materials={materialBalances}
+            date={selectedDate}
+            onDateChange={setSelectedDate}
+            onMaterialClick={handleMaterialClick}
+          />
+        </TabsContent>
+
+        {/* Piece Details Tab */}
+        <TabsContent value="piece-details" className="space-y-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-primary/50 hover:shadow-md transition-all duration-200">
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Total Pieces
+                </CardDescription>
+                <CardTitle className="text-3xl">{inventory.totalPieces}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="flex justify-between">
+                    <span>Available:</span>
+                    <span className="text-green-600 font-medium">{inventory.availablePieces}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Scrap:</span>
+                    <span className="text-red-600 font-medium">{inventory.scrapPieces}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-blue-400/50 hover:shadow-md transition-all duration-200">
+              <CardHeader className="pb-3">
+                <CardDescription>Total Length</CardDescription>
+                <CardTitle className="text-3xl text-blue-600">
+                  {inventory.totalLength ? formatLength(inventory.totalLength) : "N/A"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xs text-muted-foreground">
+                  Available for production
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-orange-400/50 hover:shadow-md transition-all duration-200">
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4" />
+                  Wastage
+                </CardDescription>
+                <CardTitle className="text-3xl text-orange-600">
+                  {inventory.wastagePercentage?.toFixed(1)}%
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xs text-muted-foreground">
+                  {inventory.totalWastageLength ? formatLength(inventory.totalWastageLength) : "0 mm"} total waste
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-primary/50 hover:shadow-md transition-all duration-200">
+              <CardHeader className="pb-3">
+                <CardDescription>Inventory Value</CardDescription>
+                <CardTitle className="text-3xl text-primary">
+                  ₹{availableValue.toLocaleString()}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="flex justify-between">
+                    <span>Scrap value:</span>
+                    <span className="text-orange-600">₹{wastageValue}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Piece List */}
           <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>All Material Pieces</CardTitle>
@@ -224,7 +249,7 @@ export default function RawMaterialInventoryPage() {
                             </div>
                           </div>
 
-                          {/* Right: Value & Actions */}
+                          {/* Right: Value & Info */}
                           <div className="space-y-2">
                             <div>
                               <div className="text-xs text-muted-foreground">Purchase Cost</div>
@@ -271,7 +296,7 @@ export default function RawMaterialInventoryPage() {
         </TabsContent>
 
         {/* Usage History Tab */}
-        <TabsContent value="usage" className="space-y-4">
+        <TabsContent value="usage-history" className="space-y-4">
           <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <CardHeader>
               <CardTitle>Material Usage History</CardTitle>
