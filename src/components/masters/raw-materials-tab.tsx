@@ -1,21 +1,23 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { mockRawMaterials } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { RawMaterial } from '@/types'
-import { RawMaterialsTable } from '@/components/tables/raw-materials-table'
+import { RawMaterialsDataGrid } from '@/components/tables/raw-materials-data-grid'
 import { AddRawMaterialDialog } from '@/components/forms/add-raw-material-dialog'
 
-export function RawMaterialsTab() {
+interface RawMaterialsTabProps {
+  searchQuery?: string
+}
+
+export function RawMaterialsTab({ searchQuery = '' }: RawMaterialsTabProps) {
   const [materials, setMaterials] = useState<RawMaterial[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false)
 
   useEffect(() => {
@@ -35,43 +37,41 @@ export function RawMaterialsTab() {
       material.grade.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Get unique grades and shapes for stats
+  const uniqueGrades = [...new Set(materials.map(m => m.grade))]
+  const uniqueShapes = [...new Set(materials.map(m => m.shape))]
+
   return (
-    <div className="space-y-6">
-      {/* Header with Actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Reference catalog of materials used in the factory
-          </p>
-        </div>
-        <Button onClick={() => setIsAddMaterialOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Material Type
-        </Button>
+    <div className="space-y-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Total Materials</CardDescription>
+            <CardTitle className="text-2xl">{materials.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Grades</CardDescription>
+            <CardTitle className="text-2xl text-blue-600">{uniqueGrades.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Shapes</CardDescription>
+            <CardTitle className="text-2xl text-green-600">{uniqueShapes.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Search Results</CardDescription>
+            <CardTitle className="text-2xl">{filteredMaterials.length}</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
-      {/* Stats Card - Only Total Materials (no stock info) */}
-      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] max-w-xs">
-        <CardHeader className="pb-3">
-          <CardDescription>Total Material Types</CardDescription>
-          <CardTitle className="text-3xl">{materials.length}</CardTitle>
-        </CardHeader>
-      </Card>
-
-      {/* Search */}
-      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-        <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by material name or grade..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-      </Card>
-
-      {/* Table */}
+      {/* Data Grid Table */}
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
@@ -79,7 +79,7 @@ export function RawMaterialsTab() {
           ))}
         </div>
       ) : (
-        <RawMaterialsTable materials={filteredMaterials} onUpdate={loadMaterials} />
+        <RawMaterialsDataGrid materials={filteredMaterials} onUpdate={loadMaterials} />
       )}
 
       {/* Add Material Dialog */}

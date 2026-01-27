@@ -1,21 +1,23 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { mockProcesses } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { Process } from '@/types'
-import { ProcessesTable } from '@/components/tables/processes-table'
+import { ProcessesDataGrid } from '@/components/tables/processes-data-grid'
 import { AddProcessDialog } from '@/components/forms/add-process-dialog'
 
-export function ProcessesTab() {
+interface ProcessesTabProps {
+  searchQuery?: string
+}
+
+export function ProcessesTab({ searchQuery = '' }: ProcessesTabProps) {
   const [processes, setProcesses] = useState<Process[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
   const [isAddProcessOpen, setIsAddProcessOpen] = useState(false)
 
   useEffect(() => {
@@ -37,47 +39,42 @@ export function ProcessesTab() {
   )
 
   return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-          <p className="text-sm text-muted-foreground">Total Processes</p>
-          <p className="text-2xl font-bold">{processes.length}</p>
+    <div className="space-y-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Total Processes</CardDescription>
+            <CardTitle className="text-2xl">{processes.length}</CardTitle>
+          </CardHeader>
         </Card>
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-          <p className="text-sm text-muted-foreground">Machining</p>
-          <p className="text-2xl font-bold text-blue-600">
-            {processes.filter(p => p.category === 'Machining').length}
-          </p>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Machining</CardDescription>
+            <CardTitle className="text-2xl text-blue-600">
+              {processes.filter(p => p.category === 'Machining').length}
+            </CardTitle>
+          </CardHeader>
         </Card>
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-          <p className="text-sm text-muted-foreground">Finishing</p>
-          <p className="text-2xl font-bold text-green-600">
-            {processes.filter(p => p.category === 'Finishing').length}
-          </p>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Finishing</CardDescription>
+            <CardTitle className="text-2xl text-green-600">
+              {processes.filter(p => p.category === 'Finishing').length}
+            </CardTitle>
+          </CardHeader>
         </Card>
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-          <p className="text-sm text-muted-foreground">Outsourced</p>
-          <p className="text-2xl font-bold text-amber-600">
-            {processes.filter(p => p.isOutsourced).length}
-          </p>
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardDescription>Outsourced</CardDescription>
+            <CardTitle className="text-2xl text-amber-600">
+              {processes.filter(p => p.isOutsourced).length}
+            </CardTitle>
+          </CardHeader>
         </Card>
       </div>
 
-      {/* Search */}
-      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-        <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, code, or category..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-      </Card>
-
-      {/* Table */}
+      {/* Data Grid Table */}
       {loading ? (
         <div className="space-y-3">
           {[...Array(7)].map((_, i) => (
@@ -85,7 +82,7 @@ export function ProcessesTab() {
           ))}
         </div>
       ) : (
-        <ProcessesTable processes={filteredProcesses} onUpdate={loadProcesses} />
+        <ProcessesDataGrid processes={filteredProcesses} onUpdate={loadProcesses} />
       )}
 
       {/* Add Process Dialog */}
