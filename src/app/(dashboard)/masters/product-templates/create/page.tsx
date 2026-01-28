@@ -489,11 +489,7 @@ export default function CreateProductTemplatePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={RollerType.MAGNETIC}>Magnetic Roller</SelectItem>
-                  <SelectItem value={RollerType.ANILOX}>Anilox Roller</SelectItem>
-                  <SelectItem value={RollerType.RUBBER}>Rubber Roller</SelectItem>
                   <SelectItem value={RollerType.PRINTING}>Printing Roller</SelectItem>
-                  <SelectItem value={RollerType.IDLER}>Idler Roller</SelectItem>
-                  <SelectItem value={RollerType.EMBOSSING}>Embossing Roller</SelectItem>
                 </SelectContent>
               </Select>
             </div>
