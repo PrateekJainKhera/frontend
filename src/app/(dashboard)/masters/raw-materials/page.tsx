@@ -4,21 +4,19 @@ import { useState, useEffect } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { mockRawMaterials } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 import { RawMaterial } from '@/types'
 import { RawMaterialsTable } from '@/components/tables/raw-materials-table'
 import { AddRawMaterialDialog } from '@/components/forms/add-raw-material-dialog'
-import { GRNEntryDialog } from '@/components/forms/grn-entry-dialog'
 
 export default function RawMaterialsPage() {
   const [materials, setMaterials] = useState<RawMaterial[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false)
-  const [isGRNOpen, setIsGRNOpen] = useState(false) // Restored GRN State
 
   useEffect(() => {
     loadMaterials()
@@ -37,8 +35,9 @@ export default function RawMaterialsPage() {
       material.grade.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Calculate low stock items
-  const lowStockCount = materials.filter(m => m.stockQty < m.minStockLevel).length
+  // Get unique grades and shapes for stats (catalog info only)
+  const uniqueGrades = [...new Set(materials.map(m => m.grade))]
+  const uniqueShapes = [...new Set(materials.map(m => m.shape))]
 
   return (
     <div className="space-y-6">
@@ -46,9 +45,6 @@ export default function RawMaterialsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="sr-only">Raw Material Master</h1>
         <div className="flex gap-2 ml-auto">
-          <Button variant="secondary" onClick={() => setIsGRNOpen(true)}>
-            Inward Material (GRN)
-          </Button>
           <Button onClick={() => setIsAddMaterialOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Material
@@ -56,8 +52,8 @@ export default function RawMaterialsPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Stats Cards - Catalog info only, no stock */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
             <CardDescription>Total Materials</CardDescription>
@@ -66,18 +62,20 @@ export default function RawMaterialsPage() {
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
-            <CardDescription>Total Stock Weight</CardDescription>
-            <CardTitle className="text-3xl text-blue-600">
-              {materials.reduce((sum, m) => sum + (m.weightKG * m.stockQty), 0).toFixed(0)} kg
-            </CardTitle>
+            <CardDescription>Grades</CardDescription>
+            <CardTitle className="text-3xl text-blue-600">{uniqueGrades.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
-            <CardDescription>Low Stock Alerts</CardDescription>
-            <CardTitle className={`text-3xl ${lowStockCount > 0 ? 'text-destructive' : 'text-green-600'}`}>
-              {lowStockCount}
-            </CardTitle>
+            <CardDescription>Shapes</CardDescription>
+            <CardTitle className="text-3xl text-green-600">{uniqueShapes.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+          <CardHeader className="pb-3">
+            <CardDescription>Search Results</CardDescription>
+            <CardTitle className="text-3xl">{filteredMaterials.length}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -110,13 +108,6 @@ export default function RawMaterialsPage() {
       <AddRawMaterialDialog
         open={isAddMaterialOpen}
         onOpenChange={setIsAddMaterialOpen}
-      />
-
-      {/* Restored GRN Dialog */}
-      <GRNEntryDialog
-        open={isGRNOpen}
-        onOpenChange={setIsGRNOpen}
-        onSuccess={loadMaterials}
       />
     </div>
   )
