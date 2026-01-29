@@ -115,8 +115,14 @@ export function EditProductDialog({
                   <FormItem>
                     <FormLabel>Part Code *</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., PART-001" {...field} />
+                      <Input
+                        placeholder="e.g., PART-001"
+                        {...field}
+                        disabled
+                        className="bg-muted cursor-not-allowed"
+                      />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Auto-generated, cannot be edited</p>
                     <FormMessage />
                   </FormItem>
                 )}

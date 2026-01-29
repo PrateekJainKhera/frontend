@@ -1,6 +1,7 @@
 // Core type exports
 export * from './customer'
 export * from './product'
+export * from './material-category'
 export * from './raw-material'
 export * from './component'
 export * from './process'

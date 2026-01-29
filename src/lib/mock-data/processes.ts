@@ -2,7 +2,7 @@ import { Process, ProcessTemplate, ProcessTemplateStep, ProcessCategory, SkillLe
 
 export const mockProcesses: Process[] = [
   {
-    id: 'proc-1',
+    id: 1,
     processCode: 'CNC-001',
     processName: 'CNC Turning',
     category: ProcessCategory.MACHINING,
@@ -14,7 +14,7 @@ export const mockProcesses: Process[] = [
     updatedAt: new Date('2024-01-01')
   },
   {
-    id: 'proc-2',
+    id: 2,
     processCode: 'HT-001',
     processName: 'Heat Treatment',
     category: ProcessCategory.HEAT_TREATMENT,
@@ -26,7 +26,7 @@ export const mockProcesses: Process[] = [
     updatedAt: new Date('2024-01-01')
   },
   {
-    id: 'proc-3',
+    id: 3,
     processCode: 'GRD-001',
     processName: 'Grinding',
     category: ProcessCategory.FINISHING,
@@ -38,7 +38,7 @@ export const mockProcesses: Process[] = [
     updatedAt: new Date('2024-01-01')
   },
   {
-    id: 'proc-4',
+    id: 4,
     processCode: 'BAL-001',
     processName: 'Balancing',
     category: ProcessCategory.FINISHING,
@@ -50,7 +50,7 @@ export const mockProcesses: Process[] = [
     updatedAt: new Date('2024-01-01')
   },
   {
-    id: 'proc-5',
+    id: 5,
     processCode: 'ASM-001',
     processName: 'Assembly',
     category: ProcessCategory.ASSEMBLY,
@@ -62,7 +62,7 @@ export const mockProcesses: Process[] = [
     updatedAt: new Date('2024-01-01')
   },
   {
-    id: 'proc-6',
+    id: 6,
     processCode: 'INS-001',
     processName: 'Final Inspection',
     category: ProcessCategory.INSPECTION,
@@ -74,7 +74,7 @@ export const mockProcesses: Process[] = [
     updatedAt: new Date('2024-01-01')
   },
   {
-    id: 'proc-7',
+    id: 7,
     processCode: 'DSP-001',
     processName: 'Dispatch',
     category: ProcessCategory.DISPATCH,
@@ -88,60 +88,60 @@ export const mockProcesses: Process[] = [
 
 export const mockProcessTemplates: ProcessTemplate[] = [
   {
-    id: 'tpl-001',
+    id: 1,
     templateName: 'Magnetic Roller Complete Process',
     description: 'Standard process for magnetic rollers',
     applicableTypes: [RollerType.MAGNETIC],
     steps: [
       {
-        id: 'step-1-1',
-        templateId: 'tpl-001',
-        processId: 'proc-1',
+        id: 1,
+        templateId: 1,
+        processId: 1,
         processName: 'CNC Turning',
         stepNo: 1,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-1-2',
-        templateId: 'tpl-001',
-        processId: 'proc-2',
+        id: 2,
+        templateId: 1,
+        processId: 2,
         processName: 'Heat Treatment',
         stepNo: 2,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-1-3',
-        templateId: 'tpl-001',
-        processId: 'proc-3',
+        id: 3,
+        templateId: 1,
+        processId: 3,
         processName: 'Grinding',
         stepNo: 3,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-1-4',
-        templateId: 'tpl-001',
-        processId: 'proc-4',
+        id: 4,
+        templateId: 1,
+        processId: 4,
         processName: 'Balancing',
         stepNo: 4,
         isMandatory: false,
         canBeParallel: false
       },
       {
-        id: 'step-1-5',
-        templateId: 'tpl-001',
-        processId: 'proc-6',
+        id: 5,
+        templateId: 1,
+        processId: 6,
         processName: 'Final Inspection',
         stepNo: 5,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-1-6',
-        templateId: 'tpl-001',
-        processId: 'proc-7',
+        id: 6,
+        templateId: 1,
+        processId: 7,
         processName: 'Dispatch',
         stepNo: 6,
         isMandatory: true,
@@ -152,42 +152,42 @@ export const mockProcessTemplates: ProcessTemplate[] = [
     updatedAt: new Date('2024-01-05')
   },
   {
-    id: 'tpl-002',
+    id: 2,
     templateName: 'Printing Roller Process',
     description: 'Standard process for printing rollers',
     applicableTypes: [RollerType.PRINTING],
     steps: [
       {
-        id: 'step-2-1',
-        templateId: 'tpl-002',
-        processId: 'proc-1',
+        id: 7,
+        templateId: 2,
+        processId: 1,
         processName: 'CNC Turning',
         stepNo: 1,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-2-2',
-        templateId: 'tpl-002',
-        processId: 'proc-5',
+        id: 8,
+        templateId: 2,
+        processId: 5,
         processName: 'Assembly',
         stepNo: 2,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-2-3',
-        templateId: 'tpl-002',
-        processId: 'proc-6',
+        id: 9,
+        templateId: 2,
+        processId: 6,
         processName: 'Final Inspection',
         stepNo: 3,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-2-4',
-        templateId: 'tpl-002',
-        processId: 'proc-7',
+        id: 10,
+        templateId: 2,
+        processId: 7,
         processName: 'Dispatch',
         stepNo: 4,
         isMandatory: true,
@@ -198,42 +198,42 @@ export const mockProcessTemplates: ProcessTemplate[] = [
     updatedAt: new Date('2024-01-05')
   },
   {
-    id: 'template-3',
+    id: 3,
     templateName: 'Idler Roller Standard',
     description: 'Standard process for idler rollers',
     applicableTypes: [RollerType.IDLER],
     steps: [
       {
-        id: 'step-3-1',
-        templateId: 'template-3',
-        processId: 'proc-1',
+        id: 11,
+        templateId: 3,
+        processId: 1,
         processName: 'CNC Turning',
         stepNo: 1,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-3-2',
-        templateId: 'template-3',
-        processId: 'proc-3',
+        id: 12,
+        templateId: 3,
+        processId: 3,
         processName: 'Grinding',
         stepNo: 2,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-3-3',
-        templateId: 'template-3',
-        processId: 'proc-6',
+        id: 13,
+        templateId: 3,
+        processId: 6,
         processName: 'Final Inspection',
         stepNo: 3,
         isMandatory: true,
         canBeParallel: false
       },
       {
-        id: 'step-3-4',
-        templateId: 'template-3',
-        processId: 'proc-7',
+        id: 14,
+        templateId: 3,
+        processId: 7,
         processName: 'Dispatch',
         stepNo: 4,
         isMandatory: true,

@@ -1,7 +1,7 @@
 import { RollerType } from './enums'
 
 export interface Product {
-  id: string
+  id: number
   partCode: string
   customerName: string
   modelName: string
@@ -15,7 +15,7 @@ export interface Product {
   numberOfTeeth?: number | null
   surfaceFinish?: string
   hardness?: string
-  processTemplateId: string
+  processTemplateId: number
   createdAt: Date
   updatedAt: Date
   createdBy: string

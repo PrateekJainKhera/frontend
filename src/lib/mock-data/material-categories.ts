@@ -1,19 +1,8 @@
-export interface MaterialCategory {
-  id: string
-  categoryCode: string
-  categoryName: string
-  quality: string
-  description: string
-  defaultUOM: string
-  materialType: 'raw_material' | 'component'
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
+import { MaterialCategory } from '@/types'
 
 export const mockMaterialCategories: MaterialCategory[] = [
   {
-    id: '1',
+    id: 1,
     categoryCode: 'MAT-STEEL',
     categoryName: 'Steel Rods',
     quality: 'EN8',
@@ -21,11 +10,11 @@ export const mockMaterialCategories: MaterialCategory[] = [
     defaultUOM: 'kg',
     materialType: 'raw_material',
     isActive: true,
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-15'
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2024-01-15')
   },
   {
-    id: '2',
+    id: 2,
     categoryCode: 'MAT-RUBBER',
     categoryName: 'Rubber Sheets',
     quality: 'Natural Rubber',
@@ -33,11 +22,11 @@ export const mockMaterialCategories: MaterialCategory[] = [
     defaultUOM: 'kg',
     materialType: 'raw_material',
     isActive: true,
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-15'
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2024-01-15')
   },
   {
-    id: '3',
+    id: 3,
     categoryCode: 'COMP-BEAR',
     categoryName: 'Bearings',
     quality: 'SKF',
@@ -45,11 +34,11 @@ export const mockMaterialCategories: MaterialCategory[] = [
     defaultUOM: 'nos',
     materialType: 'component',
     isActive: true,
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-15'
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2024-01-15')
   },
   {
-    id: '4',
+    id: 4,
     categoryCode: 'COMP-BOLT',
     categoryName: 'Bolts & Fasteners',
     quality: '8.8 Grade',
@@ -57,11 +46,11 @@ export const mockMaterialCategories: MaterialCategory[] = [
     defaultUOM: 'nos',
     materialType: 'component',
     isActive: true,
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-15'
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2024-01-15')
   },
   {
-    id: '5',
+    id: 5,
     categoryCode: 'MAT-ALUM',
     categoryName: 'Aluminum Sheets',
     quality: '6061-T6',
@@ -69,11 +58,11 @@ export const mockMaterialCategories: MaterialCategory[] = [
     defaultUOM: 'kg',
     materialType: 'raw_material',
     isActive: true,
-    createdAt: '2024-01-16',
-    updatedAt: '2024-01-16'
+    createdAt: new Date('2024-01-16'),
+    updatedAt: new Date('2024-01-16')
   },
   {
-    id: '6',
+    id: 6,
     categoryCode: 'COMP-SEAL',
     categoryName: 'Seals & Gaskets',
     quality: 'NBR',
@@ -81,7 +70,7 @@ export const mockMaterialCategories: MaterialCategory[] = [
     defaultUOM: 'nos',
     materialType: 'component',
     isActive: false,
-    createdAt: '2024-01-16',
-    updatedAt: '2024-01-20'
+    createdAt: new Date('2024-01-16'),
+    updatedAt: new Date('2024-01-20')
   }
 ]

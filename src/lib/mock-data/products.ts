@@ -4,7 +4,7 @@ import { Product, RollerType } from '@/types'
 export const mockProducts: Product[] = [
   // ===== MAGNETIC ROLLERS =====
   {
-    id: 'prod-1',
+    id: 1,
     partCode: 'MAG-250-EN8-001',
     customerName: 'ABC Flexo Packaging Ltd.',
     modelName: 'Flexo 8-Color Press',
@@ -17,13 +17,13 @@ export const mockProducts: Product[] = [
     numberOfTeeth: null,
     surfaceFinish: 'Mirror Polish',
     hardness: 'HRC 58-62',
-    processTemplateId: 'template-1',
+    processTemplateId: 1,
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2024-11-20'),
     createdBy: 'admin'
   },
   {
-    id: 'prod-2',
+    id: 2,
     partCode: 'MAG-280-EN8-002',
     customerName: 'Global Print Tech India',
     modelName: 'Rotogravure Press',
@@ -36,13 +36,13 @@ export const mockProducts: Product[] = [
     numberOfTeeth: null,
     surfaceFinish: 'Mirror Polish',
     hardness: 'HRC 58-62',
-    processTemplateId: 'template-1',
+    processTemplateId: 1,
     createdAt: new Date('2024-03-05'),
     updatedAt: new Date('2024-10-15'),
     createdBy: 'admin'
   },
   {
-    id: 'prod-3',
+    id: 3,
     partCode: 'MAG-300-EN19-003',
     customerName: 'Premium Packaging Solutions',
     modelName: 'CI Flexo Press',
@@ -55,7 +55,7 @@ export const mockProducts: Product[] = [
     numberOfTeeth: null,
     surfaceFinish: 'Mirror Polish',
     hardness: 'HRC 60-65',
-    processTemplateId: 'template-1',
+    processTemplateId: 1,
     createdAt: new Date('2024-05-10'),
     updatedAt: new Date('2024-12-01'),
     createdBy: 'admin'
@@ -63,7 +63,7 @@ export const mockProducts: Product[] = [
 
   // ===== PRINTING ROLLERS =====
   {
-    id: 'prod-4',
+    id: 4,
     partCode: 'PRT-200-NBR-001',
     customerName: 'XYZ Printing Solutions Pvt. Ltd.',
     modelName: 'Offset Press 4-Color',
@@ -76,13 +76,13 @@ export const mockProducts: Product[] = [
     numberOfTeeth: null,
     surfaceFinish: 'Matt Finish',
     hardness: 'Shore A 70',
-    processTemplateId: 'template-2',
+    processTemplateId: 2,
     createdAt: new Date('2024-02-10'),
     updatedAt: new Date('2024-11-10'),
     createdBy: 'admin'
   },
   {
-    id: 'prod-5',
+    id: 5,
     partCode: 'PRT-250-PU-002',
     customerName: 'Industrial Print Corp',
     modelName: 'Web Offset Press',
@@ -95,13 +95,13 @@ export const mockProducts: Product[] = [
     numberOfTeeth: null,
     surfaceFinish: 'Satin Finish',
     hardness: 'Shore A 80',
-    processTemplateId: 'template-2',
+    processTemplateId: 2,
     createdAt: new Date('2024-04-15'),
     updatedAt: new Date('2024-09-25'),
     createdBy: 'admin'
   },
   {
-    id: 'prod-6',
+    id: 6,
     partCode: 'PRT-300-NBR-003',
     customerName: 'Pacific Printing Industries',
     modelName: 'Rotogravure Coating Line',
@@ -114,7 +114,7 @@ export const mockProducts: Product[] = [
     numberOfTeeth: null,
     surfaceFinish: 'High Gloss',
     hardness: 'Shore A 75',
-    processTemplateId: 'template-2',
+    processTemplateId: 2,
     createdAt: new Date('2024-06-01'),
     updatedAt: new Date('2024-11-30'),
     createdBy: 'admin'

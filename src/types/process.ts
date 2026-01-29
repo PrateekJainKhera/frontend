@@ -3,7 +3,7 @@ import { ProcessSubCategory, MachineType, CNCOperationType, MagneticProcessType 
 import { OSPProcessType } from './osp-tracking'
 
 export interface Process {
-  id: string
+  id: number
   processCode: string
   processName: string
   category: ProcessCategory
@@ -59,7 +59,7 @@ export interface Process {
 }
 
 export interface ProcessTemplate {
-  id: string
+  id: number
   templateName: string
   description?: string
   applicableTypes: RollerType[]
@@ -69,9 +69,9 @@ export interface ProcessTemplate {
 }
 
 export interface ProcessTemplateStep {
-  id: string
-  templateId: string
-  processId: string
+  id: number
+  templateId: number
+  processId: number
   processName: string
   stepNo: number
   isMandatory: boolean

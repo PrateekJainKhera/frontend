@@ -19,7 +19,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockMaterialCategories, MaterialCategory } from '@/lib/mock-data'
+import { mockMaterialCategories } from '@/lib/mock-data'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 
 export default function EditMaterialCategoryPage() {
@@ -45,7 +45,7 @@ export default function EditMaterialCategoryPage() {
     setLoading(true)
     // Simulate API call
     const allCategories = await simulateApiCall(mockMaterialCategories, 800)
-    const found = allCategories.find((c) => c.id === params.id)
+    const found = allCategories.find((c) => c.id === Number(params.id))
 
     if (found) {
       setCategoryCode(found.categoryCode)
@@ -130,9 +130,10 @@ export default function EditMaterialCategoryPage() {
                     id="categoryCode"
                     placeholder="e.g., MAT-STEEL"
                     value={categoryCode}
-                    onChange={(e) => setCategoryCode(e.target.value)}
-                    required
+                    disabled
+                    className="bg-muted cursor-not-allowed"
                   />
+                  <p className="text-xs text-muted-foreground">Auto-generated, cannot be edited</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="categoryName">Category Name *</Label>
