@@ -26,8 +26,8 @@ export default function ProductDetailPage() {
 
   const loadProductAndBOM = async () => {
     setLoading(true)
-    const foundProduct = mockProducts.find(p => p.id === params.id)
-    const foundBom = mockBOMs.find(b => b.productId === params.id && b.isActive)
+    const foundProduct = mockProducts.find(p => p.id === Number(params.id))
+    const foundBom = mockBOMs.find(b => b.productId === String(params.id) && b.isActive)
 
     const productData = await simulateApiCall(foundProduct || null, 500)
     const bomData = await simulateApiCall(foundBom || null, 500)

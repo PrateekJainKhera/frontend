@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Edit, AlertTriangle } from 'lucide-react'
+import { Eye, Edit } from 'lucide-react'
 import { ViewComponentDialog } from '@/components/dialogs/view-component-dialog'
 import { EditComponentDialog } from '@/components/dialogs/edit-component-dialog'
 
@@ -81,70 +81,54 @@ export function ComponentsTable({ components, onUpdate }: ComponentsTableProps) 
               <TableHead>Component Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Manufacturer</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Unit Cost</TableHead>
+              <TableHead>Supplier</TableHead>
+              <TableHead>Lead Time</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {components.map((component) => {
-              const isLowStock = component.stockQty < component.minStockLevel
-
-              return (
-                <TableRow key={component.id}>
-                  <TableCell className="font-mono font-semibold">
-                    {component.partNumber}
-                  </TableCell>
-                  <TableCell className="max-w-xs">
-                    <div className="truncate">{component.componentName}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getCategoryColor(component.category)}>
-                      {component.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {component.manufacturer || '-'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {isLowStock && (
-                        <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      )}
-                      <div>
-                        <div className={`font-semibold ${isLowStock ? 'text-amber-600' : ''}`}>
-                          {component.stockQty} {component.unit}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Min: {component.minStockLevel}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    ₹{component.unitCost.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleView(component)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(component)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+            {components.map((component) => (
+              <TableRow key={component.id}>
+                <TableCell className="font-mono font-semibold">
+                  {component.partNumber}
+                </TableCell>
+                <TableCell className="max-w-xs">
+                  <div className="truncate">{component.componentName}</div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={getCategoryColor(component.category)}>
+                    {component.category}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {component.manufacturer || '-'}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {component.supplierName || '-'}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {component.leadTimeDays} days
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleView(component)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(component)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>

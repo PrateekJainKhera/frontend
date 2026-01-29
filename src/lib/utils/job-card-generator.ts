@@ -50,11 +50,11 @@ export function generateJobCardsFromOrder(params: GenerateJobCardsParams): JobCa
       orderId: order.id,
       orderNo: order.orderNo,
 
-      processId: step.processId,
+      processId: step.processId.toString(),
       processName: step.processName,
       processCode: `PROC-${step.stepNo}`,
       stepNo: step.stepNo,
-      processTemplateId: processTemplate.id,
+      processTemplateId: processTemplate.id.toString(),
 
       dependsOnJobCardIds,
       blockedBy,

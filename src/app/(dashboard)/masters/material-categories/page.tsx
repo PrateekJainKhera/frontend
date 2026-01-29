@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { mockMaterialCategories, MaterialCategory } from '@/lib/mock-data'
+import { mockMaterialCategories } from '@/lib/mock-data'
+import { MaterialCategory } from '@/types'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 
 export default function MaterialCategoriesPage() {

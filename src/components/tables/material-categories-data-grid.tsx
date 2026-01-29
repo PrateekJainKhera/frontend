@@ -12,7 +12,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Eye, Edit } from 'lucide-react'
-import { MaterialCategory } from '@/lib/mock-data'
+import { MaterialCategory } from '@/types'
 
 interface MaterialCategoriesDataGridProps {
     categories: MaterialCategory[]

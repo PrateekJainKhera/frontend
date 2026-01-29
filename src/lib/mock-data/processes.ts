@@ -201,7 +201,7 @@ export const mockProcessTemplates: ProcessTemplate[] = [
     id: 3,
     templateName: 'Idler Roller Standard',
     description: 'Standard process for idler rollers',
-    applicableTypes: [RollerType.IDLER],
+    applicableTypes: [RollerType.PRINTING],
     steps: [
       {
         id: 11,

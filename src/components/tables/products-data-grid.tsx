@@ -69,7 +69,7 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
         setEditDialogOpen(true)
     }
 
-    const handleViewBOM = (productId: string) => {
+    const handleViewBOM = (productId: number) => {
         router.push(`/masters/products/${productId}`)
     }
 

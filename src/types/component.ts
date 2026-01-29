@@ -17,7 +17,6 @@ export interface Component {
   manufacturer?: string
   supplierName?: string
   specifications?: string
-  unitCost: number
   leadTimeDays: number
   unit: string // e.g., 'pcs', 'sets', 'pairs'
   notes?: string

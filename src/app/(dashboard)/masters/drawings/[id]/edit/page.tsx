@@ -304,7 +304,7 @@ export default function EditDrawingPage() {
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
                       {mockProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
+                        <SelectItem key={product.id} value={product.id.toString()}>
                           {product.modelName}
                         </SelectItem>
                       ))}

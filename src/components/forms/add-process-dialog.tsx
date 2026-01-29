@@ -35,12 +35,11 @@ import { toast } from 'sonner'
 
 const formSchema = z.object({
   processName: z.string().min(2, 'Process name is required'),
-  processCode: z.string().min(2, 'Process code is required'),
   category: z.nativeEnum(ProcessCategory, { message: 'Category is required' }),
-  description: z.string().optional(),
-  standardTimeHours: z.number().min(0, 'Standard time cannot be negative'),
+  defaultMachine: z.string().optional(),
+  standardTimeMin: z.number().min(0, 'Setup time cannot be negative'),
   restTimeHours: z.number().min(0, 'Rest time cannot be negative').optional(),
-  costPerHour: z.number().min(0, 'Cost per hour cannot be negative'),
+  description: z.string().optional(),
   isOutsourced: z.boolean(),
 })
 
@@ -58,11 +57,10 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
     resolver: zodResolver(formSchema),
     defaultValues: {
       processName: '',
-      processCode: '',
+      defaultMachine: '',
       description: '',
-      standardTimeHours: 0,
+      standardTimeMin: 0,
       restTimeHours: 0,
-      costPerHour: 0,
       isOutsourced: false,
     },
   })
@@ -87,7 +85,7 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
         <DialogHeader>
           <DialogTitle>Add Process</DialogTitle>
           <DialogDescription>
-            Add a new manufacturing process
+            Add a new manufacturing process. Process code will be auto-generated.
           </DialogDescription>
         </DialogHeader>
 
@@ -99,23 +97,9 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
                 name="processName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Process Name</FormLabel>
+                    <FormLabel>Process Name *</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., CNC Turning" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="processCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Process Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., P-001" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -127,7 +111,7 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel>Category *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -149,17 +133,31 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
 
               <FormField
                 control={form.control}
-                name="standardTimeHours"
+                name="defaultMachine"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Standard Time (hours)</FormLabel>
+                    <FormLabel>Default Machine</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., CNC-01" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="standardTimeMin"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Setup Time (minutes) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        step="0.1"
+                        step="1"
                         placeholder="0"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -177,26 +175,6 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
                       <Input
                         type="number"
                         step="0.1"
-                        placeholder="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="costPerHour"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cost per Hour (₹)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
                         placeholder="0"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}

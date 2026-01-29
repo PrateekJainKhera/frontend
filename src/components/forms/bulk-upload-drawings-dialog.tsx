@@ -146,11 +146,11 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                 prev.map((f) =>
                     f.id === file.id
                         ? {
-                              ...f,
-                              status: success ? ('success' as const) : ('error' as const),
-                              progress: 100,
-                              error: success ? undefined : 'Upload failed'
-                          }
+                            ...f,
+                            status: success ? ('success' as const) : ('error' as const),
+                            progress: 100,
+                            error: success ? undefined : 'Upload failed'
+                        }
                         : f
                 )
             )
@@ -232,7 +232,7 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {mockProducts.map((product) => (
-                                                    <SelectItem key={product.id} value={product.id}>
+                                                    <SelectItem key={product.id} value={product.id.toString()}>
                                                         {product.modelName}
                                                     </SelectItem>
                                                 ))}

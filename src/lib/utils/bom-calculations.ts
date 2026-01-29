@@ -3,27 +3,21 @@ import { mockComponents } from '@/lib/mock-data/components'
 import { mockRawMaterials } from '@/lib/mock-data/raw-materials'
 
 // Get current stock for an item
+// NOTE: Stock tracking should be done via Inventory module, not Masters
+// This is a placeholder that would connect to inventory data
 export function getCurrentStock(itemId: string, itemType: 'COMPONENT' | 'RAW_MATERIAL'): number {
-  if (itemType === 'COMPONENT') {
-    const component = mockComponents.find(c => c.id === itemId)
-    return component?.stockQty || 0
-  } else {
-    const rawMaterial = mockRawMaterials.find(rm => rm.id === itemId)
-    return rawMaterial?.stockQty || 0
-  }
+  // In real implementation, this would query the Inventory module
+  // For now, return 0 as placeholder - stock data doesn't exist in Masters
+  return 0
 }
 
 // Get unit cost for an item
+// NOTE: Pricing data should come from a Pricing module, not Masters
+// This is a placeholder that would connect to pricing data
 export function getUnitCost(itemId: string, itemType: 'COMPONENT' | 'RAW_MATERIAL'): number {
-  if (itemType === 'COMPONENT') {
-    const component = mockComponents.find(c => c.id === itemId)
-    return component?.unitCost || 0
-  } else {
-    const rawMaterial = mockRawMaterials.find(rm => rm.id === itemId)
-    // For raw materials, calculate cost per unit (density * cost per kg for weight-based)
-    // Simplified: return a base cost
-    return 100 // Placeholder - should calculate based on material type
-  }
+  // In real implementation, this would query the Pricing module
+  // For now, return placeholder values - pricing data doesn't exist in Masters
+  return 100 // Placeholder cost
 }
 
 // Calculate shortfall for a BOM item based on order quantity

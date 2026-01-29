@@ -67,10 +67,6 @@ export function ChildPartTemplatesTab() {
     const colors: Record<RollerType, string> = {
       [RollerType.MAGNETIC]: 'bg-blue-500 text-white',
       [RollerType.PRINTING]: 'bg-orange-500 text-white',
-      [RollerType.ANILOX]: 'bg-green-500 text-white',
-      [RollerType.RUBBER]: 'bg-purple-500 text-white',
-      [RollerType.IDLER]: 'bg-yellow-500 text-white',
-      [RollerType.EMBOSSING]: 'bg-pink-500 text-white',
     }
     return colors[type] || 'bg-gray-500 text-white'
   }

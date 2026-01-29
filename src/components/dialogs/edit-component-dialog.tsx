@@ -41,12 +41,8 @@ const formSchema = z.object({
   manufacturer: z.string().optional(),
   supplierName: z.string().optional(),
   specifications: z.string().optional(),
-  unitCost: z.number().positive('Unit cost must be positive'),
-  stockQty: z.number().min(0, 'Stock quantity cannot be negative'),
-  minStockLevel: z.number().min(0, 'Min stock level cannot be negative'),
   leadTimeDays: z.number().min(1, 'Lead time must be at least 1 day'),
   unit: z.string().min(1, 'Unit is required'),
-  location: z.string().optional(),
   notes: z.string().optional(),
 })
 
@@ -76,12 +72,8 @@ export function EditComponentDialog({
       manufacturer: component.manufacturer || '',
       supplierName: component.supplierName || '',
       specifications: component.specifications || '',
-      unitCost: component.unitCost,
-      stockQty: component.stockQty,
-      minStockLevel: component.minStockLevel,
       leadTimeDays: component.leadTimeDays,
       unit: component.unit,
-      location: component.location || '',
       notes: component.notes || '',
     },
   })
@@ -105,7 +97,7 @@ export function EditComponentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Component</DialogTitle>
           <DialogDescription>
@@ -202,82 +194,7 @@ export function EditComponentDialog({
               />
             </div>
 
-            {/* Stock & Cost */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <FormField
-                control={form.control}
-                name="stockQty"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock Quantity *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="minStockLevel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Min Stock Level *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="unit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="pcs, sets" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="unitCost"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit Cost (₹) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Lead Time & Location */}
+            {/* Lead Time & Unit */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -300,12 +217,12 @@ export function EditComponentDialog({
 
               <FormField
                 control={form.control}
-                name="location"
+                name="unit"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Storage Location</FormLabel>
+                    <FormLabel>Unit *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Warehouse A - Rack 12" {...field} />
+                      <Input placeholder="pcs, sets" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

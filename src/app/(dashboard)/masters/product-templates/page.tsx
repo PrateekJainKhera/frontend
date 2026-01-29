@@ -50,11 +50,7 @@ export default function ProductTemplatesPage() {
   const getRollerTypeBadge = (type: RollerType) => {
     const colors: Record<RollerType, string> = {
       [RollerType.MAGNETIC]: 'bg-blue-100 text-blue-800',
-      [RollerType.ANILOX]: 'bg-green-100 text-green-800',
-      [RollerType.RUBBER]: 'bg-purple-100 text-purple-800',
       [RollerType.PRINTING]: 'bg-orange-100 text-orange-800',
-      [RollerType.IDLER]: 'bg-yellow-100 text-yellow-800',
-      [RollerType.EMBOSSING]: 'bg-pink-100 text-pink-800',
     }
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
@@ -136,11 +132,7 @@ export default function ProductTemplatesPage() {
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value={RollerType.MAGNETIC}>Magnetic Roller</SelectItem>
-                <SelectItem value={RollerType.ANILOX}>Anilox Roller</SelectItem>
-                <SelectItem value={RollerType.RUBBER}>Rubber Roller</SelectItem>
                 <SelectItem value={RollerType.PRINTING}>Printing Roller</SelectItem>
-                <SelectItem value={RollerType.IDLER}>Idler Roller</SelectItem>
-                <SelectItem value={RollerType.EMBOSSING}>Embossing Roller</SelectItem>
               </SelectContent>
             </Select>
           </div>

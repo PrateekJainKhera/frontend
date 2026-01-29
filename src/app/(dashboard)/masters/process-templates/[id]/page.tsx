@@ -29,14 +29,14 @@ export default function ProcessTemplateDetailPage() {
     try {
       // Simulate API call to fetch template by ID
       const data = await simulateApiCall(mockProcessTemplates, 800)
-      const foundTemplate = data.find(t => t.id === templateId)
+      const foundTemplate = data.find(t => t.id === Number(templateId))
       setTemplate(foundTemplate || null)
 
       // Find child part templates that use processes from this template
       if (foundTemplate) {
         const processIds = foundTemplate.steps.map(step => step.processId)
         const childParts = mockChildPartTemplates.filter(cpt =>
-          cpt.processSteps.some(step => processIds.includes(step.processId))
+          cpt.processSteps.some(step => processIds.includes(Number(step.processId)))
         )
         setRelatedChildParts(childParts)
       }

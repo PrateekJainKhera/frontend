@@ -39,7 +39,7 @@ export function ProductsTable({ products, onUpdate }: ProductsTableProps) {
     setEditDialogOpen(true)
   }
 
-  const handleViewBOM = (productId: string) => {
+  const handleViewBOM = (productId: number) => {
     router.push(`/masters/products/${productId}`)
   }
 

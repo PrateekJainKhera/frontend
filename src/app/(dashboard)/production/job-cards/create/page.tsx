@@ -82,7 +82,7 @@ export default function CreateJobCardPage() {
 
   // Update process name when process changes
   const handleProcessChange = (processId: string) => {
-    const process = mockProcesses.find(p => p.id === processId)
+    const process = mockProcesses.find(p => p.id === Number(processId))
     if (process) {
       form.setValue('processName', process.processName)
     }
@@ -98,8 +98,8 @@ export default function CreateJobCardPage() {
       const jobCardNo = data.creationType === 'MANUAL'
         ? `JC-${timestamp}`
         : data.orderNo
-        ? `JC-${data.orderNo}-${data.stepNo}`
-        : `JC-${timestamp}`
+          ? `JC-${data.orderNo}-${data.stepNo}`
+          : `JC-${timestamp}`
 
       const jobCardData = {
         id: `jc-${timestamp}`,
@@ -336,7 +336,7 @@ export default function CreateJobCardPage() {
                             </FormControl>
                             <SelectContent>
                               {mockProcesses.map((process) => (
-                                <SelectItem key={process.id} value={process.id}>
+                                <SelectItem key={process.id} value={process.id.toString()}>
                                   <div className="flex flex-col items-start">
                                     <span className="font-medium">{process.processName}</span>
                                     <span className="text-xs text-muted-foreground">
@@ -595,7 +595,7 @@ export default function CreateJobCardPage() {
                         <div>
                           <p className="text-muted-foreground">Process</p>
                           <p className="font-medium">
-                            {mockProcesses.find(p => p.id === processId)?.processName || 'N/A'}
+                            {mockProcesses.find(p => p.id === Number(processId))?.processName || 'N/A'}
                           </p>
                         </div>
                       </>

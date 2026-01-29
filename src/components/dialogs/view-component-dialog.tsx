@@ -10,15 +10,11 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import {
-  Package,
   Building2,
   Truck,
-  DollarSign,
   Calendar,
-  MapPin,
   Clock,
   FileText,
-  AlertTriangle
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
 
@@ -54,8 +50,6 @@ export function ViewComponentDialog({
   open,
   onOpenChange,
 }: ViewComponentDialogProps) {
-  const isLowStock = component.stockQty < component.minStockLevel
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -114,73 +108,16 @@ export function ViewComponentDialog({
                 </div>
               </div>
 
-              {component.location && (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <MapPin className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Storage Location</p>
-                    <p className="font-medium">{component.location}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Stock & Cost Information */}
-          <div className="space-y-4 pt-4 border-t">
-            <h4 className="font-semibold text-sm text-muted-foreground uppercase">
-              Stock & Cost Information
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isLowStock ? 'bg-amber-100' : 'bg-primary/10'}`}>
-                  <Package className={`h-5 w-5 ${isLowStock ? 'text-amber-600' : 'text-primary'}`} />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Current Stock</p>
-                  <p className={`font-medium text-lg ${isLowStock ? 'text-amber-600' : ''}`}>
-                    {component.stockQty} {component.unit}
-                  </p>
-                </div>
-              </div>
-
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <AlertTriangle className="h-5 w-5 text-primary" />
+                  <FileText className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Min Stock Level</p>
-                  <p className="font-medium text-lg">{component.minStockLevel} {component.unit}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Unit Cost</p>
-                  <p className="font-medium text-lg text-green-600">₹{component.unitCost.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Unit</p>
+                  <p className="font-medium">{component.unit}</p>
                 </div>
               </div>
             </div>
-
-            {isLowStock && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-amber-900">Low Stock Warning</p>
-                    <p className="text-sm text-amber-700 mt-1">
-                      Current stock ({component.stockQty} {component.unit}) is below minimum level ({component.minStockLevel} {component.unit}).
-                      Consider reordering soon.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Specifications */}

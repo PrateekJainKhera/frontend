@@ -50,14 +50,8 @@ export default function ComponentsPage() {
     return matchesSearch && matchesCategory
   })
 
-  const lowStockComponents = components.filter(
-    (c) => c.stockQty < c.minStockLevel
-  ).length
-
-  const totalValue = components.reduce(
-    (sum, c) => sum + c.stockQty * c.unitCost,
-    0
-  )
+  // Count unique categories
+  const uniqueCategories = new Set(components.map(c => c.category)).size
 
   return (
     <div className="space-y-6">
@@ -71,24 +65,20 @@ export default function ComponentsPage() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Total Components</p>
           <p className="text-2xl font-bold">{components.length}</p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-          <p className="text-sm text-muted-foreground">Low Stock Items</p>
-          <p className="text-2xl font-bold text-amber-600">{lowStockComponents}</p>
-        </Card>
-        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-          <p className="text-sm text-muted-foreground">Total Inventory Value</p>
-          <p className="text-2xl font-bold text-green-600">
-            ₹{totalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+          <p className="text-sm text-muted-foreground">Categories</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {uniqueCategories}
           </p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-          <p className="text-sm text-muted-foreground">Categories</p>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-sm text-muted-foreground">Available Types</p>
+          <p className="text-2xl font-bold text-green-600">
             {Object.keys(ComponentCategory).length}
           </p>
         </Card>

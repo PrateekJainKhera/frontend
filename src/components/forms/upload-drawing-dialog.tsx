@@ -146,217 +146,217 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
                 <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
                     <div className="flex-1 overflow-y-auto px-6 pb-6">
                         <div className="space-y-6 mt-4">
-                        {/* File Upload Section */}
-                        <div className="space-y-3">
-                            <Label>Drawing File *</Label>
-                            <div className="border-2 border-dashed rounded-lg p-6">
-                                {!selectedFile ? (
-                                    <div className="text-center space-y-3">
-                                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                                        <div>
-                                            <label htmlFor="file-upload" className="cursor-pointer">
-                                                <span className="text-blue-600 hover:text-blue-700 font-medium">
-                                                    Click to upload
-                                                </span>
-                                                <span className="text-gray-600"> or drag and drop</span>
-                                            </label>
-                                            <Input
-                                                id="file-upload"
-                                                type="file"
-                                                className="hidden"
-                                                accept=".pdf,.png,.jpg,.jpeg"
-                                                onChange={handleFileSelect}
-                                            />
-                                        </div>
-                                        <p className="text-xs text-gray-500">
-                                            PDF, PNG, JPG up to 10MB
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-between bg-gray-50 p-3 rounded">
-                                        <div className="flex items-center gap-3">
-                                            <FileText className="h-8 w-8 text-blue-600" />
+                            {/* File Upload Section */}
+                            <div className="space-y-3">
+                                <Label>Drawing File *</Label>
+                                <div className="border-2 border-dashed rounded-lg p-6">
+                                    {!selectedFile ? (
+                                        <div className="text-center space-y-3">
+                                            <Upload className="mx-auto h-12 w-12 text-gray-400" />
                                             <div>
-                                                <div className="font-medium">{selectedFile.name}</div>
-                                                <div className="text-xs text-gray-500">
-                                                    {(selectedFile.size / 1024).toFixed(2)} KB
+                                                <label htmlFor="file-upload" className="cursor-pointer">
+                                                    <span className="text-blue-600 hover:text-blue-700 font-medium">
+                                                        Click to upload
+                                                    </span>
+                                                    <span className="text-gray-600"> or drag and drop</span>
+                                                </label>
+                                                <Input
+                                                    id="file-upload"
+                                                    type="file"
+                                                    className="hidden"
+                                                    accept=".pdf,.png,.jpg,.jpeg"
+                                                    onChange={handleFileSelect}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-500">
+                                                PDF, PNG, JPG up to 10MB
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded">
+                                            <div className="flex items-center gap-3">
+                                                <FileText className="h-8 w-8 text-blue-600" />
+                                                <div>
+                                                    <div className="font-medium">{selectedFile.name}</div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {(selectedFile.size / 1024).toFixed(2)} KB
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleRemoveFile}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
                                         </div>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handleRemoveFile}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Basic Information */}
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="drawingNumber">Drawing Number *</Label>
-                                    <Input
-                                        id="drawingNumber"
-                                        placeholder="e.g., SHAFT-001"
-                                        value={drawingNumber}
-                                        onChange={(e) => setDrawingNumber(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="drawingName">Drawing Name *</Label>
-                                    <Input
-                                        id="drawingName"
-                                        placeholder="e.g., Main Shaft Assembly"
-                                        value={drawingName}
-                                        onChange={(e) => setDrawingName(e.target.value)}
-                                        required
-                                    />
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="description">Description *</Label>
-                                <Textarea
-                                    id="description"
-                                    placeholder="Brief description of the drawing..."
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    rows={2}
-                                    required
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="notes">Notes (Optional)</Label>
-                                <Textarea
-                                    id="notes"
-                                    placeholder="Additional notes, tolerances, special instructions..."
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    rows={2}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Classification */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                                <Label>Part Type *</Label>
-                                <Select value={partType} onValueChange={(value) => setPartType(value as Drawing['partType'])}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="shaft">Shaft</SelectItem>
-                                        <SelectItem value="pipe">Pipe</SelectItem>
-                                        <SelectItem value="final">Final Assembly</SelectItem>
-                                        <SelectItem value="gear">Gear</SelectItem>
-                                        <SelectItem value="bushing">Bushing</SelectItem>
-                                        <SelectItem value="roller">Roller</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="revision">Revision *</Label>
-                                <Input
-                                    id="revision"
-                                    placeholder="A, B, C"
-                                    value={revision}
-                                    onChange={(e) => setRevision(e.target.value)}
-                                    required
-                                    maxLength={3}
-                                    className="font-mono"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Status *</Label>
-                                <RadioGroup value={status} onValueChange={(value) => setStatus(value as Drawing['status'])}>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="draft" id="draft" />
-                                        <Label htmlFor="draft" className="font-normal cursor-pointer">
-                                            Draft
-                                        </Label>
+                            {/* Basic Information */}
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="drawingNumber">Drawing Number *</Label>
+                                        <Input
+                                            id="drawingNumber"
+                                            placeholder="e.g., SHAFT-001"
+                                            value={drawingNumber}
+                                            onChange={(e) => setDrawingNumber(e.target.value)}
+                                            required
+                                        />
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="approved" id="approved" />
-                                        <Label htmlFor="approved" className="font-normal cursor-pointer">
-                                            Approved
-                                        </Label>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="drawingName">Drawing Name *</Label>
+                                        <Input
+                                            id="drawingName"
+                                            placeholder="e.g., Main Shaft Assembly"
+                                            value={drawingName}
+                                            onChange={(e) => setDrawingName(e.target.value)}
+                                            required
+                                        />
                                     </div>
-                                </RadioGroup>
-                            </div>
-                        </div>
+                                </div>
 
-                        {/* Linking (Optional) */}
-                        <div className="space-y-3">
-                            <Label className="text-sm font-semibold">Link to (Optional)</Label>
+                                <div className="space-y-2">
+                                    <Label htmlFor="description">Description *</Label>
+                                    <Textarea
+                                        id="description"
+                                        placeholder="Brief description of the drawing..."
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        rows={2}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="notes">Notes (Optional)</Label>
+                                    <Textarea
+                                        id="notes"
+                                        placeholder="Additional notes, tolerances, special instructions..."
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        rows={2}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Classification */}
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="space-y-2">
-                                    <Label className="text-xs">Part</Label>
-                                    <Select value={linkedPartId || undefined} onValueChange={setLinkedPartId}>
+                                    <Label>Part Type *</Label>
+                                    <Select value={partType} onValueChange={(value) => setPartType(value as Drawing['partType'])}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="None" />
+                                            <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {mockRawMaterials.slice(0, 5).map((material) => (
-                                                <SelectItem key={material.id} value={material.id}>
-                                                    {material.materialName}
-                                                </SelectItem>
-                                            ))}
+                                            <SelectItem value="shaft">Shaft</SelectItem>
+                                            <SelectItem value="pipe">Pipe</SelectItem>
+                                            <SelectItem value="final">Final Assembly</SelectItem>
+                                            <SelectItem value="gear">Gear</SelectItem>
+                                            <SelectItem value="bushing">Bushing</SelectItem>
+                                            <SelectItem value="roller">Roller</SelectItem>
+                                            <SelectItem value="other">Other</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label className="text-xs">Product/Roller</Label>
-                                    <Select value={linkedProductId || undefined} onValueChange={setLinkedProductId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="None" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {mockProducts.slice(0, 5).map((product) => (
-                                                <SelectItem key={product.id} value={product.id}>
-                                                    {product.modelName}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="revision">Revision *</Label>
+                                    <Input
+                                        id="revision"
+                                        placeholder="A, B, C"
+                                        value={revision}
+                                        onChange={(e) => setRevision(e.target.value)}
+                                        required
+                                        maxLength={3}
+                                        className="font-mono"
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label className="text-xs">Customer</Label>
-                                    <Select value={linkedCustomerId || undefined} onValueChange={setLinkedCustomerId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="None" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {mockCustomers.slice(0, 5).map((customer) => (
-                                                <SelectItem key={customer.id} value={customer.id}>
-                                                    {customer.customerName}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label>Status *</Label>
+                                    <RadioGroup value={status} onValueChange={(value) => setStatus(value as Drawing['status'])}>
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="draft" id="draft" />
+                                            <Label htmlFor="draft" className="font-normal cursor-pointer">
+                                                Draft
+                                            </Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="approved" id="approved" />
+                                            <Label htmlFor="approved" className="font-normal cursor-pointer">
+                                                Approved
+                                            </Label>
+                                        </div>
+                                    </RadioGroup>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Manufacturing Dimensions - CRITICAL */}
-                        <ManufacturingDimensionsForm
-                            partType={partType}
-                            dimensions={manufacturingDimensions}
-                            onChange={setManufacturingDimensions}
-                        />
+                            {/* Linking (Optional) */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-semibold">Link to (Optional)</Label>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Part</Label>
+                                        <Select value={linkedPartId || undefined} onValueChange={setLinkedPartId}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="None" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {mockRawMaterials.slice(0, 5).map((material) => (
+                                                    <SelectItem key={material.id} value={material.id}>
+                                                        {material.materialName}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Product/Roller</Label>
+                                        <Select value={linkedProductId || undefined} onValueChange={setLinkedProductId}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="None" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {mockProducts.slice(0, 5).map((product) => (
+                                                    <SelectItem key={product.id} value={product.id.toString()}>
+                                                        {product.modelName}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Customer</Label>
+                                        <Select value={linkedCustomerId || undefined} onValueChange={setLinkedCustomerId}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="None" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {mockCustomers.slice(0, 5).map((customer) => (
+                                                    <SelectItem key={customer.id} value={customer.id}>
+                                                        {customer.customerName}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Manufacturing Dimensions - CRITICAL */}
+                            <ManufacturingDimensionsForm
+                                partType={partType}
+                                dimensions={manufacturingDimensions}
+                                onChange={setManufacturingDimensions}
+                            />
                         </div>
                     </div>
 

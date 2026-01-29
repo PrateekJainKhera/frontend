@@ -58,11 +58,7 @@ export default function ProductTemplateDetailPage() {
   const getRollerTypeBadge = (type: RollerType) => {
     const colors: Record<RollerType, string> = {
       [RollerType.MAGNETIC]: 'bg-blue-100 text-blue-800',
-      [RollerType.ANILOX]: 'bg-green-100 text-green-800',
-      [RollerType.RUBBER]: 'bg-purple-100 text-purple-800',
       [RollerType.PRINTING]: 'bg-orange-100 text-orange-800',
-      [RollerType.IDLER]: 'bg-yellow-100 text-yellow-800',
-      [RollerType.EMBOSSING]: 'bg-pink-100 text-pink-800',
     }
     return colors[type] || 'bg-gray-100 text-gray-800'
   }

@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { simulateApiCall } from '@/lib/utils/mock-api'
@@ -38,10 +39,11 @@ const formSchema = z.object({
   componentName: z.string().min(2, 'Component name is required'),
   category: z.nativeEnum(ComponentCategory),
   manufacturer: z.string().optional(),
-  unitCost: z.number().positive('Unit cost must be positive'),
-  stockQty: z.number().min(0, 'Stock quantity cannot be negative'),
-  minStockLevel: z.number().min(0, 'Min stock level cannot be negative'),
+  supplierName: z.string().optional(),
+  specifications: z.string().optional(),
+  leadTimeDays: z.number().min(1, 'Lead time must be at least 1 day'),
   unit: z.string().min(1, 'Unit is required'),
+  notes: z.string().optional(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -66,10 +68,11 @@ export function AddComponentDialog({
       componentName: '',
       category: ComponentCategory.BEARING,
       manufacturer: '',
-      unitCost: 0,
-      stockQty: 0,
-      minStockLevel: 0,
+      supplierName: '',
+      specifications: '',
+      leadTimeDays: 7,
       unit: 'pcs',
+      notes: '',
     },
   })
 
@@ -99,7 +102,7 @@ export function AddComponentDialog({
         <DialogHeader>
           <DialogTitle>Add New Component</DialogTitle>
           <DialogDescription>
-            Add a new component to inventory. Fields marked with * are required.
+            Add a new component to the catalog. Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
@@ -162,36 +165,16 @@ export function AddComponentDialog({
               )}
             />
 
-            {/* Manufacturer */}
-            <FormField
-              control={form.control}
-              name="manufacturer"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Manufacturer</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter manufacturer" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Stock & Cost */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Manufacturer & Supplier */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="stockQty"
+                name="manufacturer"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stock Qty *</FormLabel>
+                    <FormLabel>Manufacturer</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                      />
+                      <Input placeholder="Enter manufacturer" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -200,16 +183,33 @@ export function AddComponentDialog({
 
               <FormField
                 control={form.control}
-                name="minStockLevel"
+                name="supplierName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Min Stock *</FormLabel>
+                    <FormLabel>Supplier Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter supplier" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Lead Time & Unit */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="leadTimeDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lead Time (days) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="0"
+                        placeholder="7"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -230,27 +230,45 @@ export function AddComponentDialog({
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="unitCost"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit Cost (₹) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+
+            {/* Specifications */}
+            <FormField
+              control={form.control}
+              name="specifications"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Technical Specifications</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter technical specifications"
+                      className="min-h-20"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Notes */}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Additional notes"
+                      className="min-h-20"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button

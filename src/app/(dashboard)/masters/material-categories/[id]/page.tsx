@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockMaterialCategories, MaterialCategory } from '@/lib/mock-data'
+import { mockMaterialCategories } from '@/lib/mock-data'
+import { MaterialCategory } from '@/types'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 
 export default function ViewMaterialCategoryPage() {
@@ -24,7 +25,7 @@ export default function ViewMaterialCategoryPage() {
     setLoading(true)
     // Simulate API call
     const allCategories = await simulateApiCall(mockMaterialCategories, 800)
-    const found = allCategories.find((c) => c.id === params.id)
+    const found = allCategories.find((c) => c.id === Number(params.id))
     setCategory(found || null)
     setLoading(false)
   }

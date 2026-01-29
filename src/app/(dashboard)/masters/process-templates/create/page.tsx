@@ -35,17 +35,14 @@ export default function CreateProcessTemplatePage() {
   const allRollerTypes: RollerType[] = [
     RollerType.PRINTING,
     RollerType.MAGNETIC,
-    RollerType.RUBBER,
-    RollerType.IDLER,
-    RollerType.EMBOSSING
   ]
 
   const handleAddStep = () => {
     const newStep: ProcessTemplateStep = {
-      id: `step-${Date.now()}`,
-      templateId: '', // Will be set when template is created
+      id: Date.now(),
+      templateId: 0, // Will be set when template is created
       stepNo: formData.steps.length + 1,
-      processId: '',
+      processId: 0,
       processName: '',
       isMandatory: true,
       canBeParallel: false
@@ -65,7 +62,7 @@ export default function CreateProcessTemplatePage() {
 
     if (field === 'processId') {
       // Find the selected process to auto-fill details
-      const selectedProcess = mockProcesses.find(p => p.id === value)
+      const selectedProcess = mockProcesses.find(p => p.id === Number(value))
       if (selectedProcess) {
         updatedSteps[index] = {
           ...updatedSteps[index],
@@ -285,7 +282,7 @@ export default function CreateProcessTemplatePage() {
                           <div className="space-y-2">
                             <Label>Process *</Label>
                             <Select
-                              value={step.processId}
+                              value={step.processId.toString()}
                               onValueChange={(value) => handleStepChange(index, 'processId', value)}
                             >
                               <SelectTrigger>
@@ -293,7 +290,7 @@ export default function CreateProcessTemplatePage() {
                               </SelectTrigger>
                               <SelectContent>
                                 {mockProcesses.map((process) => (
-                                  <SelectItem key={process.id} value={process.id}>
+                                  <SelectItem key={process.id} value={process.id.toString()}>
                                     {process.processName} - {process.category}
                                   </SelectItem>
                                 ))}

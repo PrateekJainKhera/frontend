@@ -237,7 +237,7 @@ export default function CreateOrderPage() {
                         <Select
                           onValueChange={(value) => {
                             field.onChange(value)
-                            const product = mockProducts.find(p => p.id === value)
+                            const product = mockProducts.find(p => p.id === Number(value))
                             setSelectedProduct(product || null)
                           }}
                           value={field.value}
@@ -254,7 +254,7 @@ export default function CreateOrderPage() {
                           </FormControl>
                           <SelectContent>
                             {filteredProducts.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
+                              <SelectItem key={product.id} value={product.id.toString()}>
                                 {product.partCode} - {product.modelName}
                               </SelectItem>
                             ))}

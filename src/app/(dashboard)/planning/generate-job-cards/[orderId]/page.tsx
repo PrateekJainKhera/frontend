@@ -96,7 +96,7 @@ export default function GenerateJobCardsPage() {
     setOrder(orderData)
 
     // Load product
-    const productData = mockProducts.find(p => p.id === orderData.productId)
+    const productData = mockProducts.find(p => p.id === Number(orderData.productId))
     setProduct(productData || null)
 
     // Load product template (find by rollerType match)
@@ -862,13 +862,13 @@ export default function GenerateJobCardsPage() {
                 {/* Warning for obsolete drawings */}
                 {newSelectedDrawingId &&
                   availableDrawings.find(d => d.id === newSelectedDrawingId)?.status === 'obsolete' && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Warning: This drawing is marked as obsolete. Use with caution.
-                    </AlertDescription>
-                  </Alert>
-                )}
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        Warning: This drawing is marked as obsolete. Use with caution.
+                      </AlertDescription>
+                    </Alert>
+                  )}
               </>
             )}
           </div>
@@ -923,11 +923,10 @@ export default function GenerateJobCardsPage() {
                     <button
                       key={drawing.id}
                       onClick={() => setSelectedPrimaryDrawingId(drawing.id)}
-                      className={`text-left border rounded-lg p-4 transition-all hover:border-blue-300 hover:shadow-sm ${
-                        selectedPrimaryDrawingId === drawing.id
+                      className={`text-left border rounded-lg p-4 transition-all hover:border-blue-300 hover:shadow-sm ${selectedPrimaryDrawingId === drawing.id
                           ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
                           : 'border-gray-200'
-                      }`}
+                        }`}
                     >
                       <div className="space-y-2">
                         {/* Drawing Header */}

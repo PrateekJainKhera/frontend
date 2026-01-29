@@ -418,7 +418,7 @@ export default function CreateProductTemplatePage() {
     router.push('/masters/product-templates')
   }
 
-  const selectedProcessTemplate = mockProcessTemplates.find(t => t.id === processTemplateId)
+  const selectedProcessTemplate = mockProcessTemplates.find(t => t.id === Number(processTemplateId))
 
   // Filter child part templates by roller type and search query
   const filteredChildPartTemplates = mockChildPartTemplates.filter(template => {
@@ -533,7 +533,7 @@ export default function CreateProductTemplatePage() {
               </SelectTrigger>
               <SelectContent>
                 {mockProcessTemplates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
+                  <SelectItem key={template.id} value={template.id.toString()}>
                     {template.templateName} ({template.steps.length} steps)
                   </SelectItem>
                 ))}
@@ -1245,31 +1245,31 @@ export default function CreateProductTemplatePage() {
                           {template.processSteps
                             .sort((a, b) => a.stepNumber - b.stepNumber)
                             .map((step) => (
-                            <div key={step.id} className="p-3 border rounded-lg">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge variant="outline" className="text-xs">
-                                      Step {step.stepNumber}
-                                    </Badge>
-                                    <p className="font-medium text-sm">{step.processName}</p>
+                              <div key={step.id} className="p-3 border rounded-lg">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        Step {step.stepNumber}
+                                      </Badge>
+                                      <p className="font-medium text-sm">{step.processName}</p>
+                                    </div>
+                                    {step.machineName && (
+                                      <p className="text-xs text-muted-foreground">Machine: {step.machineName}</p>
+                                    )}
+                                    {step.description && (
+                                      <p className="text-xs text-muted-foreground mt-1">{step.description}</p>
+                                    )}
                                   </div>
-                                  {step.machineName && (
-                                    <p className="text-xs text-muted-foreground">Machine: {step.machineName}</p>
-                                  )}
-                                  {step.description && (
-                                    <p className="text-xs text-muted-foreground mt-1">{step.description}</p>
-                                  )}
-                                </div>
-                                <div className="text-right text-xs">
-                                  <p className="font-medium">{step.standardTimeHours.toFixed(1)} hrs</p>
-                                  {step.restTimeHours && (
-                                    <p className="text-muted-foreground">+{step.restTimeHours.toFixed(1)} hrs rest</p>
-                                  )}
+                                  <div className="text-right text-xs">
+                                    <p className="font-medium">{step.standardTimeHours.toFixed(1)} hrs</p>
+                                    {step.restTimeHours && (
+                                      <p className="text-muted-foreground">+{step.restTimeHours.toFixed(1)} hrs rest</p>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                         <p className="text-sm text-muted-foreground mt-2">
                           Total Standard Time: {template.totalStandardTimeHours.toFixed(1)} hours
