@@ -16,7 +16,6 @@ import {
     CheckCircle,
     XCircle,
     MapPin,
-    Calendar,
     Edit,
     Eye,
 } from 'lucide-react'
@@ -35,8 +34,6 @@ interface Machine {
     manufacturer?: string
     model?: string
     serialNumber?: string
-    nextMaintenanceDate?: Date
-    utilizationPercent?: number
 }
 
 interface MachinesDataGridProps {
@@ -163,39 +160,6 @@ export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridP
                 header: 'Status',
                 size: 130,
                 Cell: ({ cell }) => getStatusBadge(cell.getValue<MachineStatus>()),
-            },
-            {
-                accessorKey: 'nextMaintenanceDate',
-                header: 'Next Maintenance',
-                size: 140,
-                Cell: ({ cell }) => {
-                    const date = cell.getValue<Date>()
-                    if (!date) return <span className="text-muted-foreground text-sm">Not scheduled</span>
-                    const isOverdue = new Date(date) <= new Date()
-                    return (
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-sm">{format(new Date(date), 'dd MMM yyyy')}</span>
-                            </div>
-                            {isOverdue && (
-                                <Badge variant="outline" className="w-fit mt-1 text-xs bg-orange-50 text-orange-700 border-orange-300">
-                                    Overdue
-                                </Badge>
-                            )}
-                        </div>
-                    )
-                },
-            },
-            {
-                accessorKey: 'utilizationPercent',
-                header: 'Utilization',
-                size: 100,
-                Cell: ({ cell }) => {
-                    const value = cell.getValue<number>()
-                    if (value === undefined) return <span className="text-muted-foreground text-sm">N/A</span>
-                    return <span className="text-sm font-medium">{value.toFixed(0)}%</span>
-                },
             },
         ],
         []

@@ -18,7 +18,6 @@ import {
   Search,
   Filter,
   Wrench,
-  AlertTriangle,
   CheckCircle,
   XCircle,
   Mic,
@@ -43,9 +42,6 @@ export default function MachinesMasterPage() {
     active: mockMachinesMaster.filter(m => m.status === 'Active' || m.status === 'In_Use' || m.status === 'Idle').length,
     maintenance: mockMachinesMaster.filter(m => m.status === 'Maintenance').length,
     breakdown: mockMachinesMaster.filter(m => m.status === 'Breakdown').length,
-    maintenanceDue: mockMachinesMaster.filter(m =>
-      m.nextMaintenanceDate && new Date(m.nextMaintenanceDate) <= new Date()
-    ).length,
   }
 
   // Filter machines
@@ -125,7 +121,7 @@ export default function MachinesMasterPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Machines</CardTitle>
@@ -163,16 +159,6 @@ export default function MachinesMasterPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{stats.breakdown}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Maintenance Due</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.maintenanceDue}</div>
           </CardContent>
         </Card>
       </div>

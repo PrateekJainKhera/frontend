@@ -16,14 +16,6 @@ export interface MachineMaster {
   purchaseCost?: number
   currentValue?: number
 
-  lastMaintenanceDate?: Date
-  nextMaintenanceDate?: Date
-  maintenanceIntervalDays?: number
-
-  totalRunHours?: number
-  currentMonthHours?: number
-  utilizationPercent?: number
-
   hourlyRate?: number
   isActive: boolean
   notes?: string
@@ -49,14 +41,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseCost: 2500000,
     currentValue: 1800000,
 
-    lastMaintenanceDate: new Date('2024-12-20'),
-    nextMaintenanceDate: new Date('2025-03-20'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 8500,
-    currentMonthHours: 180,
-    utilizationPercent: 75,
-
     hourlyRate: 350,
     isActive: true,
     notes: 'Primary lathe for large diameter turning operations',
@@ -80,14 +64,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseDate: new Date('2020-06-10'),
     purchaseCost: 4500000,
     currentValue: 3600000,
-
-    lastMaintenanceDate: new Date('2025-01-05'),
-    nextMaintenanceDate: new Date('2025-04-05'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 5200,
-    currentMonthHours: 220,
-    utilizationPercent: 92,
 
     hourlyRate: 550,
     isActive: true,
@@ -113,14 +89,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseCost: 1800000,
     currentValue: 1200000,
 
-    lastMaintenanceDate: new Date('2024-11-15'),
-    nextMaintenanceDate: new Date('2025-02-15'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 6800,
-    currentMonthHours: 95,
-    utilizationPercent: 40,
-
     hourlyRate: 300,
     isActive: true,
     notes: 'General purpose milling for flat surfaces',
@@ -144,14 +112,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseDate: new Date('2021-01-20'),
     purchaseCost: 8500000,
     currentValue: 7200000,
-
-    lastMaintenanceDate: new Date('2024-12-28'),
-    nextMaintenanceDate: new Date('2025-03-28'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 4100,
-    currentMonthHours: 210,
-    utilizationPercent: 88,
 
     hourlyRate: 750,
     isActive: true,
@@ -177,14 +137,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseCost: 850000,
     currentValue: 500000,
 
-    lastMaintenanceDate: new Date('2024-10-10'),
-    nextMaintenanceDate: new Date('2025-01-10'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 9200,
-    currentMonthHours: 120,
-    utilizationPercent: 50,
-
     hourlyRate: 200,
     isActive: true,
     notes: 'Heavy duty radial drill for large components',
@@ -208,14 +160,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseDate: new Date('2019-04-12'),
     purchaseCost: 3200000,
     currentValue: 2600000,
-
-    lastMaintenanceDate: new Date('2024-12-18'),
-    nextMaintenanceDate: new Date('2025-03-18'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 5800,
-    currentMonthHours: 165,
-    utilizationPercent: 69,
 
     hourlyRate: 450,
     isActive: true,
@@ -241,14 +185,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseCost: 1500000,
     currentValue: 800000,
 
-    lastMaintenanceDate: new Date('2025-01-12'),
-    nextMaintenanceDate: new Date('2025-01-26'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 11200,
-    currentMonthHours: 45,
-    utilizationPercent: 19,
-
     hourlyRate: 280,
     isActive: true,
     notes: 'Currently undergoing preventive maintenance - spindle bearing replacement',
@@ -272,14 +208,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseDate: new Date('2019-12-05'),
     purchaseCost: 450000,
     currentValue: 350000,
-
-    lastMaintenanceDate: new Date('2024-11-30'),
-    nextMaintenanceDate: new Date('2025-02-28'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 4200,
-    currentMonthHours: 140,
-    utilizationPercent: 58,
 
     hourlyRate: 180,
     isActive: true,
@@ -305,14 +233,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseCost: 1200000,
     currentValue: 850000,
 
-    lastMaintenanceDate: new Date('2024-09-20'),
-    nextMaintenanceDate: new Date('2024-12-20'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 6500,
-    currentMonthHours: 12,
-    utilizationPercent: 5,
-
     hourlyRate: 220,
     isActive: true,
     notes: 'BREAKDOWN: Hydraulic cylinder leak - spare parts ordered',
@@ -336,14 +256,6 @@ export const mockMachinesMaster: MachineMaster[] = [
     purchaseDate: new Date('2017-03-30'),
     purchaseCost: 5500000,
     currentValue: 4000000,
-
-    lastMaintenanceDate: new Date('2024-10-25'),
-    nextMaintenanceDate: new Date('2025-01-25'),
-    maintenanceIntervalDays: 90,
-
-    totalRunHours: 3800,
-    currentMonthHours: 35,
-    utilizationPercent: 15,
 
     hourlyRate: 600,
     isActive: true,

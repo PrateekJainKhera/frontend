@@ -41,7 +41,6 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
     status: 'Idle',
     purchaseCost: '',
     hourlyRate: '',
-    maintenanceIntervalDays: '90',
     notes: '',
   })
 
@@ -84,7 +83,6 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
       status: 'Idle',
       purchaseCost: '',
       hourlyRate: '',
-      maintenanceIntervalDays: '90',
       notes: '',
     })
 
@@ -269,10 +267,10 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
               </div>
             </div>
 
-            {/* Financial & Maintenance */}
+            {/* Financial */}
             <div>
-              <h3 className="font-semibold text-sm mb-3">Financial & Maintenance</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <h3 className="font-semibold text-sm mb-3">Financial</h3>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="purchaseCost">Purchase Cost (₹)</Label>
                   <Input
@@ -296,24 +294,6 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
                     value={formData.hourlyRate}
                     onChange={(e) =>
                       setFormData({ ...formData, hourlyRate: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="maintenanceIntervalDays">
-                    Maintenance Interval (Days)
-                  </Label>
-                  <Input
-                    id="maintenanceIntervalDays"
-                    type="number"
-                    value={formData.maintenanceIntervalDays}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        maintenanceIntervalDays: e.target.value,
-                      })
                     }
                     className="mt-1"
                   />
