@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { mockProductTemplates } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ProductTemplate, RollerType } from '@/types'
+import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
+import { toast } from 'sonner'
+import { RollerType } from '@/types'
 import {
   Select,
   SelectContent,
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select'
 
 export function ProductTemplatesTab() {
-  const [templates, setTemplates] = useState<ProductTemplate[]>([])
+  const [templates, setTemplates] = useState<ProductTemplateResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -31,9 +31,16 @@ export function ProductTemplatesTab() {
 
   const loadTemplates = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockProductTemplates, 800)
-    setTemplates(data)
-    setLoading(false)
+    try {
+      const data = await productTemplateService.getAll()
+      setTemplates(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load product templates'
+      toast.error(message)
+      setTemplates([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredTemplates = templates.filter((template) => {
@@ -47,10 +54,10 @@ export function ProductTemplatesTab() {
     return matchesSearch && matchesType
   })
 
-  const getRollerTypeBadge = (type: RollerType) => {
-    const colors: Record<RollerType, string> = {
-      [RollerType.MAGNETIC]: 'bg-blue-100 text-blue-800',
-      [RollerType.PRINTING]: 'bg-orange-100 text-orange-800',
+  const getRollerTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'MAGNETIC': 'bg-blue-100 text-blue-800',
+      'PRINTING': 'bg-orange-100 text-orange-800',
     }
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
