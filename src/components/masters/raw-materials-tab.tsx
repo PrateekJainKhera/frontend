@@ -5,9 +5,8 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockRawMaterials } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { RawMaterial } from '@/types'
+import { materialService, MaterialResponse } from '@/lib/api/materials'
+import { toast } from 'sonner'
 import { RawMaterialsDataGrid } from '@/components/tables/raw-materials-data-grid'
 import { AddRawMaterialDialog } from '@/components/forms/add-raw-material-dialog'
 
@@ -16,7 +15,7 @@ interface RawMaterialsTabProps {
 }
 
 export function RawMaterialsTab({ searchQuery = '' }: RawMaterialsTabProps) {
-  const [materials, setMaterials] = useState<RawMaterial[]>([])
+  const [materials, setMaterials] = useState<MaterialResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false)
 
@@ -26,9 +25,16 @@ export function RawMaterialsTab({ searchQuery = '' }: RawMaterialsTabProps) {
 
   const loadMaterials = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockRawMaterials, 800)
-    setMaterials(data)
-    setLoading(false)
+    try {
+      const data = await materialService.getAll()
+      setMaterials(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load materials'
+      toast.error(message)
+      setMaterials([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredMaterials = materials.filter(

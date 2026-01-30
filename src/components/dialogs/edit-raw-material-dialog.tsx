@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { RawMaterial } from '@/types'
+import { MaterialResponse, materialService } from '@/lib/api/materials'
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
 
 const formSchema = z.object({
   materialName: z.string().min(2, 'Material name must be at least 2 characters'),
@@ -39,7 +38,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>
 
 interface EditRawMaterialDialogProps {
-  material: RawMaterial
+  material: MaterialResponse
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
@@ -69,11 +68,16 @@ export function EditRawMaterialDialog({
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
-      await simulateApiCall({ ...material, ...data }, 1000)
+      await materialService.update(material.id, {
+        ...data,
+        id: material.id,
+        isActive: material.isActive,
+      })
       toast.success('Raw material updated successfully')
       onSuccess()
     } catch (error) {
-      toast.error('Failed to update raw material')
+      const message = error instanceof Error ? error.message : 'Failed to update raw material'
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }

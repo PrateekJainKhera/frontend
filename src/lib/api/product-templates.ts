@@ -1,6 +1,5 @@
 import axios from 'axios'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api'
+import { apiClient, ApiResponse } from './axios-config'
 
 export interface ProductTemplateChildPartRequest {
   childPartName: string
@@ -54,18 +53,12 @@ export interface ProductTemplateResponse {
   createdBy?: string | null
 }
 
-export interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data?: T
-}
-
 class ProductTemplateService {
-  private baseUrl = `${API_BASE_URL}/product-templates`
+  private baseUrl = '/product-templates'
 
   async getAll(): Promise<ProductTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ProductTemplateResponse[]>>(this.baseUrl)
+      const response = await apiClient.get<ApiResponse<ProductTemplateResponse[]>>(this.baseUrl)
       return response.data.data || []
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -77,7 +70,7 @@ class ProductTemplateService {
 
   async getById(id: number): Promise<ProductTemplateResponse> {
     try {
-      const response = await axios.get<ApiResponse<ProductTemplateResponse>>(`${this.baseUrl}/${id}`)
+      const response = await apiClient.get<ApiResponse<ProductTemplateResponse>>(`${this.baseUrl}/${id}`)
       if (!response.data.data) {
         throw new Error('Product template not found')
       }
@@ -92,7 +85,7 @@ class ProductTemplateService {
 
   async getByCode(templateCode: string): Promise<ProductTemplateResponse> {
     try {
-      const response = await axios.get<ApiResponse<ProductTemplateResponse>>(
+      const response = await apiClient.get<ApiResponse<ProductTemplateResponse>>(
         `${this.baseUrl}/by-code/${templateCode}`
       )
       if (!response.data.data) {
@@ -109,7 +102,7 @@ class ProductTemplateService {
 
   async getByName(templateName: string): Promise<ProductTemplateResponse> {
     try {
-      const response = await axios.get<ApiResponse<ProductTemplateResponse>>(
+      const response = await apiClient.get<ApiResponse<ProductTemplateResponse>>(
         `${this.baseUrl}/by-name/${templateName}`
       )
       if (!response.data.data) {
@@ -126,7 +119,7 @@ class ProductTemplateService {
 
   async getActiveTemplates(): Promise<ProductTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ProductTemplateResponse[]>>(`${this.baseUrl}/active`)
+      const response = await apiClient.get<ApiResponse<ProductTemplateResponse[]>>(`${this.baseUrl}/active`)
       return response.data.data || []
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -138,7 +131,7 @@ class ProductTemplateService {
 
   async getByRollerType(rollerType: string): Promise<ProductTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ProductTemplateResponse[]>>(
+      const response = await apiClient.get<ApiResponse<ProductTemplateResponse[]>>(
         `${this.baseUrl}/by-roller-type/${rollerType}`
       )
       return response.data.data || []
@@ -152,7 +145,7 @@ class ProductTemplateService {
 
   async getByProcessTemplateId(processTemplateId: number): Promise<ProductTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ProductTemplateResponse[]>>(
+      const response = await apiClient.get<ApiResponse<ProductTemplateResponse[]>>(
         `${this.baseUrl}/by-process-template/${processTemplateId}`
       )
       return response.data.data || []
@@ -168,7 +161,7 @@ class ProductTemplateService {
 
   async create(data: CreateProductTemplateRequest): Promise<ProductTemplateResponse> {
     try {
-      const response = await axios.post<ApiResponse<ProductTemplateResponse>>(this.baseUrl, {
+      const response = await apiClient.post<ApiResponse<ProductTemplateResponse>>(this.baseUrl, {
         ...data,
         isActive: data.isActive ?? true,
         createdBy: data.createdBy || 'Admin',
@@ -187,7 +180,7 @@ class ProductTemplateService {
 
   async update(id: number, data: UpdateProductTemplateRequest): Promise<ProductTemplateResponse> {
     try {
-      const response = await axios.put<ApiResponse<ProductTemplateResponse>>(`${this.baseUrl}/${id}`, {
+      const response = await apiClient.put<ApiResponse<ProductTemplateResponse>>(`${this.baseUrl}/${id}`, {
         ...data,
         id: id,
         updatedBy: data.updatedBy || 'Admin',
@@ -206,7 +199,7 @@ class ProductTemplateService {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`${this.baseUrl}/${id}`)
+      await apiClient.delete(`${this.baseUrl}/${id}`)
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to delete product template: ${error.message}`)

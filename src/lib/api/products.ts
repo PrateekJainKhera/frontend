@@ -1,7 +1,6 @@
 import axios from 'axios'
+import { apiClient, ApiResponse } from './axios-config'
 import { Product } from '@/types/product'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api'
 
 export interface CreateProductRequest {
   customerName?: string
@@ -26,18 +25,12 @@ export interface UpdateProductRequest extends CreateProductRequest {
   updatedBy?: string
 }
 
-export interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data?: T
-}
-
 class ProductService {
-  private baseUrl = `${API_BASE_URL}/products`
+  private baseUrl = '/products'
 
   async getAll(): Promise<Product[]> {
     try {
-      const response = await axios.get<ApiResponse<Product[]>>(this.baseUrl)
+      const response = await apiClient.get<ApiResponse<Product[]>>(this.baseUrl)
       return response.data.data || []
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -49,7 +42,7 @@ class ProductService {
 
   async getById(id: number): Promise<Product> {
     try {
-      const response = await axios.get<ApiResponse<Product>>(`${this.baseUrl}/${id}`)
+      const response = await apiClient.get<ApiResponse<Product>>(`${this.baseUrl}/${id}`)
       if (!response.data.data) {
         throw new Error('Product not found')
       }
@@ -64,7 +57,7 @@ class ProductService {
 
   async getByCode(code: string): Promise<Product> {
     try {
-      const response = await axios.get<ApiResponse<Product>>(`${this.baseUrl}/by-code/${code}`)
+      const response = await apiClient.get<ApiResponse<Product>>(`${this.baseUrl}/by-code/${code}`)
       if (!response.data.data) {
         throw new Error('Product not found')
       }
@@ -79,7 +72,7 @@ class ProductService {
 
   async create(data: CreateProductRequest): Promise<Product> {
     try {
-      const response = await axios.post<ApiResponse<Product>>(this.baseUrl, {
+      const response = await apiClient.post<ApiResponse<Product>>(this.baseUrl, {
         ...data,
         createdBy: data.createdBy || 'Admin',
       })
@@ -97,7 +90,7 @@ class ProductService {
 
   async update(id: number, data: UpdateProductRequest): Promise<Product> {
     try {
-      const response = await axios.put<ApiResponse<Product>>(`${this.baseUrl}/${id}`, {
+      const response = await apiClient.put<ApiResponse<Product>>(`${this.baseUrl}/${id}`, {
         ...data,
         id: id,
         updatedBy: data.updatedBy || 'Admin',
@@ -116,7 +109,7 @@ class ProductService {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`${this.baseUrl}/${id}`)
+      await apiClient.delete(`${this.baseUrl}/${id}`)
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to delete product: ${error.message}`)

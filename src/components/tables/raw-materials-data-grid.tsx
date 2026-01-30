@@ -8,7 +8,7 @@ import {
     type MRT_PaginationState,
 } from 'material-react-table'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
-import { RawMaterial } from '@/types'
+import { MaterialResponse } from '@/lib/api/materials'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Edit, Eye } from 'lucide-react'
@@ -16,7 +16,7 @@ import { ViewRawMaterialDialog } from '@/components/dialogs/view-raw-material-di
 import { EditRawMaterialDialog } from '@/components/dialogs/edit-raw-material-dialog'
 
 interface RawMaterialsDataGridProps {
-    materials: RawMaterial[]
+    materials: MaterialResponse[]
     onUpdate?: () => void
 }
 
@@ -48,7 +48,7 @@ const muiTheme = createTheme({
 })
 
 export function RawMaterialsDataGrid({ materials, onUpdate }: RawMaterialsDataGridProps) {
-    const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null)
+    const [selectedMaterial, setSelectedMaterial] = useState<MaterialResponse | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
@@ -56,18 +56,18 @@ export function RawMaterialsDataGrid({ materials, onUpdate }: RawMaterialsDataGr
         pageSize: 10,
     })
 
-    const handleView = (material: RawMaterial) => {
+    const handleView = (material: MaterialResponse) => {
         setSelectedMaterial(material)
         setViewDialogOpen(true)
     }
 
-    const handleEdit = (material: RawMaterial) => {
+    const handleEdit = (material: MaterialResponse) => {
         setSelectedMaterial(material)
         setEditDialogOpen(true)
     }
 
     // Define columns
-    const columns = useMemo<MRT_ColumnDef<RawMaterial>[]>(
+    const columns = useMemo<MRT_ColumnDef<MaterialResponse>[]>(
         () => [
             {
                 accessorKey: 'materialName',

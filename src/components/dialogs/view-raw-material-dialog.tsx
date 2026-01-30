@@ -1,6 +1,6 @@
 "use client"
 
-import { RawMaterial } from '@/types'
+import { MaterialResponse } from '@/lib/api/materials'
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import { formatDate } from '@/lib/utils/formatters'
 import { Ruler, Weight, Box, Calendar } from 'lucide-react'
 
 interface ViewRawMaterialDialogProps {
-  material: RawMaterial
+  material: MaterialResponse
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -107,7 +107,7 @@ export function ViewRawMaterialDialog({
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Created On</p>
-                <p className="font-medium">{formatDate(material.createdAt)}</p>
+                <p className="font-medium">{formatDate(new Date(material.createdAt))}</p>
               </div>
             </div>
           </div>

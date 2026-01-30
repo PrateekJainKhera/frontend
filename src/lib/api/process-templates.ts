@@ -1,6 +1,5 @@
 import axios from 'axios'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api'
+import { apiClient, ApiResponse } from './axios-config'
 
 export interface ProcessTemplateStepRequest {
   templateId: number
@@ -50,19 +49,13 @@ export interface ProcessTemplateWithStepsResponse {
   steps: ProcessTemplateStepResponse[]
 }
 
-export interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data?: T
-}
-
 class ProcessTemplateService {
-  private baseUrl = `${API_BASE_URL}/process-templates`
+  private baseUrl = '/process-templates'
 
   // Template CRUD Operations
   async getAll(): Promise<ProcessTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ProcessTemplateResponse[]>>(this.baseUrl)
+      const response = await apiClient.get<ApiResponse<ProcessTemplateResponse[]>>(this.baseUrl)
       return response.data.data || []
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -74,7 +67,7 @@ class ProcessTemplateService {
 
   async getById(id: number): Promise<ProcessTemplateResponse> {
     try {
-      const response = await axios.get<ApiResponse<ProcessTemplateResponse>>(`${this.baseUrl}/${id}`)
+      const response = await apiClient.get<ApiResponse<ProcessTemplateResponse>>(`${this.baseUrl}/${id}`)
       if (!response.data.data) {
         throw new Error('Process template not found')
       }
@@ -89,7 +82,7 @@ class ProcessTemplateService {
 
   async getByName(templateName: string): Promise<ProcessTemplateResponse> {
     try {
-      const response = await axios.get<ApiResponse<ProcessTemplateResponse>>(`${this.baseUrl}/by-name/${templateName}`)
+      const response = await apiClient.get<ApiResponse<ProcessTemplateResponse>>(`${this.baseUrl}/by-name/${templateName}`)
       if (!response.data.data) {
         throw new Error('Process template not found')
       }
@@ -104,7 +97,7 @@ class ProcessTemplateService {
 
   async getActiveTemplates(): Promise<ProcessTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ProcessTemplateResponse[]>>(`${this.baseUrl}/active`)
+      const response = await apiClient.get<ApiResponse<ProcessTemplateResponse[]>>(`${this.baseUrl}/active`)
       return response.data.data || []
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -116,7 +109,7 @@ class ProcessTemplateService {
 
   async getByApplicableType(applicableType: string): Promise<ProcessTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ProcessTemplateResponse[]>>(
+      const response = await apiClient.get<ApiResponse<ProcessTemplateResponse[]>>(
         `${this.baseUrl}/by-applicable-type/${applicableType}`
       )
       return response.data.data || []
@@ -130,7 +123,7 @@ class ProcessTemplateService {
 
   async create(data: CreateProcessTemplateRequest): Promise<ProcessTemplateResponse> {
     try {
-      const response = await axios.post<ApiResponse<ProcessTemplateResponse>>(this.baseUrl, {
+      const response = await apiClient.post<ApiResponse<ProcessTemplateResponse>>(this.baseUrl, {
         ...data,
         createdBy: data.createdBy || 'Admin',
       })
@@ -148,7 +141,7 @@ class ProcessTemplateService {
 
   async update(id: number, data: UpdateProcessTemplateRequest): Promise<ProcessTemplateResponse> {
     try {
-      const response = await axios.put<ApiResponse<ProcessTemplateResponse>>(`${this.baseUrl}/${id}`, {
+      const response = await apiClient.put<ApiResponse<ProcessTemplateResponse>>(`${this.baseUrl}/${id}`, {
         ...data,
         id: id,
         updatedBy: data.updatedBy || 'Admin',
@@ -167,7 +160,7 @@ class ProcessTemplateService {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`${this.baseUrl}/${id}`)
+      await apiClient.delete(`${this.baseUrl}/${id}`)
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to delete process template: ${error.message}`)
@@ -179,7 +172,7 @@ class ProcessTemplateService {
   // Template with Steps Operations
   async getTemplateWithSteps(id: number): Promise<ProcessTemplateWithStepsResponse> {
     try {
-      const response = await axios.get<ApiResponse<ProcessTemplateWithStepsResponse>>(
+      const response = await apiClient.get<ApiResponse<ProcessTemplateWithStepsResponse>>(
         `${this.baseUrl}/${id}/with-steps`
       )
       if (!response.data.data) {
@@ -196,7 +189,7 @@ class ProcessTemplateService {
 
   async createWithSteps(data: CreateProcessTemplateRequest): Promise<ProcessTemplateWithStepsResponse> {
     try {
-      const response = await axios.post<ApiResponse<ProcessTemplateWithStepsResponse>>(
+      const response = await apiClient.post<ApiResponse<ProcessTemplateWithStepsResponse>>(
         `${this.baseUrl}/with-steps`,
         {
           ...data,
@@ -220,7 +213,7 @@ class ProcessTemplateService {
   // Template Steps Operations
   async getStepsByTemplateId(templateId: number): Promise<ProcessTemplateStepResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ProcessTemplateStepResponse[]>>(
+      const response = await apiClient.get<ApiResponse<ProcessTemplateStepResponse[]>>(
         `${this.baseUrl}/${templateId}/steps`
       )
       return response.data.data || []
@@ -234,7 +227,7 @@ class ProcessTemplateService {
 
   async addStep(data: ProcessTemplateStepRequest): Promise<number> {
     try {
-      const response = await axios.post<ApiResponse<number>>(`${this.baseUrl}/steps`, data)
+      const response = await apiClient.post<ApiResponse<number>>(`${this.baseUrl}/steps`, data)
       if (!response.data.data) {
         throw new Error('Failed to add step')
       }
@@ -252,7 +245,7 @@ class ProcessTemplateService {
     data: ProcessTemplateStepRequest & { id: number }
   ): Promise<boolean> {
     try {
-      const response = await axios.put<ApiResponse<boolean>>(`${this.baseUrl}/steps/${stepId}`, data)
+      const response = await apiClient.put<ApiResponse<boolean>>(`${this.baseUrl}/steps/${stepId}`, data)
       return response.data.data || false
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -264,7 +257,7 @@ class ProcessTemplateService {
 
   async deleteStep(stepId: number): Promise<boolean> {
     try {
-      const response = await axios.delete<ApiResponse<boolean>>(`${this.baseUrl}/steps/${stepId}`)
+      const response = await apiClient.delete<ApiResponse<boolean>>(`${this.baseUrl}/steps/${stepId}`)
       return response.data.data || false
     } catch (error) {
       if (axios.isAxiosError(error)) {

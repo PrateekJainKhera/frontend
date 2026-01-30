@@ -1,6 +1,5 @@
 import axios from 'axios'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api'
+import { apiClient, ApiResponse } from './axios-config'
 
 export interface ChildPartTemplateMaterialRequirementRequest {
   rawMaterialId?: number | null
@@ -92,18 +91,12 @@ export interface ChildPartTemplateResponse {
   createdBy?: string | null
 }
 
-export interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data?: T
-}
-
 class ChildPartTemplateService {
-  private baseUrl = `${API_BASE_URL}/child-part-templates`
+  private baseUrl = '/child-part-templates'
 
   async getAll(): Promise<ChildPartTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ChildPartTemplateResponse[]>>(this.baseUrl)
+      const response = await apiClient.get<ApiResponse<ChildPartTemplateResponse[]>>(this.baseUrl)
       return response.data.data || []
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -115,7 +108,7 @@ class ChildPartTemplateService {
 
   async getById(id: number): Promise<ChildPartTemplateResponse> {
     try {
-      const response = await axios.get<ApiResponse<ChildPartTemplateResponse>>(`${this.baseUrl}/${id}`)
+      const response = await apiClient.get<ApiResponse<ChildPartTemplateResponse>>(`${this.baseUrl}/${id}`)
       if (!response.data.data) {
         throw new Error('Child part template not found')
       }
@@ -130,7 +123,7 @@ class ChildPartTemplateService {
 
   async getByCode(templateCode: string): Promise<ChildPartTemplateResponse> {
     try {
-      const response = await axios.get<ApiResponse<ChildPartTemplateResponse>>(
+      const response = await apiClient.get<ApiResponse<ChildPartTemplateResponse>>(
         `${this.baseUrl}/by-code/${templateCode}`
       )
       if (!response.data.data) {
@@ -147,7 +140,7 @@ class ChildPartTemplateService {
 
   async getByName(templateName: string): Promise<ChildPartTemplateResponse> {
     try {
-      const response = await axios.get<ApiResponse<ChildPartTemplateResponse>>(
+      const response = await apiClient.get<ApiResponse<ChildPartTemplateResponse>>(
         `${this.baseUrl}/by-name/${templateName}`
       )
       if (!response.data.data) {
@@ -164,7 +157,7 @@ class ChildPartTemplateService {
 
   async getActiveTemplates(): Promise<ChildPartTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ChildPartTemplateResponse[]>>(`${this.baseUrl}/active`)
+      const response = await apiClient.get<ApiResponse<ChildPartTemplateResponse[]>>(`${this.baseUrl}/active`)
       return response.data.data || []
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -176,7 +169,7 @@ class ChildPartTemplateService {
 
   async getByChildPartType(childPartType: string): Promise<ChildPartTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ChildPartTemplateResponse[]>>(
+      const response = await apiClient.get<ApiResponse<ChildPartTemplateResponse[]>>(
         `${this.baseUrl}/by-child-part-type/${childPartType}`
       )
       return response.data.data || []
@@ -192,7 +185,7 @@ class ChildPartTemplateService {
 
   async getByRollerType(rollerType: string): Promise<ChildPartTemplateResponse[]> {
     try {
-      const response = await axios.get<ApiResponse<ChildPartTemplateResponse[]>>(
+      const response = await apiClient.get<ApiResponse<ChildPartTemplateResponse[]>>(
         `${this.baseUrl}/by-roller-type/${rollerType}`
       )
       return response.data.data || []
@@ -206,7 +199,7 @@ class ChildPartTemplateService {
 
   async create(data: CreateChildPartTemplateRequest): Promise<ChildPartTemplateResponse> {
     try {
-      const response = await axios.post<ApiResponse<ChildPartTemplateResponse>>(this.baseUrl, {
+      const response = await apiClient.post<ApiResponse<ChildPartTemplateResponse>>(this.baseUrl, {
         ...data,
         dimensionUnit: data.dimensionUnit || 'mm',
         isActive: data.isActive ?? true,
@@ -226,7 +219,7 @@ class ChildPartTemplateService {
 
   async update(id: number, data: UpdateChildPartTemplateRequest): Promise<ChildPartTemplateResponse> {
     try {
-      const response = await axios.put<ApiResponse<ChildPartTemplateResponse>>(`${this.baseUrl}/${id}`, {
+      const response = await apiClient.put<ApiResponse<ChildPartTemplateResponse>>(`${this.baseUrl}/${id}`, {
         ...data,
         id: id,
         updatedBy: data.updatedBy || 'Admin',
@@ -245,7 +238,7 @@ class ChildPartTemplateService {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`${this.baseUrl}/${id}`)
+      await apiClient.delete(`${this.baseUrl}/${id}`)
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to delete child part template: ${error.message}`)
