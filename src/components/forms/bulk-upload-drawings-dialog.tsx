@@ -272,7 +272,7 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {mockCustomers.map((customer) => (
-                                                    <SelectItem key={customer.id} value={customer.id}>
+                                                    <SelectItem key={customer.id} value={customer.id.toString()}>
                                                         {customer.customerName}
                                                     </SelectItem>
                                                 ))}

@@ -8,7 +8,7 @@ import {
     type MRT_PaginationState,
 } from 'material-react-table'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
-import { Component } from '@/types'
+import { ComponentResponse } from '@/lib/api/components'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Eye, Edit } from 'lucide-react'
@@ -16,7 +16,7 @@ import { ViewComponentDialog } from '@/components/dialogs/view-component-dialog'
 import { EditComponentDialog } from '@/components/dialogs/edit-component-dialog'
 
 interface ComponentsDataGridProps {
-    components: Component[]
+    components: ComponentResponse[]
     onUpdate?: () => void
 }
 
@@ -69,7 +69,7 @@ const muiTheme = createTheme({
 })
 
 export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridProps) {
-    const [selectedComponent, setSelectedComponent] = useState<Component | null>(null)
+    const [selectedComponent, setSelectedComponent] = useState<ComponentResponse | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
@@ -77,18 +77,18 @@ export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridP
         pageSize: 10,
     })
 
-    const handleView = (component: Component) => {
+    const handleView = (component: ComponentResponse) => {
         setSelectedComponent(component)
         setViewDialogOpen(true)
     }
 
-    const handleEdit = (component: Component) => {
+    const handleEdit = (component: ComponentResponse) => {
         setSelectedComponent(component)
         setEditDialogOpen(true)
     }
 
     // Define columns - Masters only (no inventory fields)
-    const columns = useMemo<MRT_ColumnDef<Component>[]>(
+    const columns = useMemo<MRT_ColumnDef<ComponentResponse>[]>(
         () => [
             {
                 accessorKey: 'partNumber',

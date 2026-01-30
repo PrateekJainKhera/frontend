@@ -309,7 +309,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {mockRawMaterials.slice(0, 5).map((material) => (
-                                                    <SelectItem key={material.id} value={material.id}>
+                                                    <SelectItem key={material.id} value={material.id.toString()}>
                                                         {material.materialName}
                                                     </SelectItem>
                                                 ))}
@@ -341,7 +341,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {mockCustomers.slice(0, 5).map((customer) => (
-                                                    <SelectItem key={customer.id} value={customer.id}>
+                                                    <SelectItem key={customer.id} value={customer.id.toString()}>
                                                         {customer.customerName}
                                                     </SelectItem>
                                                 ))}

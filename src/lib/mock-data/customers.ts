@@ -2,7 +2,7 @@ import { Customer, CustomerType } from '@/types'
 
 export const mockCustomers: Customer[] = [
   {
-    id: 'cust-1',
+    id: 1,
     customerName: 'ABC Flexo Packaging Ltd.',
     customerCode: 'ABC001',
     contactPerson: 'Rajesh Kumar',
@@ -18,7 +18,7 @@ export const mockCustomers: Customer[] = [
     updatedAt: new Date('2023-06-15')
   },
   {
-    id: 'cust-2',
+    id: 2,
     customerName: 'XYZ Printing Solutions Pvt. Ltd.',
     customerCode: 'XYZ002',
     contactPerson: 'Priya Sharma',
@@ -34,7 +34,7 @@ export const mockCustomers: Customer[] = [
     updatedAt: new Date('2023-08-20')
   },
   {
-    id: 'cust-3',
+    id: 3,
     customerName: 'PQR Industries Limited',
     customerCode: 'PQR003',
     contactPerson: 'Amit Desai',
@@ -50,7 +50,7 @@ export const mockCustomers: Customer[] = [
     updatedAt: new Date('2023-09-10')
   },
   {
-    id: 'cust-4',
+    id: 4,
     customerName: 'Modern Packaging Systems',
     customerCode: 'MPS004',
     contactPerson: 'Sanjay Patel',
@@ -66,7 +66,7 @@ export const mockCustomers: Customer[] = [
     updatedAt: new Date('2024-01-05')
   },
   {
-    id: 'cust-5',
+    id: 5,
     customerName: 'Global Print Tech India',
     customerCode: 'GPT005',
     contactPerson: 'Neha Shah',
@@ -82,7 +82,7 @@ export const mockCustomers: Customer[] = [
     updatedAt: new Date('2024-02-12')
   },
   {
-    id: 'cust-6',
+    id: 6,
     customerName: 'Supreme Flexo Printers',
     customerCode: 'SFP006',
     contactPerson: 'Vikram Mehta',
@@ -98,7 +98,7 @@ export const mockCustomers: Customer[] = [
     updatedAt: new Date('2024-03-01')
   },
   {
-    id: 'cust-7',
+    id: 7,
     customerName: 'Gujarat Roller Distributors',
     customerCode: 'GRD007',
     contactPerson: 'Kiran Thakkar',
@@ -114,7 +114,7 @@ export const mockCustomers: Customer[] = [
     updatedAt: new Date('2024-01-15')
   },
   {
-    id: 'cust-8',
+    id: 8,
     customerName: 'Western India Sales Corporation',
     customerCode: 'WISC008',
     contactPerson: 'Manish Joshi',

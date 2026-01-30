@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { Process } from '@/types'
+import { ProcessResponse } from '@/lib/api/processes'
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import { ViewProcessDialog } from '@/components/dialogs/view-process-dialog'
 import { EditProcessDialog } from '@/components/dialogs/edit-process-dialog'
 
 interface ProcessesTableProps {
-  processes: Process[]
+  processes: ProcessResponse[]
   onUpdate?: () => void
 }
 
@@ -41,16 +41,16 @@ const getCategoryColor = (category: string) => {
 }
 
 export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
-  const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
+  const [selectedProcess, setSelectedProcess] = useState<ProcessResponse | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
 
-  const handleView = (process: Process) => {
+  const handleView = (process: ProcessResponse) => {
     setSelectedProcess(process)
     setViewDialogOpen(true)
   }
 
-  const handleEdit = (process: Process) => {
+  const handleEdit = (process: ProcessResponse) => {
     setSelectedProcess(process)
     setEditDialogOpen(true)
   }
@@ -93,12 +93,12 @@ export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
                 </span>
               </TableCell>
               <TableCell className="text-sm">
-                {process.defaultMachine || '-'}
+                {process.defaultMachineName || '-'}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1 text-sm">
                   <Clock className="h-3 w-3 text-muted-foreground" />
-                  {process.standardTimeMin} min
+                  {process.standardCycleTimeMin} min
                 </div>
               </TableCell>
               <TableCell>
@@ -107,7 +107,7 @@ export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{process.skillRequired}</Badge>
+                <Badge variant="outline">{process.skillLevel || '-'}</Badge>
               </TableCell>
               <TableCell>
                 {process.isOutsourced ? (

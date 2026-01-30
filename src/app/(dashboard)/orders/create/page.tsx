@@ -113,7 +113,7 @@ export default function CreateOrderPage() {
   // Filter products by selected customer
   const filteredProducts = selectedCustomerId
     ? mockProducts.filter(p => {
-      const customer = mockCustomers.find(c => c.id === selectedCustomerId)
+      const customer = mockCustomers.find(c => c.id === parseInt(selectedCustomerId))
       return customer && p.customerName === customer.customerName
     })
     : mockProducts
@@ -202,7 +202,7 @@ export default function CreateOrderPage() {
                           </FormControl>
                           <SelectContent>
                             {mockCustomers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
+                              <SelectItem key={customer.id} value={customer.id.toString()}>
                                 {customer.customerName}
                               </SelectItem>
                             ))}
@@ -664,7 +664,7 @@ export default function CreateOrderPage() {
                           </FormControl>
                           <SelectContent>
                             {agentCustomers.map((agent) => (
-                              <SelectItem key={agent.id} value={agent.id}>
+                              <SelectItem key={agent.id} value={agent.id.toString()}>
                                 {agent.customerName}
                               </SelectItem>
                             ))}

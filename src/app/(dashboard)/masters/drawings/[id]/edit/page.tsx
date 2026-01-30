@@ -287,7 +287,7 @@ export default function EditDrawingPage() {
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
                       {mockRawMaterials.map((material) => (
-                        <SelectItem key={material.id} value={material.id}>
+                        <SelectItem key={material.id} value={material.id.toString()}>
                           {material.materialName} - {material.grade}
                         </SelectItem>
                       ))}
@@ -321,7 +321,7 @@ export default function EditDrawingPage() {
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
                       {mockCustomers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
                           {customer.customerName}
                         </SelectItem>
                       ))}

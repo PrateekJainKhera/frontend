@@ -13,14 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { mockComponents } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Component, ComponentCategory } from '@/types'
+import { componentService, ComponentResponse } from '@/lib/api/components'
+import { toast } from 'sonner'
+import { ComponentCategory } from '@/types'
 import { ComponentsTable } from '@/components/tables/components-table'
 import { AddComponentDialog } from '@/components/dialogs/add-component-dialog'
 
 export default function ComponentsPage() {
-  const [components, setComponents] = useState<Component[]>([])
+  const [components, setComponents] = useState<ComponentResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
@@ -32,9 +32,16 @@ export default function ComponentsPage() {
 
   const loadComponents = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockComponents, 800)
-    setComponents(data)
-    setLoading(false)
+    try {
+      const data = await componentService.getAll()
+      setComponents(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load components'
+      toast.error(message)
+      setComponents([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredComponents = components.filter((component) => {

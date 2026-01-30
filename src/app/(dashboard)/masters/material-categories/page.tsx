@@ -16,12 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { mockMaterialCategories } from '@/lib/mock-data'
-import { MaterialCategory } from '@/types'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { materialCategoryService, MaterialCategoryResponse } from '@/lib/api/material-categories'
+import { toast } from 'sonner'
 
 export default function MaterialCategoriesPage() {
-  const [categories, setCategories] = useState<MaterialCategory[]>([])
+  const [categories, setCategories] = useState<MaterialCategoryResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -31,9 +30,16 @@ export default function MaterialCategoriesPage() {
 
   const loadCategories = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockMaterialCategories, 800)
-    setCategories(data)
-    setLoading(false)
+    try {
+      const data = await materialCategoryService.getAll()
+      setCategories(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load material categories'
+      toast.error(message)
+      setCategories([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredCategories = categories.filter(

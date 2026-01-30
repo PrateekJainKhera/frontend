@@ -5,9 +5,8 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockProcesses } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Process } from '@/types'
+import { processService, ProcessResponse } from '@/lib/api/processes'
+import { toast } from 'sonner'
 import { ProcessesDataGrid } from '@/components/tables/processes-data-grid'
 import { AddProcessDialog } from '@/components/forms/add-process-dialog'
 
@@ -16,7 +15,7 @@ interface ProcessesTabProps {
 }
 
 export function ProcessesTab({ searchQuery = '' }: ProcessesTabProps) {
-  const [processes, setProcesses] = useState<Process[]>([])
+  const [processes, setProcesses] = useState<ProcessResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [isAddProcessOpen, setIsAddProcessOpen] = useState(false)
 
@@ -26,9 +25,16 @@ export function ProcessesTab({ searchQuery = '' }: ProcessesTabProps) {
 
   const loadProcesses = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockProcesses, 800)
-    setProcesses(data)
-    setLoading(false)
+    try {
+      const data = await processService.getAll()
+      setProcesses(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load processes'
+      toast.error(message)
+      setProcesses([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredProcesses = processes.filter(

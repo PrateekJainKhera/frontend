@@ -6,14 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockRawMaterials } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { RawMaterial } from '@/types'
+import { materialService, MaterialResponse } from '@/lib/api/materials'
+import { toast } from 'sonner'
 import { RawMaterialsTable } from '@/components/tables/raw-materials-table'
 import { AddRawMaterialDialog } from '@/components/forms/add-raw-material-dialog'
 
 export default function RawMaterialsPage() {
-  const [materials, setMaterials] = useState<RawMaterial[]>([])
+  const [materials, setMaterials] = useState<MaterialResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false)
@@ -24,9 +23,16 @@ export default function RawMaterialsPage() {
 
   const loadMaterials = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockRawMaterials, 800)
-    setMaterials(data)
-    setLoading(false)
+    try {
+      const data = await materialService.getAll()
+      setMaterials(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load materials'
+      toast.error(message)
+      setMaterials([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredMaterials = materials.filter(

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { Component } from '@/types'
+import { ComponentResponse } from '@/lib/api/components'
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import { ViewComponentDialog } from '@/components/dialogs/view-component-dialog'
 import { EditComponentDialog } from '@/components/dialogs/edit-component-dialog'
 
 interface ComponentsTableProps {
-  components: Component[]
+  components: ComponentResponse[]
   onUpdate?: () => void
 }
 
@@ -43,16 +43,16 @@ const getCategoryColor = (category: string) => {
 }
 
 export function ComponentsTable({ components, onUpdate }: ComponentsTableProps) {
-  const [selectedComponent, setSelectedComponent] = useState<Component | null>(null)
+  const [selectedComponent, setSelectedComponent] = useState<ComponentResponse | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
 
-  const handleView = (component: Component) => {
+  const handleView = (component: ComponentResponse) => {
     setSelectedComponent(component)
     setViewDialogOpen(true)
   }
 
-  const handleEdit = (component: Component) => {
+  const handleEdit = (component: ComponentResponse) => {
     setSelectedComponent(component)
     setEditDialogOpen(true)
   }

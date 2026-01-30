@@ -8,7 +8,7 @@ import {
     type MRT_PaginationState,
 } from 'material-react-table'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
-import { Process } from '@/types'
+import { ProcessResponse } from '@/lib/api/processes'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Edit, Eye, Clock, ExternalLink } from 'lucide-react'
@@ -16,7 +16,7 @@ import { ViewProcessDialog } from '@/components/dialogs/view-process-dialog'
 import { EditProcessDialog } from '@/components/dialogs/edit-process-dialog'
 
 interface ProcessesDataGridProps {
-    processes: Process[]
+    processes: ProcessResponse[]
     onUpdate?: () => void
 }
 
@@ -67,7 +67,7 @@ const muiTheme = createTheme({
 })
 
 export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProps) {
-    const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
+    const [selectedProcess, setSelectedProcess] = useState<ProcessResponse | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
@@ -75,18 +75,18 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
         pageSize: 10,
     })
 
-    const handleView = (process: Process) => {
+    const handleView = (process: ProcessResponse) => {
         setSelectedProcess(process)
         setViewDialogOpen(true)
     }
 
-    const handleEdit = (process: Process) => {
+    const handleEdit = (process: ProcessResponse) => {
         setSelectedProcess(process)
         setEditDialogOpen(true)
     }
 
     // Define columns
-    const columns = useMemo<MRT_ColumnDef<Process>[]>(
+    const columns = useMemo<MRT_ColumnDef<ProcessResponse>[]>(
         () => [
             {
                 accessorKey: 'processCode',
@@ -115,7 +115,7 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                 ),
             },
             {
-                accessorKey: 'defaultMachine',
+                accessorKey: 'defaultMachineName',
                 header: 'Default Machine',
                 size: 140,
                 Cell: ({ cell }) => (
@@ -123,8 +123,8 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                 ),
             },
             {
-                accessorKey: 'standardTimeMin',
-                header: 'Std Time',
+                accessorKey: 'standardCycleTimeMin',
+                header: 'Cycle Time',
                 size: 100,
                 Cell: ({ cell }) => (
                     <div className="flex items-center gap-1 text-sm">
@@ -134,11 +134,11 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                 ),
             },
             {
-                accessorKey: 'skillRequired',
+                accessorKey: 'skillLevel',
                 header: 'Skill',
                 size: 100,
                 Cell: ({ cell }) => (
-                    <Badge variant="outline">{cell.getValue<string>()}</Badge>
+                    <Badge variant="outline">{cell.getValue<string>() || '-'}</Badge>
                 ),
             },
             {

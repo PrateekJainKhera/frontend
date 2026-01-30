@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { RawMaterial } from '@/types'
+import { MaterialResponse } from '@/lib/api/materials'
 import {
   Table,
   TableBody,
@@ -17,21 +17,21 @@ import { ViewRawMaterialDialog } from '@/components/dialogs/view-raw-material-di
 import { EditRawMaterialDialog } from '@/components/dialogs/edit-raw-material-dialog'
 
 interface RawMaterialsTableProps {
-  materials: RawMaterial[]
+  materials: MaterialResponse[]
   onUpdate?: () => void
 }
 
 export function RawMaterialsTable({ materials, onUpdate }: RawMaterialsTableProps) {
-  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null)
+  const [selectedMaterial, setSelectedMaterial] = useState<MaterialResponse | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
 
-  const handleView = (material: RawMaterial) => {
+  const handleView = (material: MaterialResponse) => {
     setSelectedMaterial(material)
     setViewDialogOpen(true)
   }
 
-  const handleEdit = (material: RawMaterial) => {
+  const handleEdit = (material: MaterialResponse) => {
     setSelectedMaterial(material)
     setEditDialogOpen(true)
   }

@@ -12,9 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { mockComponents } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Component, ComponentCategory } from '@/types'
+import { componentService, ComponentResponse } from '@/lib/api/components'
+import { toast } from 'sonner'
+import { ComponentCategory } from '@/types'
 import { ComponentsDataGrid } from '@/components/tables/components-data-grid'
 import { AddComponentDialog } from '@/components/dialogs/add-component-dialog'
 
@@ -23,7 +23,7 @@ interface ComponentsTabProps {
 }
 
 export function ComponentsTab({ searchQuery = '' }: ComponentsTabProps) {
-  const [components, setComponents] = useState<Component[]>([])
+  const [components, setComponents] = useState<ComponentResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -34,9 +34,16 @@ export function ComponentsTab({ searchQuery = '' }: ComponentsTabProps) {
 
   const loadComponents = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockComponents, 800)
-    setComponents(data)
-    setLoading(false)
+    try {
+      const data = await componentService.getAll()
+      setComponents(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load components'
+      toast.error(message)
+      setComponents([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredComponents = components.filter((component) => {

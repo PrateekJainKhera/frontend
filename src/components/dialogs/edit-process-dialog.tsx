@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Process } from '@/types'
+import { ProcessResponse, processService } from '@/lib/api/processes'
 import {
   Dialog,
   DialogContent,
@@ -26,23 +26,22 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
 
 const formSchema = z.object({
   processCode: z.string().min(2, 'Process code must be at least 2 characters'),
   processName: z.string().min(2, 'Process name must be at least 2 characters'),
   category: z.string().min(1, 'Category is required'),
-  defaultMachine: z.string().optional(),
-  standardTimeMin: z.number().positive('Standard time must be positive'),
+  defaultMachineName: z.string().optional(),
+  standardCycleTimeMin: z.number().min(0, 'Cycle time cannot be negative'),
   restTimeHours: z.number().min(0, 'Rest time cannot be negative').optional(),
-  skillRequired: z.string().min(1, 'Skill level is required'),
+  skillLevel: z.string().optional(),
   isOutsourced: z.boolean(),
 })
 
 type FormData = z.infer<typeof formSchema>
 
 interface EditProcessDialogProps {
-  process: Process
+  process: ProcessResponse
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
@@ -62,10 +61,10 @@ export function EditProcessDialog({
       processCode: process.processCode,
       processName: process.processName,
       category: process.category,
-      defaultMachine: process.defaultMachine || '',
-      standardTimeMin: process.standardTimeMin,
+      defaultMachineName: process.defaultMachineName || '',
+      standardCycleTimeMin: process.standardCycleTimeMin,
       restTimeHours: process.restTimeHours || 0,
-      skillRequired: process.skillRequired,
+      skillLevel: process.skillLevel || '',
       isOutsourced: process.isOutsourced,
     },
   })
@@ -73,11 +72,23 @@ export function EditProcessDialog({
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
-      await simulateApiCall({ ...process, ...data }, 1000)
+      await processService.update(process.id, {
+        id: process.id,
+        processCode: data.processCode,
+        processName: data.processName,
+        category: data.category,
+        defaultMachineName: data.defaultMachineName || null,
+        standardCycleTimeMin: data.standardCycleTimeMin,
+        restTimeHours: data.restTimeHours,
+        skillLevel: data.skillLevel || null,
+        isOutsourced: data.isOutsourced,
+      })
       toast.success('Process updated successfully')
       onSuccess()
+      onOpenChange(false)
     } catch (error) {
-      toast.error('Failed to update process')
+      const message = error instanceof Error ? error.message : 'Failed to update process'
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -142,10 +153,10 @@ export function EditProcessDialog({
 
               <FormField
                 control={form.control}
-                name="skillRequired"
+                name="skillLevel"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Skill Required *</FormLabel>
+                    <FormLabel>Skill Level</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., Basic, Expert" {...field} />
                     </FormControl>
@@ -158,7 +169,7 @@ export function EditProcessDialog({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="defaultMachine"
+                name="defaultMachineName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Default Machine</FormLabel>
@@ -175,10 +186,10 @@ export function EditProcessDialog({
 
               <FormField
                 control={form.control}
-                name="standardTimeMin"
+                name="standardCycleTimeMin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Standard Time (minutes) *</FormLabel>
+                    <FormLabel>Standard Cycle Time (minutes) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"

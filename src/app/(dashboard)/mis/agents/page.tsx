@@ -43,7 +43,7 @@ export default function AgentPerformancePage() {
 
   // Agent performance data
   const agentPerformanceData = agentCustomers.map(agent => {
-    const agentOrderList = agentOrders.filter(order => order.agentCustomerId === agent.id)
+    const agentOrderList = agentOrders.filter(order => order.agentCustomerId === agent.id.toString())
     const totalCommission = agentOrderList.reduce((sum, order) => sum + (order.agentCommission || 0), 0)
     const totalOrders = agentOrderList.length
     const avgCommission = totalOrders > 0 ? totalCommission / totalOrders : 0

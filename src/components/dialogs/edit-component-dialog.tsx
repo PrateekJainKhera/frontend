@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Component, ComponentCategory } from '@/types'
+import { ComponentCategory } from '@/types'
+import { ComponentResponse, componentService } from '@/lib/api/components'
 import {
   Dialog,
   DialogContent,
@@ -32,12 +33,11 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
 
 const formSchema = z.object({
   partNumber: z.string().min(2, 'Part number is required'),
   componentName: z.string().min(2, 'Component name is required'),
-  category: z.nativeEnum(ComponentCategory),
+  category: z.string(),
   manufacturer: z.string().optional(),
   supplierName: z.string().optional(),
   specifications: z.string().optional(),
@@ -49,7 +49,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>
 
 interface EditComponentDialogProps {
-  component: Component
+  component: ComponentResponse
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
@@ -81,15 +81,24 @@ export function EditComponentDialog({
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
-      await simulateApiCall({
-        ...component,
-        ...data,
-      }, 1000)
+      await componentService.update(component.id, {
+        id: component.id,
+        partNumber: data.partNumber,
+        componentName: data.componentName,
+        category: data.category,
+        manufacturer: data.manufacturer || null,
+        supplierName: data.supplierName || null,
+        specifications: data.specifications || null,
+        leadTimeDays: data.leadTimeDays,
+        unit: data.unit,
+        notes: data.notes || null,
+      })
       toast.success('Component updated successfully')
       onSuccess()
       onOpenChange(false)
     } catch (error) {
-      toast.error('Failed to update component')
+      const message = error instanceof Error ? error.message : 'Failed to update component'
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }

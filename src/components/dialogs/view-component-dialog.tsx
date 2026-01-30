@@ -1,6 +1,6 @@
 "use client"
 
-import { Component } from '@/types'
+import { ComponentResponse } from '@/lib/api/components'
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
 import { formatDate } from '@/lib/utils/formatters'
 
 interface ViewComponentDialogProps {
-  component: Component
+  component: ComponentResponse
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -155,11 +155,11 @@ export function ViewComponentDialog({
               <div className="grid grid-cols-2 gap-4 flex-1">
                 <div>
                   <p className="text-xs text-muted-foreground">Created</p>
-                  <p className="text-sm">{formatDate(component.createdAt)}</p>
+                  <p className="text-sm">{formatDate(new Date(component.createdAt))}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Last Updated</p>
-                  <p className="text-sm">{formatDate(component.updatedAt)}</p>
+                  <p className="text-sm">{formatDate(new Date(component.updatedAt))}</p>
                 </div>
               </div>
             </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Process } from '@/types'
+import { ProcessResponse } from '@/lib/api/processes'
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import { formatDate } from '@/lib/utils/formatters'
 import { Code, Tag, Settings, Clock, Award, Building2, Calendar } from 'lucide-react'
 
 interface ViewProcessDialogProps {
-  process: Process
+  process: ProcessResponse
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -68,14 +68,14 @@ export function ViewProcessDialog({
                 </div>
               </div>
 
-              {process.defaultMachine && (
+              {process.defaultMachineName && (
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                     <Settings className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Default Machine</p>
-                    <p className="font-medium">{process.defaultMachine}</p>
+                    <p className="font-medium">{process.defaultMachineName}</p>
                   </div>
                 </div>
               )}
@@ -85,8 +85,8 @@ export function ViewProcessDialog({
                   <Clock className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Standard Time</p>
-                  <p className="font-medium">{process.standardTimeMin} minutes</p>
+                  <p className="text-xs text-muted-foreground">Cycle Time</p>
+                  <p className="font-medium">{process.standardCycleTimeMin} minutes</p>
                 </div>
               </div>
 
@@ -102,15 +102,17 @@ export function ViewProcessDialog({
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <Award className="h-5 w-5 text-primary" />
+              {process.skillLevel && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Award className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Skill Required</p>
+                    <Badge variant="outline">{process.skillLevel}</Badge>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Skill Required</p>
-                  <Badge variant="outline">{process.skillRequired}</Badge>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -143,7 +145,7 @@ export function ViewProcessDialog({
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Created On</p>
-                <p className="font-medium">{formatDate(process.createdAt)}</p>
+                <p className="font-medium">{formatDate(new Date(process.createdAt))}</p>
               </div>
             </div>
           </div>

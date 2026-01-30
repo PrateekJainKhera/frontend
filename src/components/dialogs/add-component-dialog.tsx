@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { ComponentCategory } from '@/types'
+import { componentService } from '@/lib/api/components'
 import {
   Dialog,
   DialogContent,
@@ -32,7 +33,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
 
 const formSchema = z.object({
   componentName: z.string().min(2, 'Component name is required'),
@@ -77,18 +77,23 @@ export function AddComponentDialog({
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
-      await simulateApiCall({
-        id: `comp-${Date.now()}`,
-        ...data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }, 1000)
+      await componentService.create({
+        componentName: data.componentName,
+        category: data.category,
+        manufacturer: data.manufacturer || null,
+        supplierName: data.supplierName || null,
+        specifications: data.specifications || null,
+        leadTimeDays: data.leadTimeDays,
+        unit: data.unit,
+        notes: data.notes || null,
+      })
       toast.success('Component added successfully')
       form.reset()
       onSuccess()
       onOpenChange(false)
     } catch (error) {
-      toast.error('Failed to add component')
+      const message = error instanceof Error ? error.message : 'Failed to add component'
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }
