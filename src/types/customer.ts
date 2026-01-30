@@ -1,5 +1,5 @@
 export interface Customer {
-  id: string
+  id: number
   customerCode: string
   customerName: string
   customerType: string // 'Direct', 'Agent', 'Dealer'

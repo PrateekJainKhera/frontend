@@ -23,6 +23,8 @@ export interface CreateCustomerRequest {
 }
 
 export interface UpdateCustomerRequest extends CreateCustomerRequest {
+  id: number
+  customerCode: string
   updatedBy?: string
 }
 
@@ -46,7 +48,7 @@ class CustomerService {
     return result.data || []
   }
 
-  async getById(id: string): Promise<Customer> {
+  async getById(id: number): Promise<Customer> {
     const response = await fetch(`${this.baseUrl}/${id}`)
 
     if (!response.ok) {
@@ -98,7 +100,7 @@ class CustomerService {
     return result.data
   }
 
-  async update(id: string, data: UpdateCustomerRequest): Promise<Customer> {
+  async update(id: number, data: UpdateCustomerRequest): Promise<Customer> {
     const response = await fetch(`${this.baseUrl}/${id}`, {
       method: 'PUT',
       headers: {
@@ -106,6 +108,7 @@ class CustomerService {
       },
       body: JSON.stringify({
         ...data,
+        id: id,
         updatedBy: data.updatedBy || 'Admin',
       }),
     })
@@ -122,7 +125,7 @@ class CustomerService {
     return result.data
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     const response = await fetch(`${this.baseUrl}/${id}`, {
       method: 'DELETE',
     })

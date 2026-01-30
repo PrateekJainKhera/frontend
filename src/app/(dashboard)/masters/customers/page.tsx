@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockCustomers } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
 import { Customer } from '@/types'
 import { CustomersDataGrid } from '@/components/tables/customers-data-grid'
 import { CreateCustomerDialog } from '@/components/forms/create-customer-dialog'
+import { customerService } from '@/lib/api/customer'
+import { toast } from 'sonner'
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -24,9 +24,16 @@ export default function CustomersPage() {
 
   const loadCustomers = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockCustomers, 800)
-    setCustomers(data)
-    setLoading(false)
+    try {
+      const data = await customerService.getAll()
+      setCustomers(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load customers'
+      toast.error(message)
+      setCustomers([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredCustomers = customers.filter(

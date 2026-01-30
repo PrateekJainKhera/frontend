@@ -23,7 +23,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -31,16 +30,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { customerService } from '@/lib/api/customer'
 
 const formSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  code: z.string().min(2, 'Code must be at least 2 characters'),
+  customerName: z.string().min(2, 'Name must be at least 2 characters'),
+  customerType: z.enum(['Direct', 'Agent', 'Dealer']),
   contactPerson: z.string().optional(),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  email: z.string().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+  pinCode: z.string().optional(),
+  gstNo: z.string().optional(),
+  panNo: z.string().optional(),
+  creditDays: z.number().min(0),
+  creditLimit: z.number().min(0),
+  paymentTerms: z.string().optional(),
   isActive: z.boolean(),
 })
 
@@ -64,24 +73,44 @@ export function EditCustomerDialog({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: customer.customerName,
-      code: customer.customerCode,
+      customerName: customer.customerName,
+      customerType: customer.customerType as 'Direct' | 'Agent' | 'Dealer',
       contactPerson: customer.contactPerson || '',
       email: customer.email || '',
       phone: customer.phone || '',
       address: customer.address || '',
+      city: customer.city || '',
+      state: customer.state || '',
+      country: customer.country || '',
+      pinCode: customer.pinCode || '',
+      gstNo: customer.gstNo || '',
+      panNo: customer.panNo || '',
+      creditDays: customer.creditDays || 0,
+      creditLimit: customer.creditLimit || 0,
+      paymentTerms: customer.paymentTerms || '',
       isActive: customer.isActive,
     },
   })
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
+    const loadingToast = toast.loading('Updating customer...')
+
     try {
-      await simulateApiCall({ ...customer, ...data }, 1000)
+      await customerService.update(customer.id, {
+        ...data,
+        id: customer.id,
+        customerCode: customer.customerCode,
+      })
+
+      toast.dismiss(loadingToast)
       toast.success('Customer updated successfully')
+      onOpenChange(false)
       onSuccess()
     } catch (error) {
-      toast.error('Failed to update customer')
+      toast.dismiss(loadingToast)
+      const message = error instanceof Error ? error.message : 'Failed to update customer'
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -89,11 +118,11 @@ export function EditCustomerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Customer</DialogTitle>
           <DialogDescription>
-            Update customer information. Fields marked with * are required.
+            Update customer information. Customer code cannot be changed.
           </DialogDescription>
         </DialogHeader>
 
@@ -102,12 +131,12 @@ export function EditCustomerDialog({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="customerName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter customer name" {...field} />
+                      <Input placeholder="ABC Flexo Packaging Ltd." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -116,20 +145,27 @@ export function EditCustomerDialog({
 
               <FormField
                 control={form.control}
-                name="code"
+                name="customerType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer Code *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., CUST-001" {...field} />
-                    </FormControl>
+                    <FormLabel>Customer Type *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select customer type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Direct">Direct Customer</SelectItem>
+                        <SelectItem value="Agent">Agent/Distributor</SelectItem>
+                        <SelectItem value="Dealer">Dealer</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="contactPerson"
@@ -137,7 +173,7 @@ export function EditCustomerDialog({
                   <FormItem>
                     <FormLabel>Contact Person</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter contact person name" {...field} />
+                      <Input placeholder="Rajesh Kumar" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -149,72 +185,204 @@ export function EditCustomerDialog({
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
+                    <FormLabel>Phone</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter phone number" {...field} />
+                      <Input placeholder="9876543210" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
 
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="customer@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter full address"
-                      className="min-h-20"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="isActive"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(value === 'true')}
-                    defaultValue={field.value ? 'true' : 'false'}
-                  >
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <Input
+                        type="email"
+                        placeholder="contact@example.com"
+                        {...field}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="true">Active</SelectItem>
-                      <SelectItem value="false">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Plot 45, Industrial Area, Phase 2"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Mumbai" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="state"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>State</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Maharashtra" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <FormControl>
+                      <Input placeholder="India" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pinCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pin Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="400001" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="gstNo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>GST Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="27AABCU1234A1Z5" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="panNo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>PAN Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="AABCU1234A" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="creditDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credit Days</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="creditLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credit Limit</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="paymentTerms"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Payment Terms</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Net 30" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2 flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Active</FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <DialogFooter>
               <Button
