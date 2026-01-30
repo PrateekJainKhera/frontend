@@ -32,11 +32,11 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
 import { generatePartCode } from '@/lib/utils/part-code-generator'
 import { RollerType, ChildPartType } from '@/types'
 import { mockCustomers } from '@/lib/mock-data'
 import { Plus, Trash2, Upload, FileImage } from 'lucide-react'
+import { productService } from '@/lib/api/products'
 
 const formSchema = z.object({
   customerName: z.string().min(1, 'Customer is required'),
@@ -51,6 +51,7 @@ const formSchema = z.object({
   numberOfTeeth: z.number().optional().nullable(),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
+  processTemplateId: z.number(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -96,6 +97,7 @@ export function CreateProductDialog({
       numberOfTeeth: null,
       surfaceFinish: '',
       hardness: '',
+      processTemplateId: 1, // Default template ID
     },
   })
 
@@ -157,34 +159,37 @@ export function CreateProductDialog({
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
-    toast.loading('Creating product...')
+    const loadingToast = toast.loading('Creating product...')
 
     try {
-      // Prepare child parts data (for API - files would be uploaded separately in real implementation)
-      const childPartsData = childParts
-        .filter((part) => part.type) // Only include parts with a type selected
-        .map((part) => ({
-          type: part.type,
-          drawingFileName: part.drawingFileName,
-          // In real implementation, you'd upload files and store URLs here
-        }))
+      // Create product using API service
+      const product = await productService.create({
+        customerName: data.customerName,
+        modelName: data.modelName,
+        rollerType: data.rollerType,
+        diameter: data.diameter,
+        length: data.length,
+        materialGrade: data.materialGrade,
+        drawingNo: data.drawingNo,
+        revisionNo: data.revisionNo,
+        revisionDate: data.revisionDate,
+        numberOfTeeth: data.numberOfTeeth,
+        surfaceFinish: data.surfaceFinish,
+        hardness: data.hardness,
+        processTemplateId: data.processTemplateId,
+      })
 
-      // Simulate API call
-      await simulateApiCall(
-        { ...data, partCode: generatedPartCode, childParts: childPartsData },
-        1000
-      )
-
-      toast.dismiss()
-      toast.success(`Product created: ${generatedPartCode}`)
+      toast.dismiss(loadingToast)
+      toast.success(`Product created: ${product.partCode}`)
       form.reset()
       setGeneratedPartCode('')
       setChildParts([])
       onOpenChange(false)
       onSuccess()
     } catch (error) {
-      toast.dismiss()
-      toast.error('Failed to create product')
+      toast.dismiss(loadingToast)
+      const message = error instanceof Error ? error.message : 'Failed to create product'
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }

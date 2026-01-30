@@ -24,7 +24,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { productService } from '@/lib/api/products'
 
 const formSchema = z.object({
   partCode: z.string().min(2, 'Part code is required'),
@@ -40,6 +40,7 @@ const formSchema = z.object({
   numberOfTeeth: z.number().optional().nullable(),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
+  processTemplateId: z.number(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -75,21 +76,41 @@ export function EditProductDialog({
       numberOfTeeth: product.numberOfTeeth,
       surfaceFinish: product.surfaceFinish || '',
       hardness: product.hardness || '',
+      processTemplateId: product.processTemplateId || 1,
     },
   })
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
+    const loadingToast = toast.loading('Updating product...')
+
     try {
-      await simulateApiCall({
-        ...product,
-        ...data,
-      }, 1000)
+      await productService.update(product.id, {
+        id: product.id,
+        partCode: product.partCode,
+        customerName: data.customerName,
+        modelName: data.modelName,
+        rollerType: data.rollerType,
+        diameter: data.diameter,
+        length: data.length,
+        materialGrade: data.materialGrade,
+        drawingNo: data.drawingNo,
+        revisionNo: data.revisionNo,
+        revisionDate: data.revisionDate,
+        numberOfTeeth: data.numberOfTeeth,
+        surfaceFinish: data.surfaceFinish,
+        hardness: data.hardness,
+        processTemplateId: data.processTemplateId,
+      })
+
+      toast.dismiss(loadingToast)
       toast.success('Product updated successfully')
       onSuccess()
       onOpenChange(false)
     } catch (error) {
-      toast.error('Failed to update product')
+      toast.dismiss(loadingToast)
+      const message = error instanceof Error ? error.message : 'Failed to update product'
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }

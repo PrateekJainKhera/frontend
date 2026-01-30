@@ -5,11 +5,11 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockProducts } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
 import { Product } from '@/types'
 import { ProductsDataGrid } from '@/components/tables/products-data-grid'
 import { CreateProductDialog } from '@/components/forms/create-product-dialog'
+import { productService } from '@/lib/api/products'
+import { toast } from 'sonner'
 
 interface ProductsTabProps {
   searchQuery?: string
@@ -26,9 +26,16 @@ export function ProductsTab({ searchQuery = '' }: ProductsTabProps) {
 
   const loadProducts = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockProducts, 800)
-    setProducts(data)
-    setLoading(false)
+    try {
+      const data = await productService.getAll()
+      setProducts(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load products'
+      toast.error(message)
+      setProducts([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredProducts = products.filter(
