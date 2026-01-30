@@ -46,7 +46,6 @@ function CreateChildPartTemplateContent() {
   const [loading, setLoading] = useState(false)
 
   // Basic Information
-  const [templateCode, setTemplateCode] = useState('')
   const [templateName, setTemplateName] = useState('')
   const [childPartType, setChildPartType] = useState('')
   const [rollerType, setRollerType] = useState('')
@@ -76,7 +75,6 @@ function CreateChildPartTemplateContent() {
       const template = mockChildPartTemplates.find(t => t.id === copyFromId)
       if (template) {
         // Basic Information
-        setTemplateCode(template.templateCode)
         setTemplateName(template.templateName)
         setChildPartType(template.childPartType)
         setRollerType(template.rollerType)
@@ -224,27 +222,16 @@ function CreateChildPartTemplateContent() {
               <CardDescription>General details about the child part template</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="templateCode">Template Code *</Label>
-                  <Input
-                    id="templateCode"
-                    placeholder="e.g., CPT-MAG-SHAFT-001"
-                    value={templateCode}
-                    onChange={(e) => setTemplateCode(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="templateName">Template Name *</Label>
-                  <Input
-                    id="templateName"
-                    placeholder="e.g., Magnetic Roller Shaft - Standard"
-                    value={templateName}
-                    onChange={(e) => setTemplateName(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="templateName">Template Name *</Label>
+                <Input
+                  id="templateName"
+                  placeholder="e.g., Magnetic Roller Shaft - Standard"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  required
+                />
+                <p className="text-sm text-muted-foreground">Template code will be auto-generated</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

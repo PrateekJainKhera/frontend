@@ -45,7 +45,6 @@ export default function CreateProductTemplatePage() {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Form state
-  const [templateCode, setTemplateCode] = useState('')
   const [templateName, setTemplateName] = useState('')
   const [description, setDescription] = useState('')
   const [rollerType, setRollerType] = useState<RollerType | ''>('')
@@ -377,7 +376,6 @@ export default function CreateProductTemplatePage() {
 
   // Form validation
   const validateForm = () => {
-    if (!templateCode.trim()) return 'Template Code is required'
     if (!templateName.trim()) return 'Template Name is required'
     if (!rollerType) return 'Roller Type is required'
     if (!processTemplateId) return 'Process Template is required'
@@ -406,7 +404,6 @@ export default function CreateProductTemplatePage() {
 
     // In real app, this would save to backend
     console.log({
-      templateCode,
       templateName,
       description,
       rollerType,
@@ -471,30 +468,6 @@ export default function CreateProductTemplatePage() {
           <CardDescription>Template identification and roller type</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="templateCode">Template Code *</Label>
-              <Input
-                id="templateCode"
-                placeholder="e.g., TPL-MAG-STD"
-                value={templateCode}
-                onChange={(e) => setTemplateCode(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rollerType">Roller Type *</Label>
-              <Select value={rollerType} onValueChange={(value) => setRollerType(value as RollerType)}>
-                <SelectTrigger id="rollerType">
-                  <SelectValue placeholder="Select roller type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={RollerType.MAGNETIC}>Magnetic Roller</SelectItem>
-                  <SelectItem value={RollerType.PRINTING}>Printing Roller</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="templateName">Template Name *</Label>
             <Input
@@ -503,6 +476,19 @@ export default function CreateProductTemplatePage() {
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="rollerType">Roller Type *</Label>
+            <Select value={rollerType} onValueChange={(value) => setRollerType(value as RollerType)}>
+              <SelectTrigger id="rollerType">
+                <SelectValue placeholder="Select roller type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={RollerType.MAGNETIC}>Magnetic Roller</SelectItem>
+                <SelectItem value={RollerType.PRINTING}>Printing Roller</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
