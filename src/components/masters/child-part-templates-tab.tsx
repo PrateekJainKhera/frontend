@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { mockChildPartTemplates } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ChildPartTemplate, ChildPartType, RollerType } from '@/types'
+import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
+import { toast } from 'sonner'
+import { ChildPartType, RollerType } from '@/types'
 import {
   Select,
   SelectContent,
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select'
 
 export function ChildPartTemplatesTab() {
-  const [templates, setTemplates] = useState<ChildPartTemplate[]>([])
+  const [templates, setTemplates] = useState<ChildPartTemplateResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -28,9 +28,16 @@ export function ChildPartTemplatesTab() {
 
   const loadTemplates = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockChildPartTemplates, 800)
-    setTemplates(data)
-    setLoading(false)
+    try {
+      const data = await childPartTemplateService.getAll()
+      setTemplates(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load child part templates'
+      toast.error(message)
+      setTemplates([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -50,23 +57,23 @@ export function ChildPartTemplatesTab() {
     return matchesSearch && matchesType && matchesRollerType
   })
 
-  const getChildPartTypeBadge = (type: ChildPartType) => {
-    const colors: Record<ChildPartType, string> = {
-      [ChildPartType.SHAFT]: 'bg-blue-100 text-blue-800',
-      [ChildPartType.CORE]: 'bg-purple-100 text-purple-800',
-      [ChildPartType.SLEEVE]: 'bg-green-100 text-green-800',
-      [ChildPartType.END_DISK]: 'bg-orange-100 text-orange-800',
-      [ChildPartType.HOUSING]: 'bg-yellow-100 text-yellow-800',
-      [ChildPartType.COVER]: 'bg-pink-100 text-pink-800',
-      [ChildPartType.OTHER]: 'bg-gray-100 text-gray-800',
+  const getChildPartTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'Shaft': 'bg-blue-100 text-blue-800',
+      'Core': 'bg-purple-100 text-purple-800',
+      'Sleeve': 'bg-green-100 text-green-800',
+      'End Disk': 'bg-orange-100 text-orange-800',
+      'Housing': 'bg-yellow-100 text-yellow-800',
+      'Cover': 'bg-pink-100 text-pink-800',
+      'Other': 'bg-gray-100 text-gray-800',
     }
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
 
-  const getRollerTypeBadge = (type: RollerType) => {
-    const colors: Record<RollerType, string> = {
-      [RollerType.MAGNETIC]: 'bg-blue-500 text-white',
-      [RollerType.PRINTING]: 'bg-orange-500 text-white',
+  const getRollerTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'MAGNETIC': 'bg-blue-500 text-white',
+      'PRINTING': 'bg-orange-500 text-white',
     }
     return colors[type] || 'bg-gray-500 text-white'
   }

@@ -8,12 +8,11 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { mockProcessTemplates } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ProcessTemplate } from '@/types'
+import { processTemplateService, ProcessTemplateResponse } from '@/lib/api/process-templates'
+import { toast } from 'sonner'
 
 export function ProcessTemplatesTab() {
-  const [templates, setTemplates] = useState<ProcessTemplate[]>([])
+  const [templates, setTemplates] = useState<ProcessTemplateResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -23,9 +22,16 @@ export function ProcessTemplatesTab() {
 
   const loadTemplates = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockProcessTemplates, 800)
-    setTemplates(data)
-    setLoading(false)
+    try {
+      const data = await processTemplateService.getAll()
+      setTemplates(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load process templates'
+      toast.error(message)
+      setTemplates([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredTemplates = templates.filter(
@@ -46,19 +52,17 @@ export function ProcessTemplatesTab() {
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
-            <CardDescription>Avg Steps/Template</CardDescription>
+            <CardDescription>Active Templates</CardDescription>
             <CardTitle className="text-3xl text-blue-600">
-              {templates.length > 0
-                ? Math.round(templates.reduce((sum, t) => sum + t.steps.length, 0) / templates.length)
-                : 0}
+              {templates.filter(t => t.isActive).length}
             </CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <CardHeader className="pb-3">
-            <CardDescription>Total Process Steps</CardDescription>
+            <CardDescription>Applicable Types</CardDescription>
             <CardTitle className="text-3xl text-green-600">
-              {templates.reduce((sum, t) => sum + t.steps.length, 0)}
+              {[...new Set(templates.flatMap(t => t.applicableTypes))].length}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -106,42 +110,26 @@ export function ProcessTemplatesTab() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">Applicable To:</p>
                   <div className="flex flex-wrap gap-1">
-                    {template.applicableTypes.map((type) => (
-                      <Badge key={type} variant="outline" className="text-xs">
+                    {template.applicableTypes.map((type, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
                         {type}
                       </Badge>
                     ))}
                   </div>
                 </div>
 
-                {/* Process Steps */}
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Process Flow ({template.steps.length} steps):
-                  </p>
-                  <div className="space-y-1">
-                    {template.steps.slice(0, 4).map((step) => (
-                      <div
-                        key={step.id}
-                        className="flex items-center gap-2 text-sm p-2 bg-muted/50 rounded"
-                      >
-                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                          {step.stepNo}
-                        </span>
-                        <span className="flex-1 truncate">{step.processName}</span>
-                        {step.isMandatory && (
-                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                            Required
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                    {template.steps.length > 4 && (
-                      <p className="text-xs text-muted-foreground text-center pt-1">
-                        +{template.steps.length - 4} more steps
-                      </p>
-                    )}
-                  </div>
+                {/* Status Badge */}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Status:</p>
+                  <Badge variant={template.isActive ? "default" : "secondary"} className="text-xs">
+                    {template.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+
+                {/* Metadata */}
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Created: {new Date(template.createdAt).toLocaleDateString()}</p>
+                  {template.createdBy && <p>By: {template.createdBy}</p>}
                 </div>
 
                 <Button variant="outline" size="sm" className="w-full" asChild>
