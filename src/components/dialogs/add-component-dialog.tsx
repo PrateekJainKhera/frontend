@@ -35,7 +35,6 @@ import { toast } from 'sonner'
 import { simulateApiCall } from '@/lib/utils/mock-api'
 
 const formSchema = z.object({
-  partNumber: z.string().min(2, 'Part number is required'),
   componentName: z.string().min(2, 'Component name is required'),
   category: z.nativeEnum(ComponentCategory),
   manufacturer: z.string().optional(),
@@ -64,7 +63,6 @@ export function AddComponentDialog({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      partNumber: '',
       componentName: '',
       category: ComponentCategory.BEARING,
       manufacturer: '',
@@ -108,16 +106,16 @@ export function AddComponentDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Part Number & Category */}
+            {/* Component Name & Category */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="partNumber"
+                name="componentName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Part Number *</FormLabel>
+                    <FormLabel>Component Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., BRG-6205-2RS" {...field} />
+                      <Input placeholder="Enter component name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -149,21 +147,6 @@ export function AddComponentDialog({
                 )}
               />
             </div>
-
-            {/* Component Name */}
-            <FormField
-              control={form.control}
-              name="componentName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Component Name *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter component name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             {/* Manufacturer & Supplier */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

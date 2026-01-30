@@ -3,7 +3,6 @@ import { Customer } from '@/types/customer'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api'
 
 export interface CreateCustomerRequest {
-  customerCode: string
   customerName: string
   customerType: string
   contactPerson?: string

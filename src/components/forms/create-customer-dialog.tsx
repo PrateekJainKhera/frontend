@@ -35,7 +35,6 @@ import { customerService } from '@/lib/api/customer'
 
 const formSchema = z.object({
   customerName: z.string().min(2, 'Name must be at least 2 characters'),
-  customerCode: z.string().min(2, 'Code must be at least 2 characters'),
   customerType: z.enum(['Direct', 'Agent', 'Dealer']),
   contactPerson: z.string().optional(),
   email: z.string().optional(),
@@ -72,7 +71,6 @@ export function CreateCustomerDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerName: '',
-      customerCode: '',
       customerType: 'Direct',
       contactPerson: '',
       email: '',
@@ -133,20 +131,6 @@ export function CreateCustomerDialog({
                     <FormLabel>Customer Name *</FormLabel>
                     <FormControl>
                       <Input placeholder="ABC Flexo Packaging Ltd." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="customerCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer Code *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="CUST001" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
