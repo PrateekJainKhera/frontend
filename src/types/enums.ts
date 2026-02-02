@@ -1,8 +1,8 @@
 // All enums used across the application
 
 export enum RollerType {
-  MAGNETIC = 'Magnetic',
-  PRINTING = 'Printing'
+  MAGNETIC = 'Magnetic Roller',
+  PRINTING = 'Printing Roller'
 }
 
 export enum MaterialGrade {

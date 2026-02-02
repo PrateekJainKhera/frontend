@@ -3,49 +3,77 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, Wrench, Edit, Trash2, FileText, Ruler } from 'lucide-react'
+import { ArrowLeft, Package, Wrench, Edit, Trash2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockChildPartTemplates } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ChildPartTemplate, ChildPartType, RollerType } from '@/types'
+import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
+import { processTemplateService, ProcessTemplateResponse, ProcessTemplateWithStepsResponse } from '@/lib/api/process-templates'
+import { toast } from 'sonner'
 
 export default function ChildPartTemplateDetailPage() {
   const params = useParams()
-  const [template, setTemplate] = useState<ChildPartTemplate | null>(null)
+  const [template, setTemplate] = useState<ChildPartTemplateResponse | null>(null)
+  const [processTemplate, setProcessTemplate] = useState<ProcessTemplateResponse | null>(null)
+  const [processTemplateWithSteps, setProcessTemplateWithSteps] = useState<ProcessTemplateWithStepsResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
   const loadTemplate = async () => {
     setLoading(true)
-    const found = mockChildPartTemplates.find(t => t.id === params.id)
-    const data = await simulateApiCall(found || null, 500)
-    setTemplate(data)
-    setLoading(false)
+    try {
+      const data = await childPartTemplateService.getById(Number(params.id))
+      setTemplate(data)
+
+      // Load process template if linked
+      if (data.processTemplateId) {
+        try {
+          const processData = await processTemplateService.getById(data.processTemplateId)
+          setProcessTemplate(processData)
+
+          // Try to load full template with steps
+          try {
+            const fullProcessData = await processTemplateService.getTemplateWithSteps(data.processTemplateId)
+            setProcessTemplateWithSteps(fullProcessData)
+          } catch (error) {
+            console.error('Failed to load process template steps:', error)
+            setProcessTemplateWithSteps(null)
+          }
+        } catch (error) {
+          console.error('Failed to load process template:', error)
+          setProcessTemplate(null)
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load template'
+      toast.error(message)
+      setTemplate(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     loadTemplate()
   }, [params.id])
 
-  const getChildPartTypeBadge = (type: ChildPartType) => {
-    const colors: Record<ChildPartType, string> = {
-      [ChildPartType.SHAFT]: 'bg-blue-100 text-blue-800',
-      [ChildPartType.CORE]: 'bg-purple-100 text-purple-800',
-      [ChildPartType.SLEEVE]: 'bg-green-100 text-green-800',
-      [ChildPartType.END_DISK]: 'bg-orange-100 text-orange-800',
-      [ChildPartType.HOUSING]: 'bg-yellow-100 text-yellow-800',
-      [ChildPartType.COVER]: 'bg-pink-100 text-pink-800',
-      [ChildPartType.OTHER]: 'bg-gray-100 text-gray-800',
+  const getChildPartTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'Shaft': 'bg-blue-100 text-blue-800',
+      'Core': 'bg-purple-100 text-purple-800',
+      'Sleeve': 'bg-green-100 text-green-800',
+      'End Disk': 'bg-orange-100 text-orange-800',
+      'Housing': 'bg-yellow-100 text-yellow-800',
+      'Cover': 'bg-pink-100 text-pink-800',
+      'Other': 'bg-gray-100 text-gray-800',
     }
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
 
-  const getRollerTypeBadge = (type: RollerType) => {
-    const colors: Record<RollerType, string> = {
-      [RollerType.MAGNETIC]: 'bg-blue-500 text-white',
-      [RollerType.PRINTING]: 'bg-orange-500 text-white',
+  const getRollerTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'MAGNETIC': 'bg-blue-500 text-white',
+      'PRINTING': 'bg-orange-500 text-white',
     }
     return colors[type] || 'bg-gray-500 text-white'
   }
@@ -153,13 +181,24 @@ export default function ChildPartTemplateDetailPage() {
               </Badge>
             </div>
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Standard Time</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">Part Type</h3>
               <div className="flex items-center gap-2">
-                <Ruler className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{template.totalStandardTimeHours.toFixed(1)} hours</span>
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  {template.isPurchased ? 'Purchased Part' : 'Manufactured Part'}
+                </span>
               </div>
             </div>
           </div>
+
+          {template.processTemplateId && (
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+              <Wrench className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Process Template Linked (ID: {template.processTemplateId})
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -205,91 +244,106 @@ export default function ChildPartTemplateDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Raw Materials Required */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            <div>
-              <CardTitle>Raw Materials Required</CardTitle>
-              <CardDescription>Materials needed to manufacture this part</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b">
-                <tr className="text-left">
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Material Name</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Grade</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Quantity</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Unit</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Wastage %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {template.materialRequirements.map((material) => (
-                  <tr key={material.id} className="border-b last:border-0">
-                    <td className="py-3 text-sm font-medium">{material.rawMaterialName}</td>
-                    <td className="py-3 text-sm text-muted-foreground">{material.materialGrade}</td>
-                    <td className="py-3 text-sm">{material.quantityRequired}</td>
-                    <td className="py-3 text-sm text-muted-foreground">{material.unit}</td>
-                    <td className="py-3 text-sm text-muted-foreground">{material.wastagePercent}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Manufacturing Process Information */}
+      {!template.isPurchased && template.processTemplateId && processTemplate && (
+        <>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Wrench className="h-5 w-5" />
+                <div>
+                  <CardTitle>Manufacturing Process Template</CardTitle>
+                  <CardDescription>{processTemplate.templateName}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {processTemplate.description && (
+                  <p className="text-sm text-muted-foreground">{processTemplate.description}</p>
+                )}
+                {processTemplate.applicableTypes && processTemplate.applicableTypes.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Applicable Types</p>
+                    <div className="flex gap-1 flex-wrap">
+                      {processTemplate.applicableTypes.map((type, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {type}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Manufacturing Process Steps */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Wrench className="h-5 w-5" />
-            <div>
-              <CardTitle>Manufacturing Process Steps</CardTitle>
-              <CardDescription>Sequential steps to manufacture this child part</CardDescription>
+          {/* Process Steps Table */}
+          {processTemplateWithSteps && processTemplateWithSteps.steps && processTemplateWithSteps.steps.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Manufacturing Process Steps</CardTitle>
+                <CardDescription>Sequential steps defined in the process template</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b">
+                      <tr className="text-left">
+                        <th className="pb-3 text-sm font-medium text-muted-foreground w-12">Step</th>
+                        <th className="pb-3 text-sm font-medium text-muted-foreground">Process Name</th>
+                        <th className="pb-3 text-sm font-medium text-muted-foreground">Mandatory</th>
+                        <th className="pb-3 text-sm font-medium text-muted-foreground">Can Be Parallel</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {processTemplateWithSteps.steps
+                        .sort((a, b) => a.stepNo - b.stepNo)
+                        .map((step) => (
+                          <tr key={step.id} className="border-b last:border-0">
+                            <td className="py-3 text-sm text-muted-foreground">{step.stepNo}</td>
+                            <td className="py-3 text-sm font-medium">{step.processName || `Process ${step.processId}`}</td>
+                            <td className="py-3 text-sm">
+                              <Badge variant={step.isMandatory ? "default" : "secondary"} className="text-xs">
+                                {step.isMandatory ? "Yes" : "No"}
+                              </Badge>
+                            </td>
+                            <td className="py-3 text-sm">
+                              <Badge variant={step.canBeParallel ? "default" : "secondary"} className="text-xs">
+                                {step.canBeParallel ? "Yes" : "No"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {template.isPurchased && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              <div>
+                <CardTitle>Purchased Part</CardTitle>
+                <CardDescription>This part is purchased from suppliers</CardDescription>
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b">
-                <tr className="text-left">
-                  <th className="pb-3 text-sm font-medium text-muted-foreground w-12">Step</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Process Name</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Machine</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Standard Time</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Rest Time</th>
-                  <th className="pb-3 text-sm font-medium text-muted-foreground">Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                {template.processSteps
-                  .sort((a, b) => a.stepNumber - b.stepNumber)
-                  .map((step) => (
-                    <tr key={step.id} className="border-b last:border-0">
-                      <td className="py-3 text-sm text-muted-foreground">{step.stepNumber}</td>
-                      <td className="py-3 text-sm font-medium">{step.processName}</td>
-                      <td className="py-3 text-sm text-muted-foreground">{step.machineName || '-'}</td>
-                      <td className="py-3 text-sm">{step.standardTimeHours.toFixed(1)} hrs</td>
-                      <td className="py-3 text-sm text-muted-foreground">
-                        {step.restTimeHours ? `${step.restTimeHours.toFixed(1)} hrs` : '-'}
-                      </td>
-                      <td className="py-3 text-sm text-muted-foreground max-w-xs truncate">
-                        {step.description || '-'}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                This is a purchased part and does not require internal manufacturing.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Technical Notes */}
       {template.technicalNotes && (
@@ -303,29 +357,12 @@ export default function ChildPartTemplateDetailPage() {
         </Card>
       )}
 
-      {/* Quality Checkpoints */}
-      {template.qualityCheckpoints && template.qualityCheckpoints.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Quality Checkpoints</CardTitle>
-            <CardDescription>Critical quality inspection points</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside space-y-2">
-              {template.qualityCheckpoints.map((checkpoint, index) => (
-                <li key={index} className="text-sm text-muted-foreground">{checkpoint}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Metadata */}
       <Card>
         <CardHeader>
           <CardTitle>Metadata</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
+        <CardContent className="grid grid-cols-3 gap-4">
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Created At</h3>
             <p className="text-sm">{new Date(template.createdAt).toLocaleString()}</p>
@@ -337,10 +374,6 @@ export default function ChildPartTemplateDetailPage() {
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Created By</h3>
             <p className="text-sm">{template.createdBy || '-'}</p>
-          </div>
-          <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-1">Updated By</h3>
-            <p className="text-sm">{template.updatedBy || '-'}</p>
           </div>
         </CardContent>
       </Card>

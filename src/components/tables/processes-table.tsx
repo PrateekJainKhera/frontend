@@ -67,15 +67,14 @@ export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Process Code</TableHead>
-            <TableHead>Process Name</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Default Machine</TableHead>
-            <TableHead>Standard Time</TableHead>
-            <TableHead>Rest Time</TableHead>
-            <TableHead>Skill Required</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="w-[120px]">Process Code</TableHead>
+            <TableHead className="w-[180px]">Process Name</TableHead>
+            <TableHead className="w-[140px]">Category</TableHead>
+            <TableHead className="w-[150px]">Default Machine</TableHead>
+            <TableHead className="w-[120px]">Setup Time</TableHead>
+            <TableHead className="w-[110px]">Rest Time</TableHead>
+            <TableHead className="w-[130px]">Type</TableHead>
+            <TableHead className="w-[120px] text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -88,26 +87,27 @@ export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
                 {process.processName}
               </TableCell>
               <TableCell>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(process.category)}`}>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(process.category || '')}`}>
                   {process.category}
                 </span>
               </TableCell>
               <TableCell className="text-sm">
-                {process.defaultMachineName || '-'}
+                {process.defaultMachine || '-'}
               </TableCell>
               <TableCell>
-                <div className="flex items-center gap-1 text-sm">
-                  <Clock className="h-3 w-3 text-muted-foreground" />
-                  {process.standardCycleTimeMin} min
-                </div>
+                {process.standardSetupTimeMin ? (
+                  <div className="flex items-center gap-1 text-sm">
+                    <Clock className="h-3 w-3 text-muted-foreground" />
+                    {process.standardSetupTimeMin} min
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
               </TableCell>
               <TableCell>
                 <div className="text-sm text-muted-foreground">
                   {process.restTimeHours ? `${process.restTimeHours} hrs` : '-'}
                 </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline">{process.skillLevel || '-'}</Badge>
               </TableCell>
               <TableCell>
                 {process.isOutsourced ? (

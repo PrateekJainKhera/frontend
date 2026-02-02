@@ -25,8 +25,10 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { RollerType, ProductTemplateChildPart } from '@/types'
-import { mockProcessTemplates } from '@/lib/mock-data'
-import { mockChildPartTemplates } from '@/lib/mock-data/child-part-templates'
+import { productTemplateService, ProductTemplateChildPartRequest } from '@/lib/api/product-templates'
+import { processTemplateService, ProcessTemplateResponse } from '@/lib/api/process-templates'
+import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
+import { toast } from 'sonner'
 
 interface ChildPartForm {
   tempId: string
@@ -50,6 +52,12 @@ export default function CreateProductTemplatePage() {
   const [rollerType, setRollerType] = useState<RollerType | ''>('')
   const [processTemplateId, setProcessTemplateId] = useState('')
   const [childParts, setChildParts] = useState<ChildPartForm[]>([])
+
+  // API Data state
+  const [processTemplates, setProcessTemplates] = useState<ProcessTemplateResponse[]>([])
+  const [childPartTemplates, setChildPartTemplates] = useState<ChildPartTemplateResponse[]>([])
+  const [loadingProcessTemplates, setLoadingProcessTemplates] = useState(false)
+  const [loadingChildPartTemplates, setLoadingChildPartTemplates] = useState(false)
 
   // Child part selection dialog state
   const [showDropdown, setShowDropdown] = useState(false)
@@ -76,6 +84,48 @@ export default function CreateProductTemplatePage() {
     materialRequirements: [] as any[],
     processSteps: [] as any[]
   })
+
+  // Load process templates when roller type changes
+  useEffect(() => {
+    if (rollerType) {
+      const loadProcessTemplates = async () => {
+        setLoadingProcessTemplates(true)
+        try {
+          const templates = await processTemplateService.getByApplicableType(rollerType)
+          setProcessTemplates(templates)
+        } catch (error) {
+          console.error('Failed to load process templates:', error)
+          toast.error('Failed to load process templates')
+        } finally {
+          setLoadingProcessTemplates(false)
+        }
+      }
+      loadProcessTemplates()
+    } else {
+      setProcessTemplates([])
+    }
+  }, [rollerType])
+
+  // Load child part templates when roller type changes
+  useEffect(() => {
+    if (rollerType) {
+      const loadChildPartTemplates = async () => {
+        setLoadingChildPartTemplates(true)
+        try {
+          const templates = await childPartTemplateService.getByRollerType(rollerType)
+          setChildPartTemplates(templates)
+        } catch (error) {
+          console.error('Failed to load child part templates:', error)
+          toast.error('Failed to load child part templates')
+        } finally {
+          setLoadingChildPartTemplates(false)
+        }
+      }
+      loadChildPartTemplates()
+    } else {
+      setChildPartTemplates([])
+    }
+  }, [rollerType])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -105,7 +155,7 @@ export default function CreateProductTemplatePage() {
   const addChildPartFromTemplate = () => {
     if (!selectedTemplateId) return
 
-    const template = mockChildPartTemplates.find(t => t.id === selectedTemplateId)
+    const template = childPartTemplates.find(t => t.id === selectedTemplateId)
     if (!template) return
 
     const newPart: ChildPartForm = {
@@ -128,7 +178,7 @@ export default function CreateProductTemplatePage() {
   const copyTemplate = () => {
     if (!selectedTemplateId) return
 
-    const template = mockChildPartTemplates.find(t => t.id === selectedTemplateId)
+    const template = childPartTemplates.find(t => t.id === selectedTemplateId)
     if (!template) return
 
     // Populate form with all template data
@@ -393,32 +443,47 @@ export default function CreateProductTemplatePage() {
   const handleSave = async () => {
     const error = validateForm()
     if (error) {
-      alert(error)
+      toast.error(error)
       return
     }
 
     setSaving(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      const childPartsRequest: ProductTemplateChildPartRequest[] = childParts.map((part, index) => ({
+        childPartName: part.childPartName,
+        childPartCode: part.childPartCode || null,
+        quantity: part.quantity,
+        unit: part.unit,
+        notes: part.notes || null,
+        sequenceNo: index + 1,
+        childPartTemplateId: part.childPartTemplateId ? Number(part.childPartTemplateId) : null
+      }))
 
-    // In real app, this would save to backend
-    console.log({
-      templateName,
-      description,
-      rollerType,
-      processTemplateId,
-      childParts
-    })
+      await productTemplateService.create({
+        templateName: templateName.trim(),
+        description: description.trim() || null,
+        rollerType: rollerType as string,
+        processTemplateId: Number(processTemplateId),
+        childParts: childPartsRequest,
+        isActive: true,
+        createdBy: 'Admin'
+      })
 
-    alert('Product Template created successfully!')
-    router.push('/masters/product-templates')
+      toast.success('Product Template created successfully!')
+      router.push('/masters/product-templates')
+    } catch (error) {
+      console.error('Failed to create template:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to create product template')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const selectedProcessTemplate = mockProcessTemplates.find(t => t.id === Number(processTemplateId))
+  const selectedProcessTemplate = processTemplates.find(t => t.id === Number(processTemplateId))
 
   // Filter child part templates by roller type and search query
-  const filteredChildPartTemplates = mockChildPartTemplates.filter(template => {
+  const filteredChildPartTemplates = childPartTemplates.filter(template => {
     // Filter by roller type if selected
     if (rollerType && template.rollerType !== rollerType) return false
 
@@ -518,9 +583,9 @@ export default function CreateProductTemplatePage() {
                 <SelectValue placeholder="Select process template" />
               </SelectTrigger>
               <SelectContent>
-                {mockProcessTemplates.map((template) => (
+                {processTemplates.map((template) => (
                   <SelectItem key={template.id} value={template.id.toString()}>
-                    {template.templateName} ({template.steps.length} steps)
+                    {template.templateName}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -530,18 +595,9 @@ export default function CreateProductTemplatePage() {
           {selectedProcessTemplate && (
             <div className="p-4 border rounded-lg bg-muted/50">
               <h4 className="font-medium mb-2">{selectedProcessTemplate.templateName}</h4>
-              <p className="text-sm text-muted-foreground mb-3">
+              <p className="text-sm text-muted-foreground">
                 {selectedProcessTemplate.description || 'No description'}
               </p>
-              <div className="flex flex-wrap gap-2">
-                {selectedProcessTemplate.steps
-                  .sort((a, b) => a.stepNo - b.stepNo)
-                  .map((step) => (
-                    <Badge key={step.id} variant="outline" className="text-xs">
-                      {step.stepNo}. {step.processName}
-                    </Badge>
-                  ))}
-              </div>
             </div>
           )}
         </CardContent>
@@ -1150,7 +1206,7 @@ export default function CreateProductTemplatePage() {
       <Dialog open={showTemplatePreview} onOpenChange={setShowTemplatePreview}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
           {selectedTemplateId && (() => {
-            const template = mockChildPartTemplates.find(t => t.id === selectedTemplateId)
+            const template = childPartTemplates.find(t => t.id === selectedTemplateId)
             if (!template) return null
 
             return (

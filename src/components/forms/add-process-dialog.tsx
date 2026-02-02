@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ProcessCategory } from '@/types/enums'
 import { toast } from 'sonner'
+import { processService } from '@/lib/api/processes'
 
 const formSchema = z.object({
   processName: z.string().min(2, 'Process name is required'),
@@ -48,9 +49,10 @@ type FormData = z.infer<typeof formSchema>
 interface AddProcessDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) {
+export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormData>({
@@ -68,15 +70,33 @@ export function AddProcessDialog({ open, onOpenChange }: AddProcessDialogProps) 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      await processService.create({
+        processName: data.processName,
+        category: data.category,
+        defaultMachine: data.defaultMachine || null,
+        standardSetupTimeMin: data.standardTimeMin,
+        restTimeHours: data.restTimeHours || 0,
+        description: data.description || null,
+        isOutsourced: data.isOutsourced,
+        isActive: true,
+        createdBy: 'Admin'
+      })
 
-    console.log('New Process:', data)
-    toast.success('Process added successfully!')
+      toast.success('Process added successfully!')
+      onOpenChange(false)
+      form.reset()
 
-    setIsSubmitting(false)
-    onOpenChange(false)
-    form.reset()
+      // Refresh parent data
+      if (onSuccess) {
+        onSuccess()
+      }
+    } catch (error) {
+      console.error('Failed to create process:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to create process')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

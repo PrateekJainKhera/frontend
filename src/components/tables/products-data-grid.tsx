@@ -143,7 +143,7 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
                 size: 100,
                 Cell: ({ cell }) => (
                     <span className="text-sm text-muted-foreground">
-                        {formatDate(cell.getValue<Date>())}
+                        {formatDate(new Date(cell.getValue<string>()))}
                     </span>
                 ),
             },

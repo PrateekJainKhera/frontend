@@ -174,15 +174,17 @@ export function ChildPartTemplatesTab() {
         {filteredTemplates.map((template) => (
           <Link key={template.id} href={`/masters/child-part-templates/${template.id}`}>
             <Card className="h-full border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-lg transition-shadow cursor-pointer hover:border-primary">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-2 mb-2">
+              <CardHeader className="p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-lg truncate">{template.templateName}</CardTitle>
-                    <CardDescription className="text-xs mt-1">{template.templateCode}</CardDescription>
+                    <CardDescription className="text-xs mt-1 truncate">{template.templateCode}</CardDescription>
                   </div>
-                  <Badge className={getChildPartTypeBadge(template.childPartType)}>
-                    {template.childPartType}
-                  </Badge>
+                  <div className="flex-shrink-0 w-20">
+                    <Badge className={`${getChildPartTypeBadge(template.childPartType)} text-[10px] px-2 py-0.5 block truncate`}>
+                      {template.childPartType}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge className={getRollerTypeBadge(template.rollerType)} variant="outline">
@@ -210,21 +212,27 @@ export function ChildPartTemplatesTab() {
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">
-                      {template.materialRequirements.length} Raw Material{template.materialRequirements.length !== 1 ? 's' : ''}
+                      {template.isPurchased ? 'Purchased Part' : 'Manufactured Part'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Wrench className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {template.processSteps.length} Process Step{template.processSteps.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Ruler className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {template.totalStandardTimeHours.toFixed(1)} hrs standard time
-                    </span>
-                  </div>
+                  {template.processTemplateId && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Wrench className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        Process Template Linked
+                      </span>
+                    </div>
+                  )}
+                  {(template.length || template.diameter) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Ruler className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {template.length && `L: ${template.length}${template.dimensionUnit}`}
+                        {template.length && template.diameter && ' × '}
+                        {template.diameter && `Ø ${template.diameter}${template.dimensionUnit}`}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t">

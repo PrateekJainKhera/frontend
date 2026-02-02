@@ -23,6 +23,7 @@ import {
   FormDescription,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
@@ -31,10 +32,10 @@ const formSchema = z.object({
   processCode: z.string().min(2, 'Process code must be at least 2 characters'),
   processName: z.string().min(2, 'Process name must be at least 2 characters'),
   category: z.string().min(1, 'Category is required'),
-  defaultMachineName: z.string().optional(),
-  standardCycleTimeMin: z.number().min(0, 'Cycle time cannot be negative'),
+  defaultMachine: z.string().optional(),
+  standardSetupTimeMin: z.number().min(0, 'Setup time cannot be negative'),
   restTimeHours: z.number().min(0, 'Rest time cannot be negative').optional(),
-  skillLevel: z.string().optional(),
+  description: z.string().optional(),
   isOutsourced: z.boolean(),
 })
 
@@ -60,11 +61,11 @@ export function EditProcessDialog({
     defaultValues: {
       processCode: process.processCode,
       processName: process.processName,
-      category: process.category,
-      defaultMachineName: process.defaultMachineName || '',
-      standardCycleTimeMin: process.standardCycleTimeMin,
+      category: process.category || '',
+      defaultMachine: process.defaultMachine || '',
+      standardSetupTimeMin: process.standardSetupTimeMin || 0,
       restTimeHours: process.restTimeHours || 0,
-      skillLevel: process.skillLevel || '',
+      description: process.description || '',
       isOutsourced: process.isOutsourced,
     },
   })
@@ -77,11 +78,12 @@ export function EditProcessDialog({
         processCode: data.processCode,
         processName: data.processName,
         category: data.category,
-        defaultMachineName: data.defaultMachineName || null,
-        standardCycleTimeMin: data.standardCycleTimeMin,
+        defaultMachine: data.defaultMachine || null,
+        standardSetupTimeMin: data.standardSetupTimeMin,
         restTimeHours: data.restTimeHours,
-        skillLevel: data.skillLevel || null,
+        description: data.description || null,
         isOutsourced: data.isOutsourced,
+        isActive: process.isActive,
       })
       toast.success('Process updated successfully')
       onSuccess()
@@ -153,23 +155,7 @@ export function EditProcessDialog({
 
               <FormField
                 control={form.control}
-                name="skillLevel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Skill Level</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Basic, Expert" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="defaultMachineName"
+                name="defaultMachine"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Default Machine</FormLabel>
@@ -183,29 +169,29 @@ export function EditProcessDialog({
                   </FormItem>
                 )}
               />
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="standardCycleTimeMin"
+                name="standardSetupTimeMin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Standard Cycle Time (minutes) *</FormLabel>
+                    <FormLabel>Setup Time (minutes) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        step="0.1"
+                        step="1"
                         placeholder="Enter time in minutes"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="restTimeHours"
@@ -229,6 +215,24 @@ export function EditProcessDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter process description..."
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

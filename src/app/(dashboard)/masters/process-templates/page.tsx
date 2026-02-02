@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { mockProcessTemplates } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ProcessTemplate } from '@/types'
+import { ProcessTemplate, RollerType } from '@/types'
+import { processTemplateService } from '@/lib/api/process-templates'
+import { toast } from 'sonner'
 
 export default function ProcessTemplatesPage() {
   const [templates, setTemplates] = useState<ProcessTemplate[]>([])
@@ -23,9 +23,49 @@ export default function ProcessTemplatesPage() {
 
   const loadTemplates = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockProcessTemplates, 800)
-    setTemplates(data)
-    setLoading(false)
+    try {
+      // Fetch all templates
+      const templateList = await processTemplateService.getAll()
+
+      // Fetch steps for each template
+      const templatesWithSteps: ProcessTemplate[] = await Promise.all(
+        templateList.map(async (template) => {
+          try {
+            const steps = await processTemplateService.getStepsByTemplateId(template.id)
+            return {
+              id: template.id,
+              templateName: template.templateName,
+              description: template.description,
+              applicableTypes: template.applicableTypes as RollerType[],
+              createdAt: new Date(template.createdAt),
+              updatedAt: new Date(template.updatedAt),
+              steps: steps.map(step => ({
+                ...step,
+                processName: step.processName || 'Unknown Process'
+              }))
+            }
+          } catch (error) {
+            console.error(`Failed to load steps for template ${template.id}:`, error)
+            return {
+              id: template.id,
+              templateName: template.templateName,
+              description: template.description,
+              applicableTypes: template.applicableTypes as RollerType[],
+              createdAt: new Date(template.createdAt),
+              updatedAt: new Date(template.updatedAt),
+              steps: []
+            }
+          }
+        })
+      )
+
+      setTemplates(templatesWithSteps)
+    } catch (error) {
+      console.error('Failed to load templates:', error)
+      toast.error('Failed to load process templates')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredTemplates = templates.filter(

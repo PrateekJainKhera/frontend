@@ -31,17 +31,23 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { toast } from 'sonner'
 import { generatePartCode } from '@/lib/utils/part-code-generator'
 import { RollerType, ChildPartType } from '@/types'
-import { mockCustomers } from '@/lib/mock-data'
-import { Plus, Trash2, Upload, FileImage } from 'lucide-react'
+import { Customer } from '@/types/customer'
+import { Upload, FileImage, Check, ChevronsUpDown } from 'lucide-react'
 import { productService } from '@/lib/api/products'
+import { customerService } from '@/lib/api/customer'
+import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
+import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
   customerName: z.string().min(1, 'Customer is required'),
   modelName: z.string().min(2, 'Model name is required'),
   rollerType: z.nativeEnum(RollerType, { message: 'Roller type is required' }),
+  productTemplateId: z.number().min(1, 'Product template is required'),
   diameter: z.number().min(1, 'Diameter must be greater than 0'),
   length: z.number().min(1, 'Length must be greater than 0'),
   materialGrade: z.string().min(1, 'Material grade is required'),
@@ -81,6 +87,10 @@ export function CreateProductDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [generatedPartCode, setGeneratedPartCode] = useState<string>('')
   const [childParts, setChildParts] = useState<ChildPartEntry[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false)
+  const [templates, setTemplates] = useState<ProductTemplateResponse[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -88,6 +98,7 @@ export function CreateProductDialog({
       customerName: '',
       modelName: '',
       rollerType: undefined,
+      productTemplateId: 0,
       diameter: 0,
       length: 0,
       materialGrade: '',
@@ -102,6 +113,70 @@ export function CreateProductDialog({
   })
 
   const watchedRollerType = form.watch('rollerType')
+  const watchedTemplateId = form.watch('productTemplateId')
+
+  // Fetch customers when dialog opens
+  useEffect(() => {
+    if (open) {
+      const loadCustomers = async () => {
+        try {
+          const data = await customerService.getAll()
+          setCustomers(data)
+        } catch (error) {
+          console.error('Failed to load customers:', error)
+          toast.error('Failed to load customers')
+        }
+      }
+      loadCustomers()
+    }
+  }, [open])
+
+  // Fetch templates when roller type changes
+  useEffect(() => {
+    if (watchedRollerType) {
+      const loadTemplates = async () => {
+        setLoadingTemplates(true)
+        try {
+          const allTemplates = await productTemplateService.getAll()
+          // Filter templates by roller type
+          const filtered = allTemplates.filter(t => t.rollerType === watchedRollerType)
+          setTemplates(filtered)
+
+          // Reset template selection when roller type changes
+          form.setValue('productTemplateId', 0)
+        } catch (error) {
+          console.error('Failed to load templates:', error)
+          toast.error('Failed to load product templates')
+          setTemplates([])
+        } finally {
+          setLoadingTemplates(false)
+        }
+      }
+      loadTemplates()
+    } else {
+      setTemplates([])
+      form.setValue('productTemplateId', 0)
+    }
+  }, [watchedRollerType, form])
+
+  // Load child parts from selected template
+  useEffect(() => {
+    if (watchedTemplateId && watchedTemplateId > 0) {
+      const selectedTemplate = templates.find(t => t.id === watchedTemplateId)
+      if (selectedTemplate && selectedTemplate.childParts) {
+        // Convert template child parts to child part entries with optional drawing
+        const templateChildParts: ChildPartEntry[] = selectedTemplate.childParts.map(cp => ({
+          id: `template-${cp.id}`,
+          type: cp.childPartName as ChildPartType,
+          drawingFile: null,
+          drawingFileName: '',
+        }))
+        setChildParts(templateChildParts)
+      }
+    } else {
+      setChildParts([])
+    }
+  }, [watchedTemplateId, templates])
 
   // Auto-generate part code when relevant fields change
   useEffect(() => {
@@ -124,28 +199,6 @@ export function CreateProductDialog({
       setChildParts([])
     }
   }, [open])
-
-  const addChildPart = () => {
-    const newPart: ChildPartEntry = {
-      id: `cp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: '',
-      drawingFile: null,
-      drawingFileName: '',
-    }
-    setChildParts([...childParts, newPart])
-  }
-
-  const removeChildPart = (id: string) => {
-    setChildParts(childParts.filter((part) => part.id !== id))
-  }
-
-  const updateChildPartType = (id: string, type: ChildPartType) => {
-    setChildParts(
-      childParts.map((part) =>
-        part.id === id ? { ...part, type } : part
-      )
-    )
-  }
 
   const handleFileChange = (id: string, file: File | null) => {
     setChildParts(
@@ -215,27 +268,65 @@ export function CreateProductDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Customer Name - DROPDOWN ONLY */}
+              {/* Customer Name - SEARCHABLE DROPDOWN */}
               <FormField
                 control={form.control}
                 name="customerName"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Customer Name *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {mockCustomers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.customerName}>
-                            {customer.customerName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-full justify-between text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <span className="truncate">
+                              {field.value
+                                ? customers.find((customer) => customer.customerName === field.value)?.customerName
+                                : "Select customer"}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full sm:w-[400px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search customer..." className="h-9" />
+                          <CommandList className="max-h-[200px] sm:max-h-[300px]">
+                            <CommandEmpty>No customer found.</CommandEmpty>
+                            <CommandGroup>
+                              {customers.map((customer) => (
+                                <CommandItem
+                                  value={customer.customerName}
+                                  key={customer.id}
+                                  onSelect={() => {
+                                    form.setValue("customerName", customer.customerName)
+                                    setCustomerSearchOpen(false)
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      customer.customerName === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  <span className="truncate">{customer.customerName}</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -273,6 +364,42 @@ export function CreateProductDialog({
                         {Object.values(RollerType).map((type) => (
                           <SelectItem key={type} value={type}>
                             {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Product Template - DROPDOWN (loads after roller type selected) */}
+              <FormField
+                control={form.control}
+                name="productTemplateId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Product Template *</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(Number(value))}
+                      value={field.value?.toString()}
+                      disabled={!watchedRollerType || loadingTemplates}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            !watchedRollerType
+                              ? "First select roller type"
+                              : loadingTemplates
+                                ? "Loading templates..."
+                                : "Select template"
+                          } />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id.toString()}>
+                            {template.templateName}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -450,33 +577,23 @@ export function CreateProductDialog({
               />
             </div>
 
-            {/* Child Parts Section - Appears after roller type is selected */}
-            {watchedRollerType && (
+            {/* Child Parts Section - Loaded from template */}
+            {watchedTemplateId && watchedTemplateId > 0 && (
               <Card className="p-4 mt-4 border-dashed">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="font-semibold text-sm">Child Parts</h3>
+                    <h3 className="font-semibold text-sm">Child Parts (from Template)</h3>
                     <p className="text-xs text-muted-foreground">
-                      Optional: Add child parts for this {watchedRollerType} roller
+                      Optional: Attach drawings to child parts
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addChildPart}
-                    className="gap-1"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Part
-                  </Button>
                 </div>
 
                 {childParts.length === 0 ? (
                   <div className="text-center py-6 text-muted-foreground text-sm border rounded-md border-dashed">
                     <FileImage className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No child parts added yet</p>
-                    <p className="text-xs">Click "Add Part" to add child parts with drawings</p>
+                    <p>No child parts in this template</p>
+                    <p className="text-xs">Select a template with child parts</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -489,26 +606,13 @@ export function CreateProductDialog({
                           {index + 1}.
                         </span>
 
-                        {/* Child Part Type Dropdown */}
-                        <Select
-                          value={part.type}
-                          onValueChange={(value) =>
-                            updateChildPartType(part.id, value as ChildPartType)
-                          }
-                        >
-                          <SelectTrigger className="w-[160px]">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.values(ChildPartType).map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {/* Child Part Name (Read-only from template) */}
+                        <div className="flex items-center gap-2 min-w-[160px]">
+                          <span className="text-sm font-medium">{part.type}</span>
+                          <span className="text-xs text-muted-foreground">(from template)</span>
+                        </div>
 
-                        {/* File Upload */}
+                        {/* File Upload (Optional) */}
                         <div className="flex-1 flex items-center gap-2">
                           <Input
                             type="file"
@@ -529,25 +633,14 @@ export function CreateProductDialog({
                             className="gap-1"
                           >
                             <Upload className="h-3 w-3" />
-                            {part.drawingFileName ? 'Change' : 'Upload Drawing'}
+                            {part.drawingFileName ? 'Change Drawing' : 'Upload Drawing (Optional)'}
                           </Button>
                           {part.drawingFileName && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                               {part.drawingFileName}
                             </span>
                           )}
                         </div>
-
-                        {/* Remove Button */}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeChildPart(part.id)}
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     ))}
                   </div>

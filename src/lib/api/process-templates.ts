@@ -189,11 +189,18 @@ class ProcessTemplateService {
 
   async createWithSteps(data: CreateProcessTemplateRequest): Promise<ProcessTemplateWithStepsResponse> {
     try {
+      // Backend expects nested structure: { Template: {...}, Steps: [...] }
       const response = await apiClient.post<ApiResponse<ProcessTemplateWithStepsResponse>>(
         `${this.baseUrl}/with-steps`,
         {
-          ...data,
-          createdBy: data.createdBy || 'Admin',
+          template: {
+            templateName: data.templateName,
+            description: data.description,
+            applicableTypes: data.applicableTypes,
+            isActive: data.isActive,
+            createdBy: data.createdBy || 'Admin',
+          },
+          steps: data.steps || []
         }
       )
       if (!response.data.data) {

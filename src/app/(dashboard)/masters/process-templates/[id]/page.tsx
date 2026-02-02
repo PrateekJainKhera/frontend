@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ArrowLeft, Workflow, AlertCircle, Edit, Package } from 'lucide-react'
 import Link from 'next/link'
-import { mockProcessTemplates, mockChildPartTemplates } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ProcessTemplate, ChildPartTemplate } from '@/types'
+import { ProcessTemplate, ChildPartTemplate, RollerType } from '@/types'
+import { processTemplateService } from '@/lib/api/process-templates'
+import { toast } from 'sonner'
 
 export default function ProcessTemplateDetailPage() {
   const params = useParams()
@@ -27,20 +27,30 @@ export default function ProcessTemplateDetailPage() {
   const loadTemplate = async () => {
     setLoading(true)
     try {
-      // Simulate API call to fetch template by ID
-      const data = await simulateApiCall(mockProcessTemplates, 800)
-      const foundTemplate = data.find(t => t.id === Number(templateId))
-      setTemplate(foundTemplate || null)
+      // Fetch template by ID from API
+      const templateData = await processTemplateService.getById(Number(templateId))
+      const steps = await processTemplateService.getStepsByTemplateId(Number(templateId))
 
-      // Find child part templates that use processes from this template
-      if (foundTemplate) {
-        const processIds = foundTemplate.steps.map(step => step.processId)
-        const childParts = mockChildPartTemplates.filter(cpt =>
-          cpt.processSteps.some(step => processIds.includes(Number(step.processId)))
-        )
-        setRelatedChildParts(childParts)
+      const processTemplate: ProcessTemplate = {
+        id: templateData.id,
+        templateName: templateData.templateName,
+        description: templateData.description,
+        applicableTypes: templateData.applicableTypes as RollerType[],
+        createdAt: new Date(templateData.createdAt),
+        updatedAt: new Date(templateData.updatedAt),
+        steps: steps.map(step => ({
+          ...step,
+          processName: step.processName || 'Unknown Process'
+        }))
       }
+
+      setTemplate(processTemplate)
+
+      // TODO: Fetch related child part templates when the API is ready
+      setRelatedChildParts([])
     } catch (error) {
+      console.error('Failed to load template:', error)
+      toast.error('Failed to load process template details')
       setTemplate(null)
     } finally {
       setLoading(false)
@@ -60,7 +70,7 @@ export default function ProcessTemplateDetailPage() {
     return (
       <div className="space-y-6">
         <Button variant="ghost" asChild>
-          <Link href="/masters/process-templates">
+          <Link href="/masters/processes">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Templates
           </Link>
@@ -73,7 +83,7 @@ export default function ProcessTemplateDetailPage() {
             The process template you're looking for doesn't exist.
           </p>
           <Button asChild>
-            <Link href="/masters/process-templates">
+            <Link href="/masters/processes">
               View All Templates
             </Link>
           </Button>
@@ -90,7 +100,7 @@ export default function ProcessTemplateDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" asChild>
-            <Link href="/masters/process-templates">
+            <Link href="/masters/processes">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Link>
@@ -103,9 +113,11 @@ export default function ProcessTemplateDetailPage() {
             <p className="text-muted-foreground">{template.description}</p>
           </div>
         </div>
-        <Button>
-          <Edit className="mr-2 h-4 w-4" />
-          Edit Template
+        <Button asChild>
+          <Link href={`/masters/process-templates/${template.id}/edit`}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Template
+          </Link>
         </Button>
       </div>
 

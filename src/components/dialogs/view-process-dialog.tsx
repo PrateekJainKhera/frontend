@@ -68,27 +68,29 @@ export function ViewProcessDialog({
                 </div>
               </div>
 
-              {process.defaultMachineName && (
+              {process.defaultMachine && (
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                     <Settings className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Default Machine</p>
-                    <p className="font-medium">{process.defaultMachineName}</p>
+                    <p className="font-medium">{process.defaultMachine}</p>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <Clock className="h-5 w-5 text-primary" />
+              {process.standardSetupTimeMin !== null && process.standardSetupTimeMin !== undefined && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Clock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Setup Time</p>
+                    <p className="font-medium">{process.standardSetupTimeMin} minutes</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Cycle Time</p>
-                  <p className="font-medium">{process.standardCycleTimeMin} minutes</p>
-                </div>
-              </div>
+              )}
 
               {process.restTimeHours && (
                 <div className="flex items-center gap-3">
@@ -102,14 +104,11 @@ export function ViewProcessDialog({
                 </div>
               )}
 
-              {process.skillLevel && (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <Award className="h-5 w-5 text-primary" />
-                  </div>
+              {process.description && (
+                <div className="flex items-start gap-3 md:col-span-2">
                   <div>
-                    <p className="text-xs text-muted-foreground">Skill Required</p>
-                    <Badge variant="outline">{process.skillLevel}</Badge>
+                    <p className="text-xs text-muted-foreground">Description</p>
+                    <p className="font-medium text-sm mt-1">{process.description}</p>
                   </div>
                 </div>
               )}

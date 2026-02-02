@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { mockChildPartTemplates } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ChildPartTemplate, ChildPartType, RollerType } from '@/types'
+import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
+import { toast } from 'sonner'
+import { ChildPartType, RollerType } from '@/types'
 import {
   Select,
   SelectContent,
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select'
 
 export default function ChildPartTemplatesPage() {
-  const [templates, setTemplates] = useState<ChildPartTemplate[]>([])
+  const [templates, setTemplates] = useState<ChildPartTemplateResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -28,9 +28,16 @@ export default function ChildPartTemplatesPage() {
 
   const loadTemplates = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockChildPartTemplates, 800)
-    setTemplates(data)
-    setLoading(false)
+    try {
+      const data = await childPartTemplateService.getAll()
+      setTemplates(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load child part templates'
+      toast.error(message)
+      setTemplates([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -50,23 +57,30 @@ export default function ChildPartTemplatesPage() {
     return matchesSearch && matchesType && matchesRollerType
   })
 
-  const getChildPartTypeBadge = (type: ChildPartType) => {
-    const colors: Record<ChildPartType, string> = {
-      [ChildPartType.SHAFT]: 'bg-blue-100 text-blue-800',
-      [ChildPartType.CORE]: 'bg-purple-100 text-purple-800',
-      [ChildPartType.SLEEVE]: 'bg-green-100 text-green-800',
-      [ChildPartType.END_DISK]: 'bg-orange-100 text-orange-800',
-      [ChildPartType.HOUSING]: 'bg-yellow-100 text-yellow-800',
-      [ChildPartType.COVER]: 'bg-pink-100 text-pink-800',
-      [ChildPartType.OTHER]: 'bg-gray-100 text-gray-800',
+  const getChildPartTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'SHAFT': 'bg-blue-100 text-blue-800',
+      'Shaft': 'bg-blue-100 text-blue-800',
+      'CORE': 'bg-purple-100 text-purple-800',
+      'Core': 'bg-purple-100 text-purple-800',
+      'SLEEVE': 'bg-green-100 text-green-800',
+      'Sleeve': 'bg-green-100 text-green-800',
+      'END_DISK': 'bg-orange-100 text-orange-800',
+      'End Disk': 'bg-orange-100 text-orange-800',
+      'HOUSING': 'bg-yellow-100 text-yellow-800',
+      'Housing': 'bg-yellow-100 text-yellow-800',
+      'COVER': 'bg-pink-100 text-pink-800',
+      'Cover': 'bg-pink-100 text-pink-800',
+      'OTHER': 'bg-gray-100 text-gray-800',
+      'Other': 'bg-gray-100 text-gray-800',
     }
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
 
-  const getRollerTypeBadge = (type: RollerType) => {
-    const colors: Record<RollerType, string> = {
-      [RollerType.MAGNETIC]: 'bg-blue-500 text-white',
-      [RollerType.PRINTING]: 'bg-orange-500 text-white',
+  const getRollerTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'MAGNETIC': 'bg-blue-500 text-white',
+      'PRINTING': 'bg-orange-500 text-white',
     }
     return colors[type] || 'bg-gray-500 text-white'
   }
@@ -178,15 +192,17 @@ export default function ChildPartTemplatesPage() {
         {filteredTemplates.map((template) => (
           <Link key={template.id} href={`/masters/child-part-templates/${template.id}`}>
             <Card className="h-full border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-lg transition-shadow cursor-pointer hover:border-primary">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-2 mb-2">
+              <CardHeader className="p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-lg truncate">{template.templateName}</CardTitle>
-                    <CardDescription className="text-xs mt-1">{template.templateCode}</CardDescription>
+                    <CardDescription className="text-xs mt-1 truncate">{template.templateCode}</CardDescription>
                   </div>
-                  <Badge className={getChildPartTypeBadge(template.childPartType)}>
-                    {template.childPartType}
-                  </Badge>
+                  <div className="flex-shrink-0 w-20">
+                    <Badge className={`${getChildPartTypeBadge(template.childPartType)} text-[10px] px-2 py-0.5 block truncate`}>
+                      {template.childPartType}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge className={getRollerTypeBadge(template.rollerType)} variant="outline">
@@ -214,21 +230,27 @@ export default function ChildPartTemplatesPage() {
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">
-                      {template.materialRequirements.length} Raw Material{template.materialRequirements.length !== 1 ? 's' : ''}
+                      {template.isPurchased ? 'Purchased Part' : 'Manufactured Part'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Wrench className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {template.processSteps.length} Process Step{template.processSteps.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Ruler className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {template.totalStandardTimeHours.toFixed(1)} hrs standard time
-                    </span>
-                  </div>
+                  {template.processTemplateId && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Wrench className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        Process Template Linked
+                      </span>
+                    </div>
+                  )}
+                  {(template.length || template.diameter) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Ruler className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {template.length && `L: ${template.length}${template.dimensionUnit}`}
+                        {template.length && template.diameter && ' × '}
+                        {template.diameter && `Ø ${template.diameter}${template.dimensionUnit}`}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Plus, Trash2, GripVertical, Check, ChevronsUpDown } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { ProcessTemplate, ProcessTemplateStep, RollerType } from '@/types'
+import { ProcessTemplateStep, RollerType } from '@/types'
 import { toast } from 'sonner'
 import { processTemplateService } from '@/lib/api/process-templates'
 import { processService, ProcessResponse } from '@/lib/api/processes'
@@ -26,8 +26,11 @@ interface TemplateFormData {
   steps: ProcessTemplateStep[]
 }
 
-export default function CreateProcessTemplatePage() {
+export default function EditProcessTemplatePage() {
   const router = useRouter()
+  const params = useParams()
+  const templateId = Number(params.id)
+
   const [formData, setFormData] = useState<TemplateFormData>({
     templateName: '',
     description: '',
@@ -36,6 +39,7 @@ export default function CreateProcessTemplatePage() {
   })
   const [processes, setProcesses] = useState<ProcessResponse[]>([])
   const [loadingProcesses, setLoadingProcesses] = useState(false)
+  const [loadingTemplate, setLoadingTemplate] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [processSearchOpen, setProcessSearchOpen] = useState<{ [key: number]: boolean }>({})
 
@@ -44,27 +48,62 @@ export default function CreateProcessTemplatePage() {
     RollerType.MAGNETIC,
   ]
 
+  // Load template data
+  useEffect(() => {
+    loadTemplate()
+  }, [templateId])
+
   // Load processes from API
   useEffect(() => {
-    const loadProcesses = async () => {
-      setLoadingProcesses(true)
-      try {
-        const data = await processService.getAll()
-        setProcesses(data)
-      } catch (error) {
-        console.error('Failed to load processes:', error)
-        toast.error('Failed to load processes')
-      } finally {
-        setLoadingProcesses(false)
-      }
-    }
     loadProcesses()
   }, [])
+
+  const loadTemplate = async () => {
+    setLoadingTemplate(true)
+    try {
+      const templateData = await processTemplateService.getById(templateId)
+      const steps = await processTemplateService.getStepsByTemplateId(templateId)
+
+      setFormData({
+        templateName: templateData.templateName,
+        description: templateData.description || '',
+        applicableTypes: templateData.applicableTypes as RollerType[],
+        steps: steps.map(step => ({
+          id: step.id,
+          templateId: step.templateId,
+          stepNo: step.stepNo,
+          processId: step.processId,
+          processName: step.processName || '',
+          isMandatory: step.isMandatory,
+          canBeParallel: step.canBeParallel
+        }))
+      })
+    } catch (error) {
+      console.error('Failed to load template:', error)
+      toast.error('Failed to load template')
+      router.push('/masters/processes')
+    } finally {
+      setLoadingTemplate(false)
+    }
+  }
+
+  const loadProcesses = async () => {
+    setLoadingProcesses(true)
+    try {
+      const data = await processService.getAll()
+      setProcesses(data)
+    } catch (error) {
+      console.error('Failed to load processes:', error)
+      toast.error('Failed to load processes')
+    } finally {
+      setLoadingProcesses(false)
+    }
+  }
 
   const handleAddStep = () => {
     const newStep: ProcessTemplateStep = {
       id: Date.now(),
-      templateId: 0, // Will be set when template is created
+      templateId: templateId,
       stepNo: formData.steps.length + 1,
       processId: 0,
       processName: '',
@@ -76,7 +115,6 @@ export default function CreateProcessTemplatePage() {
 
   const handleRemoveStep = (index: number) => {
     const updatedSteps = formData.steps.filter((_, i) => i !== index)
-    // Renumber steps
     const renumberedSteps = updatedSteps.map((step, i) => ({ ...step, stepNo: i + 1 }))
     setFormData({ ...formData, steps: renumberedSteps })
   }
@@ -85,7 +123,6 @@ export default function CreateProcessTemplatePage() {
     const updatedSteps = [...formData.steps]
 
     if (field === 'processId') {
-      // Find the selected process to auto-fill details
       const selectedProcess = processes.find(p => p.id === Number(value))
       if (selectedProcess) {
         updatedSteps[index] = {
@@ -112,12 +149,10 @@ export default function CreateProcessTemplatePage() {
     const updatedSteps = [...formData.steps]
     const targetIndex = direction === 'up' ? index - 1 : index + 1
 
-    // Swap steps
     const temp = updatedSteps[index]
     updatedSteps[index] = updatedSteps[targetIndex]
     updatedSteps[targetIndex] = temp
 
-    // Renumber
     const renumberedSteps = updatedSteps.map((step, i) => ({ ...step, stepNo: i + 1 }))
     setFormData({ ...formData, steps: renumberedSteps })
   }
@@ -160,8 +195,9 @@ export default function CreateProcessTemplatePage() {
     setSubmitting(true)
 
     try {
-      // Create template with steps
-      await processTemplateService.createWithSteps({
+      // Update template
+      await processTemplateService.update(templateId, {
+        id: templateId,
         templateName: formData.templateName,
         description: formData.description || undefined,
         applicableTypes: formData.applicableTypes,
@@ -172,17 +208,28 @@ export default function CreateProcessTemplatePage() {
           canBeParallel: step.canBeParallel
         })),
         isActive: true,
-        createdBy: 'Admin'
+        updatedBy: 'Admin'
       })
 
-      toast.success('Process template created successfully!')
-      router.push('/masters/process-templates')
+      toast.success('Process template updated successfully!')
+      router.push(`/masters/process-templates/${templateId}`)
     } catch (error) {
-      console.error('Failed to create template:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to create template')
+      console.error('Failed to update template:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update template')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (loadingTemplate) {
+    return (
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 w-64 bg-muted rounded mb-4"></div>
+          <div className="h-96 bg-muted rounded"></div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -190,13 +237,13 @@ export default function CreateProcessTemplatePage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/masters/processes">
+          <Link href={`/masters/process-templates/${templateId}`}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-primary">Create Process Template</h1>
-          <p className="text-muted-foreground">Define a standard process flow</p>
+          <h1 className="text-3xl font-bold text-primary">Edit Process Template</h1>
+          <p className="text-muted-foreground">Modify the template details and process steps</p>
         </div>
       </div>
 
@@ -205,7 +252,7 @@ export default function CreateProcessTemplatePage() {
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Enter template name and description</CardDescription>
+            <CardDescription>Update template name and description</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -266,7 +313,7 @@ export default function CreateProcessTemplatePage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Process Steps</CardTitle>
-                <CardDescription>Define the sequence of manufacturing processes</CardDescription>
+                <CardDescription>Update the sequence of manufacturing processes</CardDescription>
               </div>
               <Button type="button" onClick={handleAddStep} size="sm">
                 <Plus className="mr-2 h-4 w-4" />
@@ -471,10 +518,10 @@ export default function CreateProcessTemplatePage() {
         {/* Actions */}
         <div className="flex justify-end gap-4">
           <Button type="button" variant="outline" asChild disabled={submitting}>
-            <Link href="/masters/process-templates">Cancel</Link>
+            <Link href={`/masters/process-templates/${templateId}`}>Cancel</Link>
           </Button>
           <Button type="submit" disabled={submitting || loadingProcesses}>
-            {submitting ? 'Creating...' : 'Create Template'}
+            {submitting ? 'Updating...' : 'Update Template'}
           </Button>
         </div>
       </form>

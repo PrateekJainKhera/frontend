@@ -22,8 +22,11 @@ export interface ChildPartTemplateProcessStepRequest {
 
 export interface CreateChildPartTemplateRequest {
   templateName: string
+  templateCode?: string
   childPartType: string
   rollerType: string
+  processTemplateId?: number
+  isPurchased?: boolean
   drawingNumber?: string | null
   drawingRevision?: string | null
   length?: number | null
@@ -32,8 +35,6 @@ export interface CreateChildPartTemplateRequest {
   outerDiameter?: number | null
   thickness?: number | null
   dimensionUnit?: string
-  materialRequirements: ChildPartTemplateMaterialRequirementRequest[]
-  processSteps: ChildPartTemplateProcessStepRequest[]
   description?: string | null
   technicalNotes?: string | null
   isActive?: boolean
@@ -74,15 +75,14 @@ export interface ChildPartTemplateResponse {
   rollerType: string
   drawingNumber?: string | null
   drawingRevision?: string | null
+  processTemplateId?: number | null
+  isPurchased: boolean
   length?: number | null
   diameter?: number | null
   innerDiameter?: number | null
   outerDiameter?: number | null
   thickness?: number | null
   dimensionUnit: string
-  materialRequirements: ChildPartTemplateMaterialRequirementResponse[]
-  processSteps: ChildPartTemplateProcessStepResponse[]
-  totalStandardTimeHours: number
   description?: string | null
   technicalNotes?: string | null
   isActive: boolean

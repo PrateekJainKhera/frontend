@@ -95,6 +95,7 @@ export function ProcessesTab({ searchQuery = '' }: ProcessesTabProps) {
       <AddProcessDialog
         open={isAddProcessOpen}
         onOpenChange={setIsAddProcessOpen}
+        onSuccess={loadProcesses}
       />
 
       {/* Floating Action Button */}

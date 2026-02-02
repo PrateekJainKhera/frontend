@@ -4,24 +4,11 @@ import { apiClient, ApiResponse } from './axios-config'
 export interface CreateProcessRequest {
   processName: string
   category: string
-  processType?: string | null
-  department?: string | null
-  machineType?: string | null
-  defaultMachineId?: number | null
-  defaultMachineName?: string | null
+  defaultMachine?: string | null
   standardSetupTimeMin?: number
-  standardCycleTimeMin?: number
-  standardCycleTimePerPiece?: number
   restTimeHours?: number
-  skillLevel?: string | null
-  operatorsRequired?: number
-  hourlyRate?: number
-  standardCostPerPiece?: number
-  requiresQC?: boolean
-  qcCheckpoints?: string | null
   description?: string | null
   isOutsourced?: boolean
-  preferredVendor?: string | null
   isActive?: boolean
   createdBy?: string | null
 }
@@ -37,24 +24,11 @@ export interface ProcessResponse {
   processCode: string
   processName: string
   category: string
-  processType?: string | null
-  department?: string | null
-  machineType?: string | null
-  defaultMachineId?: number | null
-  defaultMachineName?: string | null
+  defaultMachine?: string | null
   standardSetupTimeMin: number
-  standardCycleTimeMin: number
-  standardCycleTimePerPiece?: number
   restTimeHours?: number
-  skillLevel?: string | null
-  operatorsRequired: number
-  hourlyRate?: number
-  standardCostPerPiece?: number
-  requiresQC: boolean
-  qcCheckpoints?: string | null
   description?: string | null
   isOutsourced: boolean
-  preferredVendor?: string | null
   status?: string | null
   isActive: boolean
   createdAt: string

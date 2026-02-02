@@ -85,7 +85,7 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
         setEditDialogOpen(true)
     }
 
-    // Define columns
+    // Define columns (simplified schema)
     const columns = useMemo<MRT_ColumnDef<ProcessResponse>[]>(
         () => [
             {
@@ -109,13 +109,13 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                 header: 'Category',
                 size: 120,
                 Cell: ({ cell }) => (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(cell.getValue<string>())}`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(cell.getValue<string>() || '')}`}>
                         {cell.getValue<string>()}
                     </span>
                 ),
             },
             {
-                accessorKey: 'defaultMachineName',
+                accessorKey: 'defaultMachine',
                 header: 'Default Machine',
                 size: 140,
                 Cell: ({ cell }) => (
@@ -123,23 +123,29 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                 ),
             },
             {
-                accessorKey: 'standardCycleTimeMin',
-                header: 'Cycle Time',
-                size: 100,
-                Cell: ({ cell }) => (
-                    <div className="flex items-center gap-1 text-sm">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        {cell.getValue<number>()} min
-                    </div>
-                ),
+                accessorKey: 'standardSetupTimeMin',
+                header: 'Setup Time',
+                size: 110,
+                Cell: ({ cell }) => {
+                    const value = cell.getValue<number>();
+                    return value ? (
+                        <div className="flex items-center gap-1 text-sm">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            {value} min
+                        </div>
+                    ) : <span className="text-sm text-muted-foreground">-</span>;
+                },
             },
             {
-                accessorKey: 'skillLevel',
-                header: 'Skill',
+                accessorKey: 'restTimeHours',
+                header: 'Rest Time',
                 size: 100,
-                Cell: ({ cell }) => (
-                    <Badge variant="outline">{cell.getValue<string>() || '-'}</Badge>
-                ),
+                Cell: ({ cell }) => {
+                    const value = cell.getValue<number>();
+                    return value ? (
+                        <span className="text-sm">{value} hrs</span>
+                    ) : <span className="text-sm text-muted-foreground">-</span>;
+                },
             },
             {
                 accessorKey: 'isOutsourced',
@@ -175,6 +181,20 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
         // Enable Column Reordering
         enableColumnOrdering: true,
 
+        // Configure Actions column size
+        displayColumnDefOptions: {
+            'mrt-row-actions': {
+                header: 'Actions',
+                size: 100,
+                muiTableHeadCellProps: {
+                    align: 'center',
+                },
+                muiTableBodyCellProps: {
+                    align: 'center',
+                },
+            },
+        },
+
         onPaginationChange: setPagination,
         state: { pagination },
         muiPaginationProps: {
@@ -185,7 +205,7 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
         paginationDisplayMode: 'pages',
 
         renderRowActions: ({ row }) => (
-            <div className="flex gap-1">
+            <div className="flex gap-1 justify-center">
                 <Button
                     variant="ghost"
                     size="icon"
