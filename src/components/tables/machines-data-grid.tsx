@@ -76,10 +76,16 @@ const muiTheme = createTheme({
 })
 
 export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridProps) {
+    const [data, setData] = useState<MachineResponse[]>(machines)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
     })
+
+    // Sync prop to internal state for React Compiler compatibility
+    useMemo(() => {
+        setData(machines)
+    }, [machines])
 
     // Define columns
     const columns = useMemo<MRT_ColumnDef<MachineResponse>[]>(
@@ -131,7 +137,7 @@ export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridP
 
     const table = useMaterialReactTable({
         columns,
-        data: machines,
+        data: data,
         enableColumnActions: false,
         enableColumnFilters: false,
         enableSorting: true,
