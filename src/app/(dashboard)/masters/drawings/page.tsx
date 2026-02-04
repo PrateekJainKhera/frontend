@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Search, Upload, AlertTriangle, CheckCircle, XCircle, FileStack, Mic, Filter } from 'lucide-react'
+import { Search, AlertTriangle, CheckCircle, XCircle, Mic, Filter, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,10 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { mockDrawings, Drawing } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { UploadDrawingDialog } from '@/components/forms/upload-drawing-dialog'
-import { BulkUploadDrawingsDialog } from '@/components/forms/bulk-upload-drawings-dialog'
+import { Drawing } from '@/lib/mock-data'
+import { drawingService, DrawingResponse } from '@/lib/api/drawings'
+import { AddDrawingDialog } from '@/components/forms/add-drawing-dialog'
 import { DrawingsDataGrid } from '@/components/tables/drawings-data-grid'
 
 export default function DrawingsPage() {
@@ -24,18 +23,46 @@ export default function DrawingsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [partTypeFilter, setPartTypeFilter] = useState<string>('all')
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
-  const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false)
+  const [drawingTypeFilter, setDrawingTypeFilter] = useState<string>('all')
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
   useEffect(() => {
     loadDrawings()
   }, [])
 
+  const mapToDrawing = (d: DrawingResponse): Drawing => ({
+    id: String(d.id),
+    drawingNumber: d.drawingNumber,
+    drawingName: d.drawingName,
+    drawingType: d.drawingType as Drawing['drawingType'],
+    revision: d.revision || '',
+    revisionDate: d.revisionDate || '',
+    status: d.status as Drawing['status'],
+    fileName: d.fileName || '',
+    fileType: (d.fileType === 'pdf' ? 'pdf' : d.fileType === 'dwg' ? 'dwg' : 'image') as Drawing['fileType'],
+    fileUrl: d.fileUrl || '',
+    fileSize: d.fileSize || 0,
+    manufacturingDimensions: d.manufacturingDimensionsJSON ? JSON.parse(d.manufacturingDimensionsJSON) : undefined,
+    linkedPartId: d.linkedPartId?.toString(),
+    linkedProductId: d.linkedProductId?.toString(),
+    linkedCustomerId: d.linkedCustomerId?.toString(),
+    description: d.description || '',
+    notes: d.notes,
+    createdBy: d.createdBy || '',
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt || '',
+    approvedBy: d.approvedBy,
+    approvedAt: d.approvedAt,
+  })
+
   const loadDrawings = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockDrawings, 800)
-    setDrawings(data)
+    try {
+      const data = await drawingService.getAll()
+      setDrawings(data.map(mapToDrawing))
+    } catch (err) {
+      console.error('Failed to load drawings:', err)
+    }
     setLoading(false)
   }
 
@@ -47,9 +74,9 @@ export default function DrawingsPage() {
       drawing.linkedProductName?.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus = statusFilter === 'all' || drawing.status === statusFilter
-    const matchesPartType = partTypeFilter === 'all' || drawing.partType === partTypeFilter
+    const matchesDrawingType = drawingTypeFilter === 'all' || drawing.drawingType === drawingTypeFilter
 
-    return matchesSearch && matchesStatus && matchesPartType
+    return matchesSearch && matchesStatus && matchesDrawingType
   })
 
   // Calculate stats
@@ -62,7 +89,7 @@ export default function DrawingsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
       {/* Search and Filters Row */}
       <div className="flex items-center gap-4 flex-wrap">
         {/* Compact Search with Mic */}
@@ -99,7 +126,7 @@ export default function DrawingsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={partTypeFilter} onValueChange={setPartTypeFilter}>
+        <Select value={drawingTypeFilter} onValueChange={setDrawingTypeFilter}>
           <SelectTrigger className="w-[150px]">
             <Filter className="mr-2 h-4 w-4" />
             <SelectValue placeholder="Type" />
@@ -115,18 +142,6 @@ export default function DrawingsPage() {
             <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 ml-auto">
-          <Button variant="outline" onClick={() => setIsUploadDialogOpen(true)}>
-            <Upload className="mr-2 h-4 w-4" />
-            Upload
-          </Button>
-          <Button onClick={() => setIsBulkUploadDialogOpen(true)}>
-            <FileStack className="mr-2 h-4 w-4" />
-            Bulk Upload
-          </Button>
-        </div>
       </div>
 
       {/* Stats Cards */}
@@ -196,15 +211,20 @@ export default function DrawingsPage() {
         <DrawingsDataGrid drawings={filteredDrawings} />
       )}
 
-      {/* Upload Dialogs */}
-      <UploadDrawingDialog
-        open={isUploadDialogOpen}
-        onOpenChange={setIsUploadDialogOpen}
-        onSuccess={loadDrawings}
-      />
-      <BulkUploadDrawingsDialog
-        open={isBulkUploadDialogOpen}
-        onOpenChange={setIsBulkUploadDialogOpen}
+      {/* Floating Action Button */}
+      <Button
+        onClick={() => setIsAddDialogOpen(true)}
+        className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow z-50"
+        size="icon"
+        title="Add Drawing"
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
+
+      {/* Add Drawing Dialog */}
+      <AddDrawingDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
         onSuccess={loadDrawings}
       />
     </div>

@@ -24,7 +24,7 @@ interface FileWithMetadata {
     file: File
     id: string
     drawingName: string
-    partType: Drawing['partType']
+    drawingType: Drawing['drawingType']
     revision: string
     revisionDate: string
     status: 'pending' | 'uploading' | 'success' | 'error'
@@ -86,7 +86,7 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                 file,
                 id: `${Date.now()}-${Math.random()}`,
                 drawingName: extractDrawingName(file.name),
-                partType: 'shaft', // default
+                drawingType: 'shaft', // default
                 revision: 'A',
                 revisionDate: today,
                 status: 'pending',
@@ -188,7 +188,7 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
             files: files.map(f => ({
                 fileName: f.file.name,
                 drawingName: f.drawingName,
-                partType: f.partType,
+                drawingType: f.drawingType,
                 revision: f.revision,
                 revisionDate: f.revisionDate,
                 fileSize: f.file.size
@@ -387,8 +387,8 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                                                         </TableCell>
                                                         <TableCell>
                                                             <Select
-                                                                value={file.partType}
-                                                                onValueChange={(v) => updateFileMetadata(file.id, 'partType', v)}
+                                                                value={file.drawingType}
+                                                                onValueChange={(v) => updateFileMetadata(file.id, 'drawingType', v)}
                                                                 disabled={uploading}
                                                             >
                                                                 <SelectTrigger className="h-8">

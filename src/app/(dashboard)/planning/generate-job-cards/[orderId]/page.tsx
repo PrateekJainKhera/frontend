@@ -263,7 +263,7 @@ export default function GenerateJobCardsPage() {
     // Filter drawings by product type or show all 'final' type drawings
     const drawings = mockDrawings.filter(d =>
       d.status === 'approved' &&
-      (d.partType === 'final' || d.partType === 'roller')
+      (d.drawingType === 'final' || d.drawingType === 'roller')
     ).sort((a, b) => {
       // Sort by drawing number and revision
       const numCompare = a.drawingNumber.localeCompare(b.drawingNumber)
@@ -955,7 +955,7 @@ export default function GenerateJobCardsPage() {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
                             <span className="text-muted-foreground">Part Type:</span>
-                            <span className="ml-2 capitalize">{drawing.partType}</span>
+                            <span className="ml-2 capitalize">{drawing.drawingType}</span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">File:</span>

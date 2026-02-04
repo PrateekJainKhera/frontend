@@ -7,12 +7,12 @@ import { ManufacturingDimensions } from "@/lib/mock-data"
 import { AlertCircle } from "lucide-react"
 
 interface ManufacturingDimensionsFormProps {
-  partType: 'shaft' | 'pipe' | 'final' | 'gear' | 'bushing' | 'roller' | 'other'
+  drawingType: 'shaft' | 'pipe' | 'final' | 'gear' | 'bushing' | 'roller' | 'other'
   dimensions: Partial<ManufacturingDimensions>
   onChange: (dimensions: Partial<ManufacturingDimensions>) => void
 }
 
-export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: ManufacturingDimensionsFormProps) {
+export function ManufacturingDimensionsForm({ drawingType, dimensions, onChange }: ManufacturingDimensionsFormProps) {
   const updateField = (field: keyof ManufacturingDimensions, value: string | number) => {
     onChange({ ...dimensions, [field]: value })
   }
@@ -33,7 +33,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
       </CardHeader>
       <CardContent className="space-y-6">
         {/* SHAFT-specific dimensions */}
-        {partType === 'shaft' && (
+        {drawingType === 'shaft' && (
           <div className="space-y-4 bg-white p-4 rounded-lg border border-orange-200">
             <Label className="text-sm font-semibold text-orange-900">Shaft Dimensions</Label>
             <div className="grid grid-cols-3 gap-4">
@@ -78,7 +78,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
         )}
 
         {/* PIPE-specific dimensions */}
-        {partType === 'pipe' && (
+        {drawingType === 'pipe' && (
           <div className="space-y-4 bg-white p-4 rounded-lg border border-orange-200">
             <Label className="text-sm font-semibold text-orange-900">Pipe Dimensions</Label>
             <div className="grid grid-cols-4 gap-4">

@@ -539,7 +539,7 @@ export default function CreateOrderPage() {
                             </div>
                             <div>
                               <span className="text-muted-foreground">Part Type:</span>
-                              <span className="ml-2 capitalize">{selectedDrawing.partType}</span>
+                              <span className="ml-2 capitalize">{selectedDrawing.drawingType}</span>
                             </div>
                             <div>
                               <span className="text-muted-foreground">File:</span>

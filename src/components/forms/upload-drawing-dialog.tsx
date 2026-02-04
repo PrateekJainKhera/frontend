@@ -26,7 +26,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
     // Form state
     const [drawingNumber, setDrawingNumber] = useState("")
     const [drawingName, setDrawingName] = useState("")
-    const [partType, setPartType] = useState<Drawing['partType']>("shaft")
+    const [drawingType, setPartType] = useState<Drawing['drawingType']>("shaft")
     const [revision, setRevision] = useState("A")
     const [revisionDate, setRevisionDate] = useState(new Date().toISOString().split('T')[0])
     const [status, setStatus] = useState<Drawing['status']>("draft")
@@ -85,7 +85,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
             file: selectedFile,
             drawingNumber,
             drawingName,
-            partType,
+            drawingType,
             revision,
             revisionDate,
             status,
@@ -236,7 +236,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
                             <div className="grid grid-cols-4 gap-4">
                                 <div className="space-y-2">
                                     <Label>Part Type *</Label>
-                                    <Select value={partType} onValueChange={(value) => setPartType(value as Drawing['partType'])}>
+                                    <Select value={drawingType} onValueChange={(value) => setPartType(value as Drawing['drawingType'])}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -351,7 +351,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
 
                             {/* Manufacturing Dimensions - CRITICAL */}
                             <ManufacturingDimensionsForm
-                                partType={partType}
+                                drawingType={drawingType}
                                 dimensions={manufacturingDimensions}
                                 onChange={setManufacturingDimensions}
                             />

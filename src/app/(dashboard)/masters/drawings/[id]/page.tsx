@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import {
   ArrowLeft,
   Edit,
   Download,
+  Eye,
   FileText,
   AlertTriangle,
   CheckCircle,
@@ -22,12 +23,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import { mockDrawings, Drawing } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { Drawing } from '@/lib/mock-data'
+import { drawingService, DrawingResponse } from '@/lib/api/drawings'
+
+const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace('/api', '')
 
 export default function DrawingDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const [drawing, setDrawing] = useState<Drawing | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -35,11 +37,40 @@ export default function DrawingDetailPage() {
     loadDrawing()
   }, [params.id])
 
+  const mapToDrawing = (d: DrawingResponse): Drawing => ({
+    id: String(d.id),
+    drawingNumber: d.drawingNumber,
+    drawingName: d.drawingName,
+    drawingType: d.drawingType as Drawing['drawingType'],
+    revision: d.revision || '',
+    revisionDate: d.revisionDate || '',
+    status: d.status as Drawing['status'],
+    fileName: d.fileName || '',
+    fileType: (d.fileType === 'pdf' ? 'pdf' : d.fileType === 'dwg' ? 'dwg' : 'image') as Drawing['fileType'],
+    fileUrl: d.fileUrl || '',
+    fileSize: d.fileSize || 0,
+    manufacturingDimensions: d.manufacturingDimensionsJSON ? JSON.parse(d.manufacturingDimensionsJSON) : undefined,
+    linkedPartId: d.linkedPartId?.toString(),
+    linkedProductId: d.linkedProductId?.toString(),
+    linkedCustomerId: d.linkedCustomerId?.toString(),
+    description: d.description || '',
+    notes: d.notes,
+    createdBy: d.createdBy || '',
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt || '',
+    approvedBy: d.approvedBy,
+    approvedAt: d.approvedAt,
+  })
+
   const loadDrawing = async () => {
     setLoading(true)
-    const allDrawings = await simulateApiCall(mockDrawings, 800)
-    const found = allDrawings.find((d) => d.id === params.id)
-    setDrawing(found || null)
+    try {
+      const data = await drawingService.getById(Number(params.id))
+      setDrawing(mapToDrawing(data))
+    } catch (err) {
+      console.error('Failed to load drawing:', err)
+      setDrawing(null)
+    }
     setLoading(false)
   }
 
@@ -112,9 +143,9 @@ export default function DrawingDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Download
+          <Button variant="outline" onClick={() => drawing.fileUrl && window.open(FILE_BASE_URL + drawing.fileUrl, '_blank')}>
+            <Eye className="mr-2 h-4 w-4" />
+            Open Drawing
           </Button>
           <Link href={`/masters/drawings/${drawing.id}/edit`}>
             <Button>
@@ -161,38 +192,38 @@ export default function DrawingDetailPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardDescription>Part Type</CardDescription>
-            <CardTitle className="text-2xl capitalize">{drawing.partType}</CardTitle>
+            <CardDescription>Drawing Type</CardDescription>
+            <CardTitle className="text-2xl capitalize">{drawing.drawingType}</CardTitle>
           </CardHeader>
         </Card>
       </div>
 
-      {/* File Preview */}
+      {/* Drawing File */}
       <Card>
-        <CardHeader>
+        <CardContent className="pt-6">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Drawing File</CardTitle>
-              <CardDescription>
-                {drawing.fileName} • {drawing.fileSize} KB
-              </CardDescription>
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <div className="font-semibold">{drawing.fileName}</div>
+                <div className="text-sm text-muted-foreground">
+                  {drawing.fileType.toUpperCase()} • {drawing.fileSize} KB
+                </div>
+              </div>
             </div>
-            <Button variant="outline" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Download
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed">
-            <div className="text-center space-y-2">
-              <FileText className="h-16 w-16 text-gray-400 mx-auto" />
-              <p className="text-sm text-muted-foreground">
-                {drawing.fileType.toUpperCase()} Preview
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Click download to view the file
-              </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => drawing.fileUrl && window.open(FILE_BASE_URL + drawing.fileUrl, '_blank')}>
+                <Eye className="mr-2 h-4 w-4" />
+                Open Drawing
+              </Button>
+              <a href={drawing.fileUrl ? FILE_BASE_URL + drawing.fileUrl : '#'} download={drawing.fileName}>
+                <Button size="sm" disabled={!drawing.fileUrl}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
+              </a>
             </div>
           </div>
         </CardContent>
@@ -264,7 +295,7 @@ export default function DrawingDetailPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* SHAFT-specific dimensions */}
-            {drawing.partType === 'shaft' && drawing.manufacturingDimensions.rodDiameter && (
+            {drawing.drawingType === 'shaft' && drawing.manufacturingDimensions.rodDiameter && (
               <div className="bg-white p-4 rounded-lg border border-orange-200">
                 <div className="font-semibold text-orange-900 mb-3">Shaft Dimensions</div>
                 <div className="grid grid-cols-3 gap-4">
@@ -291,7 +322,7 @@ export default function DrawingDetailPage() {
             )}
 
             {/* PIPE-specific dimensions */}
-            {drawing.partType === 'pipe' && drawing.manufacturingDimensions.pipeOD && (
+            {drawing.drawingType === 'pipe' && drawing.manufacturingDimensions.pipeOD && (
               <div className="bg-white p-4 rounded-lg border border-orange-200">
                 <div className="font-semibold text-orange-900 mb-3">Pipe Dimensions</div>
                 <div className="grid grid-cols-4 gap-4">
@@ -495,52 +526,28 @@ export default function DrawingDetailPage() {
         </Card>
       </div>
 
-      {/* Revision History Section Placeholder */}
+      {/* Revision History */}
       <Card>
         <CardHeader>
           <CardTitle>Revision History</CardTitle>
           <CardDescription>
-            All revisions for drawing {drawing.drawingNumber}
+            Current revision for drawing {drawing.drawingNumber}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {/* Find all revisions of this drawing */}
-            {mockDrawings
-              .filter((d) => d.drawingNumber === drawing.drawingNumber)
-              .sort((a, b) => b.revision.localeCompare(a.revision))
-              .map((rev) => (
-                <div
-                  key={rev.id}
-                  className={`flex items-center justify-between p-3 rounded border ${
-                    rev.id === drawing.id
-                      ? 'bg-blue-50 border-blue-200'
-                      : rev.status === 'obsolete'
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="font-mono">
-                      Rev {rev.revision}
-                    </Badge>
-                    {getStatusBadge(rev.status)}
-                    {rev.id === drawing.id && (
-                      <Badge className="bg-blue-100 text-blue-700">Current</Badge>
-                    )}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Updated: {rev.updatedAt}
-                  </div>
-                  {rev.id !== drawing.id && (
-                    <Link href={`/masters/drawings/${rev.id}`}>
-                      <Button variant="ghost" size="sm">
-                        View
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              ))}
+            <div className="flex items-center justify-between p-3 rounded border bg-blue-50 border-blue-200">
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="font-mono">
+                  Rev {drawing.revision}
+                </Badge>
+                {getStatusBadge(drawing.status)}
+                <Badge className="bg-blue-100 text-blue-700">Current</Badge>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Updated: {drawing.updatedAt}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

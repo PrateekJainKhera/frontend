@@ -18,8 +18,8 @@ import {
 } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockDrawings, Drawing, mockRawMaterials, mockProducts, mockCustomers, ManufacturingDimensions } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { Drawing, mockRawMaterials, mockProducts, mockCustomers, ManufacturingDimensions } from '@/lib/mock-data'
+import { drawingService } from '@/lib/api/drawings'
 import { ManufacturingDimensionsForm } from '@/components/forms/manufacturing-dimensions-form'
 import { toast } from 'sonner'
 
@@ -32,7 +32,7 @@ export default function EditDrawingPage() {
   // Form state
   const [drawingNumber, setDrawingNumber] = useState('')
   const [drawingName, setDrawingName] = useState('')
-  const [partType, setPartType] = useState<Drawing['partType']>('shaft')
+  const [drawingType, setDrawingType] = useState<Drawing['drawingType']>('shaft')
   const [revision, setRevision] = useState('')
   const [revisionDate, setRevisionDate] = useState('')
   const [status, setStatus] = useState<Drawing['status']>('draft')
@@ -51,54 +51,60 @@ export default function EditDrawingPage() {
 
   const loadDrawing = async () => {
     setLoading(true)
-    const allDrawings = await simulateApiCall(mockDrawings, 800)
-    const found = allDrawings.find((d) => d.id === params.id)
-
-    if (found) {
+    try {
+      const found = await drawingService.getById(Number(params.id))
       setDrawingNumber(found.drawingNumber)
       setDrawingName(found.drawingName)
-      setPartType(found.partType)
-      setRevision(found.revision)
-      setRevisionDate(found.revisionDate)
-      setStatus(found.status)
-      setDescription(found.description)
+      setDrawingType(found.drawingType as Drawing['drawingType'])
+      setRevision(found.revision || '')
+      setRevisionDate(found.revisionDate || '')
+      setStatus(found.status as Drawing['status'])
+      setDescription(found.description || '')
       setNotes(found.notes || '')
-      setLinkedPartId(found.linkedPartId || '')
-      setLinkedProductId(found.linkedProductId || '')
-      setLinkedCustomerId(found.linkedCustomerId || '')
-      setManufacturingDimensions(found.manufacturingDimensions || { materialGrade: '' })
+      setLinkedPartId(found.linkedPartId?.toString() || '')
+      setLinkedProductId(found.linkedProductId?.toString() || '')
+      setLinkedCustomerId(found.linkedCustomerId?.toString() || '')
+      setManufacturingDimensions(
+        found.manufacturingDimensionsJSON
+          ? JSON.parse(found.manufacturingDimensionsJSON)
+          : { materialGrade: '' }
+      )
+    } catch (err) {
+      console.error('Failed to load drawing:', err)
     }
-
     setLoading(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     setSaving(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const hasDimensions = Object.values(manufacturingDimensions).some(
+        (v) => v !== '' && v !== undefined && v !== null
+      )
 
-    // In real app: PUT to API
-    console.log({
-      id: params.id,
-      drawingNumber,
-      drawingName,
-      partType,
-      revision,
-      status,
-      description,
-      notes,
-      linkedPartId,
-      linkedProductId,
-      linkedCustomerId,
-      manufacturingDimensions,
-    })
+      await drawingService.update(Number(params.id), {
+        drawingNumber,
+        drawingName,
+        drawingType,
+        revision,
+        revisionDate,
+        status,
+        description,
+        notes,
+        manufacturingDimensionsJSON: hasDimensions ? JSON.stringify(manufacturingDimensions) : undefined,
+        linkedPartId: linkedPartId ? Number(linkedPartId) : undefined,
+        linkedProductId: linkedProductId ? Number(linkedProductId) : undefined,
+        linkedCustomerId: linkedCustomerId ? Number(linkedCustomerId) : undefined,
+      })
 
-    toast.success(`Drawing "${drawingNumber}" updated successfully`)
+      toast.success(`Drawing "${drawingNumber}" updated successfully`)
+      router.push(`/masters/drawings/${params.id}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update drawing')
+    }
     setSaving(false)
-    router.push(`/masters/drawings/${params.id}`)
   }
 
   if (loading) {
@@ -189,13 +195,13 @@ export default function EditDrawingPage() {
           <Card>
             <CardHeader>
               <CardTitle>Classification</CardTitle>
-              <CardDescription>Part type, revision, and status</CardDescription>
+              <CardDescription>Drawing type, revision, and status</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="space-y-3">
-                  <Label>Part Type *</Label>
-                  <Select value={partType} onValueChange={(value) => setPartType(value as Drawing['partType'])}>
+                  <Label>Drawing Type *</Label>
+                  <Select value={drawingType} onValueChange={(value) => setDrawingType(value as Drawing['drawingType'])}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -349,7 +355,7 @@ export default function EditDrawingPage() {
 
           {/* Manufacturing Dimensions - CRITICAL */}
           <ManufacturingDimensionsForm
-            partType={partType}
+            drawingType={drawingType}
             dimensions={manufacturingDimensions}
             onChange={setManufacturingDimensions}
           />

@@ -30,8 +30,8 @@ const getStatusBadge = (status: Drawing['status']) => {
     }
 }
 
-const getPartTypeBadge = (partType: Drawing['partType']) => {
-    const colors: Record<Drawing['partType'], string> = {
+const getDrawingTypeBadge = (drawingType: Drawing['drawingType']) => {
+    const colors: Record<Drawing['drawingType'], string> = {
         shaft: 'bg-blue-100 text-blue-700',
         pipe: 'bg-purple-100 text-purple-700',
         final: 'bg-green-100 text-green-700',
@@ -41,8 +41,8 @@ const getPartTypeBadge = (partType: Drawing['partType']) => {
         other: 'bg-gray-100 text-gray-700',
     }
     return (
-        <Badge className={colors[partType]}>
-            {partType.charAt(0).toUpperCase() + partType.slice(1)}
+        <Badge className={colors[drawingType]}>
+            {drawingType.charAt(0).toUpperCase() + drawingType.slice(1)}
         </Badge>
     )
 }
@@ -132,10 +132,10 @@ export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
                 ),
             },
             {
-                accessorKey: 'partType',
-                header: 'Part Type',
+                accessorKey: 'drawingType',
+                header: 'Drawing Type',
                 size: 110,
-                Cell: ({ cell }) => getPartTypeBadge(cell.getValue<Drawing['partType']>()),
+                Cell: ({ cell }) => getDrawingTypeBadge(cell.getValue<Drawing['drawingType']>()),
             },
             {
                 accessorKey: 'status',
