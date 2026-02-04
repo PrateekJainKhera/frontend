@@ -34,6 +34,7 @@ export interface Drawing {
   drawingName: string
   partType: 'shaft' | 'pipe' | 'final' | 'gear' | 'bushing' | 'roller' | 'other'
   revision: string // A, B, C, etc.
+  revisionDate: string // Date when this revision was created
   status: 'draft' | 'approved' | 'obsolete'
 
   // File information
@@ -71,6 +72,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Main Shaft Assembly',
     partType: 'shaft',
     revision: 'B',
+    revisionDate: '2024-01-25',
     status: 'approved',
     fileName: 'SHAFT-001-RevB.pdf',
     fileType: 'pdf',
@@ -110,6 +112,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Roller Pipe Core',
     partType: 'pipe',
     revision: 'C',
+    revisionDate: '2024-02-01',
     status: 'approved',
     fileName: 'PIPE-045-RevC.pdf',
     fileType: 'pdf',
@@ -144,6 +147,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Drive Gear 24T',
     partType: 'gear',
     revision: 'A',
+    revisionDate: '2024-01-20',
     status: 'approved',
     fileName: 'GEAR-012-RevA.pdf',
     fileType: 'pdf',
@@ -165,6 +169,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Printing Roller Assembly',
     partType: 'final',
     revision: 'D',
+    revisionDate: '2024-02-10',
     status: 'approved',
     fileName: 'FINAL-PR100-RevD.pdf',
     fileType: 'pdf',
@@ -188,6 +193,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Bearing Bush',
     partType: 'bushing',
     revision: 'A',
+    revisionDate: '2024-02-15',
     status: 'draft',
     fileName: 'BUSH-007-RevA.pdf',
     fileType: 'pdf',
@@ -207,6 +213,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Main Shaft Assembly',
     partType: 'shaft',
     revision: 'A',
+    revisionDate: '2024-01-10',
     status: 'obsolete',
     fileName: 'SHAFT-001-RevA.pdf',
     fileType: 'pdf',
@@ -230,6 +237,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Standard Roller 50mm',
     partType: 'roller',
     revision: 'B',
+    revisionDate: '2024-01-18',
     status: 'approved',
     fileName: 'ROLLER-SR50-RevB.pdf',
     fileType: 'pdf',
@@ -251,6 +259,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Magnetic Roller Shaft - Standard',
     partType: 'shaft',
     revision: 'C',
+    revisionDate: '2024-03-10',
     status: 'approved',
     fileName: 'DWG-MAG-SH-001-RevC.pdf',
     fileType: 'pdf',
@@ -288,6 +297,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Magnetic Roller Core - Standard',
     partType: 'pipe',
     revision: 'B',
+    revisionDate: '2024-03-05',
     status: 'approved',
     fileName: 'DWG-MAG-CORE-001-RevB.pdf',
     fileType: 'pdf',
@@ -322,6 +332,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Magnetic Roller End Disk',
     partType: 'other',
     revision: 'A',
+    revisionDate: '2024-02-10',
     status: 'approved',
     fileName: 'DWG-MAG-DISK-001-RevA.pdf',
     fileType: 'pdf',
@@ -353,6 +364,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Magnetic Roller Shaft - Standard',
     partType: 'shaft',
     revision: 'B',
+    revisionDate: '2024-02-20',
     status: 'obsolete',
     fileName: 'DWG-MAG-SH-001-RevB.pdf',
     fileType: 'pdf',
@@ -385,6 +397,7 @@ export const mockDrawings: Drawing[] = [
     drawingName: 'Magnetic Roller Shell - Aluminum',
     partType: 'pipe',
     revision: 'A',
+    revisionDate: '2024-02-18',
     status: 'approved',
     fileName: 'DWG-MAG-SHELL-001-RevA.pdf',
     fileType: 'pdf',

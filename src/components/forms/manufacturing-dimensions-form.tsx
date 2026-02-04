@@ -38,7 +38,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
             <Label className="text-sm font-semibold text-orange-900">Shaft Dimensions</Label>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="rodDiameter">Rod Diameter (mm) *</Label>
+                <Label htmlFor="rodDiameter">Rod Diameter (mm)</Label>
                 <Input
                   id="rodDiameter"
                   type="number"
@@ -50,7 +50,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
                 <p className="text-xs text-gray-600">Raw material rod size</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="finishedDiameter">Finished Diameter (mm) *</Label>
+                <Label htmlFor="finishedDiameter">Finished Diameter (mm)</Label>
                 <Input
                   id="finishedDiameter"
                   type="number"
@@ -62,7 +62,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
                 <p className="text-xs text-gray-600">After machining</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="finishedLength">Finished Length (mm) *</Label>
+                <Label htmlFor="finishedLength">Finished Length (mm)</Label>
                 <Input
                   id="finishedLength"
                   type="number"
@@ -83,7 +83,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
             <Label className="text-sm font-semibold text-orange-900">Pipe Dimensions</Label>
             <div className="grid grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="pipeOD">Outer Diameter (mm) *</Label>
+                <Label htmlFor="pipeOD">Outer Diameter (mm)</Label>
                 <Input
                   id="pipeOD"
                   type="number"
@@ -94,7 +94,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="pipeID">Inner Diameter (mm) *</Label>
+                <Label htmlFor="pipeID">Inner Diameter (mm)</Label>
                 <Input
                   id="pipeID"
                   type="number"
@@ -116,7 +116,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cutLength">Cut Length (mm) *</Label>
+                <Label htmlFor="cutLength">Cut Length (mm)</Label>
                 <Input
                   id="cutLength"
                   type="number"
@@ -135,7 +135,7 @@ export function ManufacturingDimensionsForm({ partType, dimensions, onChange }: 
           <Label className="text-sm font-semibold text-orange-900">Material & Quality</Label>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="materialGrade">Material Grade *</Label>
+              <Label htmlFor="materialGrade">Material Grade</Label>
               <Input
                 id="materialGrade"
                 placeholder="e.g., EN8, MS, SS304"

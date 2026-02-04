@@ -19,8 +19,8 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockMaterialCategories } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { materialCategoryService } from '@/lib/api/material-categories'
+import { toast } from 'sonner'
 
 export default function EditMaterialCategoryPage() {
   const params = useParams()
@@ -43,11 +43,8 @@ export default function EditMaterialCategoryPage() {
 
   const loadCategory = async () => {
     setLoading(true)
-    // Simulate API call
-    const allCategories = await simulateApiCall(mockMaterialCategories, 800)
-    const found = allCategories.find((c) => c.id === Number(params.id))
-
-    if (found) {
+    try {
+      const found = await materialCategoryService.getById(Number(params.id))
       setCategoryCode(found.categoryCode)
       setCategoryName(found.categoryName)
       setQuality(found.quality)
@@ -55,32 +52,36 @@ export default function EditMaterialCategoryPage() {
       setDefaultUOM(found.defaultUOM)
       setMaterialType(found.materialType)
       setIsActive(found.isActive)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load material category'
+      toast.error(message)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // In real app: PUT to API
-    console.log({
-      id: params.id,
-      categoryCode,
-      categoryName,
-      quality,
-      description,
-      defaultUOM,
-      materialType,
-      isActive
-    })
-
-    setSaving(false)
-    router.push(`/masters/material-categories/${params.id}`)
+    try {
+      await materialCategoryService.update(Number(params.id), {
+        id: Number(params.id),
+        categoryCode,
+        categoryName,
+        quality,
+        description,
+        defaultUOM,
+        materialType,
+        isActive,
+      })
+      toast.success('Material category updated successfully')
+      router.push(`/masters/material-categories/${params.id}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update material category'
+      toast.error(message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) {

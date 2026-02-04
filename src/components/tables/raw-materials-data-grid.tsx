@@ -78,6 +78,14 @@ export function RawMaterialsDataGrid({ materials, onUpdate }: RawMaterialsDataGr
                 ),
             },
             {
+                accessorKey: 'materialType',
+                header: 'Type',
+                size: 120,
+                Cell: ({ cell }) => (
+                    <Badge variant="secondary">{cell.getValue<string>()}</Badge>
+                ),
+            },
+            {
                 accessorKey: 'grade',
                 header: 'Grade',
                 size: 100,
@@ -91,12 +99,14 @@ export function RawMaterialsDataGrid({ materials, onUpdate }: RawMaterialsDataGr
                 size: 100,
             },
             {
-                accessorKey: 'diameter',
-                header: 'Diameter',
-                size: 100,
-                Cell: ({ cell }) => (
-                    <span className="text-sm">⌀{cell.getValue<number>()}mm</span>
-                ),
+                header: 'Dimensions',
+                size: 140,
+                Cell: ({ row }) => {
+                    const { shape, diameter, innerDiameter, width } = row.original
+                    if (shape === 'Pipe') return <span className="text-sm">⌀{diameter} / ID:{innerDiameter}mm</span>
+                    if (shape === 'Sheet') return <span className="text-sm">W:{width}mm</span>
+                    return <span className="text-sm">⌀{diameter}mm</span>
+                },
             },
             {
                 accessorKey: 'lengthInMM',

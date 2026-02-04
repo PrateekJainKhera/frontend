@@ -1,21 +1,32 @@
 "use client"
 
 import { useState } from "react"
-import { Upload, FileText, X, CheckCircle, AlertCircle } from "lucide-react"
+import { Upload, FileText, X, CheckCircle, AlertCircle, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { mockProducts, mockCustomers, ManufacturingDimensions } from "@/lib/mock-data"
+import { mockProducts, mockCustomers, Drawing } from "@/lib/mock-data"
 import { toast } from "sonner"
 import { Progress } from "@/components/ui/progress"
-import { ManufacturingDimensionsForm } from "./manufacturing-dimensions-form"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
 
-interface UploadedFile {
+interface FileWithMetadata {
     file: File
     id: string
+    drawingName: string
+    partType: Drawing['partType']
+    revision: string
+    revisionDate: string
     status: 'pending' | 'uploading' | 'success' | 'error'
     progress: number
     error?: string
@@ -27,30 +38,37 @@ interface BulkUploadDrawingsDialogProps {
     onSuccess: () => void
 }
 
+// Helper to extract drawing name from filename
+const extractDrawingName = (filename: string): string => {
+    // Remove extension
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, "")
+    // Replace dashes/underscores with spaces and capitalize
+    return nameWithoutExt
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, char => char.toUpperCase())
+}
+
 export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: BulkUploadDrawingsDialogProps) {
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
-    const [selectedFiles, setSelectedFiles] = useState<UploadedFile[]>([])
+    const [files, setFiles] = useState<FileWithMetadata[]>([])
 
     // Common metadata for all drawings
     const [linkedProductId, setLinkedProductId] = useState("")
     const [linkedCustomerId, setLinkedCustomerId] = useState("")
     const [defaultStatus, setDefaultStatus] = useState<'draft' | 'approved'>("draft")
-    const [partType, setPartType] = useState<'shaft' | 'pipe' | 'final' | 'gear' | 'bushing' | 'roller' | 'other'>("shaft")
-    const [manufacturingDimensions, setManufacturingDimensions] = useState<Partial<ManufacturingDimensions>>({
-        materialGrade: ""
-    })
 
     const handleFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || [])
+        const selectedFiles = Array.from(e.target.files || [])
 
-        if (files.length === 0) return
+        if (selectedFiles.length === 0) return
 
         // Validate files
-        const validFiles: UploadedFile[] = []
+        const validFiles: FileWithMetadata[] = []
         const errors: string[] = []
+        const today = new Date().toISOString().split('T')[0]
 
-        files.forEach((file) => {
+        selectedFiles.forEach((file) => {
             // Validate file type
             const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']
             if (!allowedTypes.includes(file.type)) {
@@ -67,6 +85,10 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
             validFiles.push({
                 file,
                 id: `${Date.now()}-${Math.random()}`,
+                drawingName: extractDrawingName(file.name),
+                partType: 'shaft', // default
+                revision: 'A',
+                revisionDate: today,
                 status: 'pending',
                 progress: 0
             })
@@ -77,19 +99,30 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
         }
 
         if (validFiles.length > 0) {
-            setSelectedFiles((prev) => [...prev, ...validFiles])
+            setFiles((prev) => [...prev, ...validFiles])
             toast.success(`${validFiles.length} file(s) added`)
         }
+
+        // Reset input
+        e.target.value = ''
     }
 
     const handleRemoveFile = (id: string) => {
-        setSelectedFiles((prev) => prev.filter((f) => f.id !== id))
+        setFiles((prev) => prev.filter((f) => f.id !== id))
+    }
+
+    const updateFileMetadata = (id: string, field: keyof FileWithMetadata, value: string) => {
+        setFiles((prev) =>
+            prev.map((f) =>
+                f.id === id ? { ...f, [field]: value } : f
+            )
+        )
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (selectedFiles.length === 0) {
+        if (files.length === 0) {
             toast.error("Please select at least one file to upload")
             return
         }
@@ -99,19 +132,10 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
             return
         }
 
-        // Validate manufacturing dimensions
-        if (!manufacturingDimensions.materialGrade) {
-            toast.error("Material Grade is required in Manufacturing Dimensions")
-            return
-        }
-
-        if (partType === 'shaft' && (!manufacturingDimensions.rodDiameter || !manufacturingDimensions.finishedLength)) {
-            toast.error("Rod Diameter and Finished Length are required for shaft drawings")
-            return
-        }
-
-        if (partType === 'pipe' && (!manufacturingDimensions.pipeOD || !manufacturingDimensions.cutLength)) {
-            toast.error("Pipe OD and Cut Length are required for pipe drawings")
+        // Validate each file has a drawing name
+        const missingNames = files.filter(f => !f.drawingName.trim())
+        if (missingNames.length > 0) {
+            toast.error("Please enter drawing name for all files")
             return
         }
 
@@ -119,11 +143,11 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
         setUploadProgress(0)
 
         // Simulate uploading files one by one
-        for (let i = 0; i < selectedFiles.length; i++) {
-            const file = selectedFiles[i]
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i]
 
             // Update status to uploading
-            setSelectedFiles((prev) =>
+            setFiles((prev) =>
                 prev.map((f) =>
                     f.id === file.id ? { ...f, status: 'uploading' as const } : f
                 )
@@ -132,65 +156,65 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
             // Simulate upload with progress
             for (let progress = 0; progress <= 100; progress += 20) {
                 await new Promise((resolve) => setTimeout(resolve, 100))
-                setSelectedFiles((prev) =>
+                setFiles((prev) =>
                     prev.map((f) =>
                         f.id === file.id ? { ...f, progress } : f
                     )
                 )
             }
 
-            // Simulate success/error (90% success rate)
-            const success = Math.random() > 0.1
-
-            setSelectedFiles((prev) =>
+            // Simulate success (100% success for demo)
+            setFiles((prev) =>
                 prev.map((f) =>
                     f.id === file.id
                         ? {
                             ...f,
-                            status: success ? ('success' as const) : ('error' as const),
-                            progress: 100,
-                            error: success ? undefined : 'Upload failed'
+                            status: 'success' as const,
+                            progress: 100
                         }
                         : f
                 )
             )
 
             // Update overall progress
-            setUploadProgress(((i + 1) / selectedFiles.length) * 100)
+            setUploadProgress(((i + 1) / files.length) * 100)
         }
 
-        const successCount = selectedFiles.filter((f) => f.status === 'success').length
-        const errorCount = selectedFiles.filter((f) => f.status === 'error').length
+        // Log the data that would be sent to backend
+        console.log('Bulk Upload Data:', {
+            linkedProductId,
+            linkedCustomerId,
+            defaultStatus,
+            files: files.map(f => ({
+                fileName: f.file.name,
+                drawingName: f.drawingName,
+                partType: f.partType,
+                revision: f.revision,
+                revisionDate: f.revisionDate,
+                fileSize: f.file.size
+            }))
+        })
 
-        if (errorCount === 0) {
-            toast.success(`All ${successCount} drawings uploaded successfully`)
-        } else {
-            toast.warning(`${successCount} drawings uploaded, ${errorCount} failed`)
-        }
-
+        toast.success(`All ${files.length} drawings uploaded successfully`)
         setUploading(false)
 
-        // Auto-close if all successful
-        if (errorCount === 0) {
-            setTimeout(() => {
-                resetForm()
-                onSuccess()
-                onOpenChange(false)
-            }, 1000)
-        }
+        // Auto-close after success
+        setTimeout(() => {
+            resetForm()
+            onSuccess()
+            onOpenChange(false)
+        }, 1000)
     }
 
     const resetForm = () => {
-        setSelectedFiles([])
+        setFiles([])
         setLinkedProductId("")
         setLinkedCustomerId("")
         setDefaultStatus("draft")
-        setPartType("shaft")
-        setManufacturingDimensions({ materialGrade: "" })
         setUploadProgress(0)
     }
 
-    const getStatusIcon = (status: UploadedFile['status']) => {
+    const getStatusIcon = (status: FileWithMetadata['status']) => {
         switch (status) {
             case 'success':
                 return <CheckCircle className="h-4 w-4 text-green-600" />
@@ -205,25 +229,25 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[90vw] max-h-[90vh] flex flex-col p-0">
+            <DialogContent className="sm:max-w-[95vw] max-h-[90vh] flex flex-col p-0">
                 <DialogHeader className="px-6 pt-6 pb-4 border-b">
                     <DialogTitle className="text-2xl">Bulk Upload Drawings</DialogTitle>
                     <DialogDescription className="mt-2">
-                        Upload multiple drawing files for one roller model at once
+                        Upload multiple drawing files for a roller model. You can set metadata for each file individually.
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+                <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
                     <div className="flex-1 overflow-y-auto px-6 pb-6">
                         <div className="space-y-6 mt-4">
                             {/* Common Metadata */}
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
                                 <div className="flex items-center gap-2">
                                     <div className="h-2 w-2 rounded-full bg-blue-600" />
-                                    <Label className="font-semibold">Common Information for All Drawings</Label>
+                                    <Label className="font-semibold">Common Settings (applies to all)</Label>
                                 </div>
 
-                                <div className="grid grid-cols-4 gap-4">
+                                <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <Label>Product/Roller Model *</Label>
                                         <Select value={linkedProductId} onValueChange={setLinkedProductId}>
@@ -238,39 +262,16 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        <p className="text-xs text-blue-700">
-                                            All drawings will be linked to this roller model
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Part Type *</Label>
-                                        <Select value={partType} onValueChange={(value) => setPartType(value as typeof partType)}>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="shaft">Shaft</SelectItem>
-                                                <SelectItem value="pipe">Pipe</SelectItem>
-                                                <SelectItem value="final">Final Assembly</SelectItem>
-                                                <SelectItem value="gear">Gear</SelectItem>
-                                                <SelectItem value="bushing">Bushing</SelectItem>
-                                                <SelectItem value="roller">Roller</SelectItem>
-                                                <SelectItem value="other">Other</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-xs text-blue-700">
-                                            Common part type for all drawings
-                                        </p>
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label>Customer (Optional)</Label>
-                                        <Select value={linkedCustomerId || undefined} onValueChange={setLinkedCustomerId}>
+                                        <Select value={linkedCustomerId || "none"} onValueChange={(v) => setLinkedCustomerId(v === "none" ? "" : v)}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="None" />
                                             </SelectTrigger>
                                             <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
                                                 {mockCustomers.map((customer) => (
                                                     <SelectItem key={customer.id} value={customer.id.toString()}>
                                                         {customer.customerName}
@@ -294,13 +295,6 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Manufacturing Dimensions - CRITICAL */}
-                            <ManufacturingDimensionsForm
-                                partType={partType}
-                                dimensions={manufacturingDimensions}
-                                onChange={setManufacturingDimensions}
-                            />
 
                             {/* File Upload Section */}
                             <div className="space-y-3">
@@ -332,71 +326,135 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                                 </div>
                             </div>
 
-                            {/* Selected Files List */}
-                            {selectedFiles.length > 0 && (
+                            {/* Per-File Metadata Table */}
+                            {files.length > 0 && (
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <Label>
-                                            Selected Files ({selectedFiles.length})
+                                        <Label className="text-lg">
+                                            Drawing Details ({files.length} files)
                                         </Label>
                                         {!uploading && (
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => setSelectedFiles([])}
+                                                onClick={() => setFiles([])}
                                             >
                                                 Clear All
                                             </Button>
                                         )}
                                     </div>
 
-                                    <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
-                                        {selectedFiles.map((uploadFile) => (
-                                            <div key={uploadFile.id} className="p-3 hover:bg-gray-50">
-                                                <div className="flex items-center gap-3">
-                                                    {getStatusIcon(uploadFile.status)}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="font-medium truncate">
-                                                                {uploadFile.file.name}
+                                    <div className="border rounded-lg overflow-hidden">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="bg-muted/50">
+                                                    <TableHead className="w-[40px]">#</TableHead>
+                                                    <TableHead className="w-[180px]">File</TableHead>
+                                                    <TableHead className="min-w-[200px]">Drawing Name</TableHead>
+                                                    <TableHead className="w-[140px]">Part Type</TableHead>
+                                                    <TableHead className="w-[80px]">Rev</TableHead>
+                                                    <TableHead className="w-[140px]">Rev. Date</TableHead>
+                                                    <TableHead className="w-[80px]">Status</TableHead>
+                                                    <TableHead className="w-[60px]"></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {files.map((file, index) => (
+                                                    <TableRow key={file.id} className={file.status === 'success' ? 'bg-green-50' : ''}>
+                                                        <TableCell className="font-medium text-muted-foreground">
+                                                            {index + 1}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2">
+                                                                {getStatusIcon(file.status)}
+                                                                <div className="truncate max-w-[140px]" title={file.file.name}>
+                                                                    {file.file.name}
+                                                                </div>
                                                             </div>
-                                                            <Badge variant="outline" className="ml-2">
-                                                                {(uploadFile.file.size / 1024).toFixed(1)} KB
-                                                            </Badge>
-                                                        </div>
-
-                                                        {uploadFile.status === 'uploading' && (
-                                                            <div className="mt-2">
-                                                                <Progress value={uploadFile.progress} className="h-1" />
-                                                            </div>
-                                                        )}
-
-                                                        {uploadFile.status === 'error' && uploadFile.error && (
-                                                            <div className="text-xs text-red-600 mt-1">
-                                                                {uploadFile.error}
-                                                            </div>
-                                                        )}
-
-                                                        {uploadFile.status === 'success' && (
-                                                            <div className="text-xs text-green-600 mt-1">
-                                                                Uploaded successfully
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    {!uploading && uploadFile.status === 'pending' && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleRemoveFile(uploadFile.id)}
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
+                                                            {file.status === 'uploading' && (
+                                                                <Progress value={file.progress} className="h-1 mt-1" />
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Input
+                                                                value={file.drawingName}
+                                                                onChange={(e) => updateFileMetadata(file.id, 'drawingName', e.target.value)}
+                                                                placeholder="Enter drawing name"
+                                                                disabled={uploading}
+                                                                className="h-8"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Select
+                                                                value={file.partType}
+                                                                onValueChange={(v) => updateFileMetadata(file.id, 'partType', v)}
+                                                                disabled={uploading}
+                                                            >
+                                                                <SelectTrigger className="h-8">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="shaft">Shaft</SelectItem>
+                                                                    <SelectItem value="pipe">Pipe</SelectItem>
+                                                                    <SelectItem value="final">Final Assembly</SelectItem>
+                                                                    <SelectItem value="gear">Gear</SelectItem>
+                                                                    <SelectItem value="bushing">Bushing</SelectItem>
+                                                                    <SelectItem value="roller">Roller</SelectItem>
+                                                                    <SelectItem value="other">Other</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Input
+                                                                value={file.revision}
+                                                                onChange={(e) => updateFileMetadata(file.id, 'revision', e.target.value)}
+                                                                placeholder="A"
+                                                                maxLength={3}
+                                                                disabled={uploading}
+                                                                className="h-8 font-mono text-center"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Input
+                                                                type="date"
+                                                                value={file.revisionDate}
+                                                                onChange={(e) => updateFileMetadata(file.id, 'revisionDate', e.target.value)}
+                                                                disabled={uploading}
+                                                                className="h-8"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {file.status === 'pending' && (
+                                                                <Badge variant="outline">Pending</Badge>
+                                                            )}
+                                                            {file.status === 'uploading' && (
+                                                                <Badge className="bg-blue-100 text-blue-700">Uploading</Badge>
+                                                            )}
+                                                            {file.status === 'success' && (
+                                                                <Badge className="bg-green-100 text-green-700">Done</Badge>
+                                                            )}
+                                                            {file.status === 'error' && (
+                                                                <Badge className="bg-red-100 text-red-700">Failed</Badge>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {!uploading && file.status === 'pending' && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleRemoveFile(file.id)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
                                     </div>
                                 </div>
                             )}
@@ -413,12 +471,14 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                             )}
 
                             {/* Info Box */}
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <p className="text-sm text-gray-700">
-                                    <strong>💡 Tip:</strong> Upload all drawings related to one roller model together.
-                                    The system will extract drawing numbers from filenames if possible.
-                                </p>
-                            </div>
+                            {files.length === 0 && (
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                    <p className="text-sm text-gray-700">
+                                        <strong>💡 Tip:</strong> After selecting files, you can edit the drawing name,
+                                        part type, revision and date for each file individually before uploading.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -431,9 +491,9 @@ export function BulkUploadDrawingsDialog({ open, onOpenChange, onSuccess }: Bulk
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={uploading || selectedFiles.length === 0}>
+                        <Button type="submit" disabled={uploading || files.length === 0}>
                             <Upload className="mr-2 h-4 w-4" />
-                            {uploading ? "Uploading..." : `Upload ${selectedFiles.length} Drawing${selectedFiles.length !== 1 ? 's' : ''}`}
+                            {uploading ? "Uploading..." : `Upload ${files.length} Drawing${files.length !== 1 ? 's' : ''}`}
                         </Button>
                     </DialogFooter>
                 </form>

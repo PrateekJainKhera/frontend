@@ -122,6 +122,16 @@ export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
                 ),
             },
             {
+                accessorKey: 'revisionDate',
+                header: 'Rev. Date',
+                size: 110,
+                Cell: ({ cell }) => (
+                    <span className="text-sm text-muted-foreground">
+                        {cell.getValue<string>()}
+                    </span>
+                ),
+            },
+            {
                 accessorKey: 'partType',
                 header: 'Part Type',
                 size: 110,

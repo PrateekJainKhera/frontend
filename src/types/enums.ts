@@ -13,10 +13,18 @@ export enum MaterialGrade {
   ALLOY_STEEL = 'Alloy Steel'
 }
 
+export enum MaterialType {
+  STEEL = 'Steel',
+  STAINLESS_STEEL = 'Stainless Steel',
+  ALUMINUM = 'Aluminum',
+  OTHER = 'Other'
+}
+
 export enum MaterialShape {
   ROD = 'Rod',
   PIPE = 'Pipe',
-  FORGED = 'Forged'
+  FORGED = 'Forged',
+  SHEET = 'Sheet'
 }
 
 export enum ProcessCategory {

@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -22,7 +21,7 @@ import {
   XCircle,
   Mic,
 } from 'lucide-react'
-import { mockMachinesMaster } from '@/data/mock-machines-master'
+import { machineService, MachineResponse } from '@/lib/api/machines'
 import { AddMachineDialog } from '@/components/dialogs/add-machine-dialog'
 import { MachinesDataGrid } from '@/components/tables/machines-data-grid'
 
@@ -31,6 +30,20 @@ export default function MachinesMasterPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [machines, setMachines] = useState<MachineResponse[]>([])
+
+  const fetchMachines = async () => {
+    try {
+      const data = await machineService.getAll()
+      setMachines(data)
+    } catch (err) {
+      console.error('Failed to fetch machines:', err)
+    }
+  }
+
+  useEffect(() => {
+    fetchMachines()
+  }, [])
 
   const handleMicClick = () => {
     alert('Voice search feature coming soon!')
@@ -38,28 +51,26 @@ export default function MachinesMasterPage() {
 
   // Calculate stats
   const stats = {
-    total: mockMachinesMaster.length,
-    active: mockMachinesMaster.filter(m => m.status === 'Active' || m.status === 'In_Use' || m.status === 'Idle').length,
-    maintenance: mockMachinesMaster.filter(m => m.status === 'Maintenance').length,
-    breakdown: mockMachinesMaster.filter(m => m.status === 'Breakdown').length,
+    total: machines.length,
+    active: machines.filter(m => m.status === 'Active' || m.status === 'In_Use' || m.status === 'Idle').length,
+    maintenance: machines.filter(m => m.status === 'Maintenance').length,
+    breakdown: machines.filter(m => m.status === 'Breakdown').length,
   }
 
   // Filter machines
-  const filteredMachines = mockMachinesMaster.filter(machine => {
+  const filteredMachines = machines.filter(machine => {
     const matchesSearch =
       machine.machineCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      machine.machineName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      machine.manufacturer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      machine.model?.toLowerCase().includes(searchQuery.toLowerCase())
+      machine.machineName.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus = statusFilter === 'all' || machine.status === statusFilter
-    const matchesType = typeFilter === 'all' || machine.type === typeFilter
+    const matchesType = typeFilter === 'all' || machine.machineType === typeFilter
 
     return matchesSearch && matchesStatus && matchesType
   })
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-4">
       {/* Search and Filters Row */}
       <div className="flex items-center gap-4 flex-wrap">
         {/* Compact Search with Mic */}
@@ -174,6 +185,7 @@ export default function MachinesMasterPage() {
       <AddMachineDialog
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
+        onSuccess={fetchMachines}
       />
 
       {/* Floating Action Button */}

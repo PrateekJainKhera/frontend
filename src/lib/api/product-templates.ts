@@ -1,41 +1,62 @@
 import axios from 'axios'
 import { apiClient, ApiResponse } from './axios-config'
 
-export interface ProductTemplateChildPartRequest {
-  childPartName: string
-  childPartCode?: string | null
+export interface ProductTemplateBOMItemRequest {
+  childPartTemplateId: number
   quantity: number
-  unit: string
   notes?: string | null
-  sequenceNo: number
-  childPartTemplateId?: number | null
+  sequenceNumber?: number | null
 }
 
 export interface CreateProductTemplateRequest {
   templateName: string
+  templateCode?: string | null
   description?: string | null
   rollerType: string
   processTemplateId: number
-  childParts: ProductTemplateChildPartRequest[]
+  drawingNumber?: string | null
+  drawingRevision?: string | null
+  length?: number | null
+  diameter?: number | null
+  coreDiameter?: number | null
+  shaftDiameter?: number | null
+  weight?: number | null
+  dimensionUnit?: string
+  technicalNotes?: string | null
+  qualityCheckpoints?: string | null
+  bomItems: ProductTemplateBOMItemRequest[]
   isActive?: boolean
   createdBy?: string | null
 }
 
-export interface UpdateProductTemplateRequest extends CreateProductTemplateRequest {
-  id: number
+export interface UpdateProductTemplateRequest {
+  templateName: string
+  description?: string | null
+  drawingNumber?: string | null
+  drawingRevision?: string | null
+  processTemplateId: number
+  length?: number | null
+  diameter?: number | null
+  coreDiameter?: number | null
+  shaftDiameter?: number | null
+  weight?: number | null
+  dimensionUnit?: string
+  technicalNotes?: string | null
+  qualityCheckpoints?: string | null
+  bomItems: ProductTemplateBOMItemRequest[]
+  isActive: boolean
   updatedBy?: string | null
 }
 
-export interface ProductTemplateChildPartResponse {
+export interface ProductTemplateBOMItemResponse {
   id: number
-  productTemplateId: number
-  childPartName: string
-  childPartCode?: string | null
+  childPartTemplateId: number
+  childPartTemplateName: string
+  childPartTemplateCode: string
+  childPartType: string
   quantity: number
-  unit: string
   notes?: string | null
-  sequenceNo: number
-  childPartTemplateId?: number | null
+  sequenceNumber?: number | null
 }
 
 export interface ProductTemplateResponse {
@@ -44,9 +65,19 @@ export interface ProductTemplateResponse {
   templateName: string
   description?: string | null
   rollerType: string
-  childParts: ProductTemplateChildPartResponse[]
   processTemplateId: number
   processTemplateName: string
+  drawingNumber?: string | null
+  drawingRevision?: string | null
+  length?: number | null
+  diameter?: number | null
+  coreDiameter?: number | null
+  shaftDiameter?: number | null
+  weight?: number | null
+  dimensionUnit?: string
+  technicalNotes?: string | null
+  qualityCheckpoints?: string | null
+  bomItems: ProductTemplateBOMItemResponse[]
   isActive: boolean
   createdAt: string
   updatedAt: string

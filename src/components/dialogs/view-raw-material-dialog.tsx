@@ -34,7 +34,10 @@ export function ViewRawMaterialDialog({
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-xl font-bold">{material.materialName}</h3>
-              <Badge variant="outline" className="mt-2">{material.grade}</Badge>
+              <div className="flex gap-2 mt-2">
+                <Badge variant="secondary">{material.materialType}</Badge>
+                <Badge variant="outline">{material.grade}</Badge>
+              </div>
             </div>
           </div>
 
@@ -54,15 +57,52 @@ export function ViewRawMaterialDialog({
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <Ruler className="h-5 w-5 text-primary" />
+              {(material.shape === 'Rod' || material.shape === 'Forged') && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Ruler className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Diameter</p>
+                    <p className="font-medium">{material.diameter} mm</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Diameter</p>
-                  <p className="font-medium">{material.diameter} mm</p>
+              )}
+
+              {material.shape === 'Pipe' && (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <Ruler className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Outer Diameter</p>
+                      <p className="font-medium">{material.diameter} mm</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <Ruler className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Inner Diameter</p>
+                      <p className="font-medium">{material.innerDiameter} mm</p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {material.shape === 'Sheet' && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Ruler className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Width</p>
+                    <p className="font-medium">{material.width} mm</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">

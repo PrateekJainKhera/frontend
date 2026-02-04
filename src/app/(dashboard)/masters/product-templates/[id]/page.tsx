@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockProductTemplates, mockProcessTemplates, mockChildPartTemplates } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { ProductTemplate, RollerType, ChildPartTemplate } from '@/types'
+import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
+import { processTemplateService, ProcessTemplateWithStepsResponse } from '@/lib/api/process-templates'
+import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
@@ -21,44 +21,44 @@ import {
 
 export default function ProductTemplateDetailPage() {
   const params = useParams()
-  const [template, setTemplate] = useState<ProductTemplate | null>(null)
+  const [template, setTemplate] = useState<ProductTemplateResponse | null>(null)
+  const [processWithSteps, setProcessWithSteps] = useState<ProcessTemplateWithStepsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [addChildPartDialogOpen, setAddChildPartDialogOpen] = useState(false)
   const [editingChildPart, setEditingChildPart] = useState<any>(null)
-  const [availableChildPartTemplates, setAvailableChildPartTemplates] = useState<ChildPartTemplate[]>([])
 
   const loadTemplate = async () => {
     setLoading(true)
-    const found = mockProductTemplates.find(t => t.id === params.id)
-    const data = await simulateApiCall(found || null, 500)
-    setTemplate(data)
+    try {
+      const data = await productTemplateService.getById(Number(params.id))
+      setTemplate(data)
 
-    // Load child part templates matching the roller type
-    if (data) {
-      const filteredTemplates = mockChildPartTemplates.filter(
-        cpt => cpt.rollerType === data.rollerType && cpt.isActive
-      )
-      setAvailableChildPartTemplates(filteredTemplates)
+      // Load process template with steps
+      if (data?.processTemplateId) {
+        try {
+          const processData = await processTemplateService.getTemplateWithSteps(data.processTemplateId)
+          setProcessWithSteps(processData)
+        } catch {
+          setProcessWithSteps(null)
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load product template'
+      toast.error(message)
+      setTemplate(null)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
-  }
-
-  // Helper function to get child part template name by ID
-  const getChildPartTemplateName = (templateId?: string) => {
-    if (!templateId) return null
-    const cpt = mockChildPartTemplates.find(t => t.id === templateId)
-    return cpt?.templateName
   }
 
   useEffect(() => {
     loadTemplate()
   }, [params.id])
 
-  const getRollerTypeBadge = (type: RollerType) => {
-    const colors: Record<RollerType, string> = {
-      [RollerType.MAGNETIC]: 'bg-blue-100 text-blue-800',
-      [RollerType.PRINTING]: 'bg-orange-100 text-orange-800',
+  const getRollerTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'Magnetic Roller': 'bg-blue-100 text-blue-800',
+      'Printing Roller': 'bg-orange-100 text-orange-800',
     }
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
@@ -83,7 +83,7 @@ export default function ProductTemplateDetailPage() {
               The product template you're looking for doesn't exist
             </p>
             <Button asChild>
-              <Link href="/masters/product-templates">
+              <Link href="/masters/products">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Templates
               </Link>
@@ -100,7 +100,7 @@ export default function ProductTemplateDetailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
-            <Link href="/masters/product-templates">
+            <Link href="/masters/products">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -189,19 +189,18 @@ export default function ProductTemplateDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {template.childParts
-                  .sort((a, b) => a.sequenceNo - b.sequenceNo)
+                {(template.bomItems || [])
+                  .sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0))
                   .map((part) => {
-                    const linkedTemplate = getChildPartTemplateName(part.childPartTemplateId)
                     return (
                       <tr key={part.id} className="border-b last:border-0">
-                        <td className="py-3 text-sm text-muted-foreground">{part.sequenceNo}</td>
-                        <td className="py-3 text-sm font-medium">{part.childPartName}</td>
+                        <td className="py-3 text-sm text-muted-foreground">{part.sequenceNumber || '-'}</td>
+                        <td className="py-3 text-sm font-medium">{part.childPartTemplateName}</td>
                         <td className="py-3 text-sm text-muted-foreground">
-                          {part.childPartCode || '-'}
+                          {part.childPartTemplateCode || '-'}
                         </td>
                         <td className="py-3 text-sm">{part.quantity}</td>
-                        <td className="py-3 text-sm text-muted-foreground">{part.unit}</td>
+                        <td className="py-3 text-sm text-muted-foreground">pcs</td>
                         <td className="py-3 text-sm text-muted-foreground max-w-xs truncate">
                           {part.notes || '-'}
                         </td>
@@ -215,7 +214,7 @@ export default function ProductTemplateDetailPage() {
                             >
                               <Link href={`/masters/child-part-templates/${part.childPartTemplateId}`}>
                                 <LinkIcon className="h-3 w-3 mr-1" />
-                                {linkedTemplate}
+                                {part.childPartTemplateName}
                               </Link>
                             </Button>
                           ) : (
@@ -250,29 +249,61 @@ export default function ProductTemplateDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Process Sequence */}
+      {/* Manufacturing Process */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <ListTree className="h-5 w-5" />
-            <div>
-              <CardTitle>Manufacturing Process</CardTitle>
-              <CardDescription>Linked process template for this roller</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <h3 className="font-medium">{template.processTemplateName}</h3>
-              <p className="text-sm text-muted-foreground">Process Template ID: {template.processTemplateId}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListTree className="h-5 w-5" />
+              <div>
+                <CardTitle>Manufacturing Process</CardTitle>
+                <CardDescription>{template.processTemplateName}</CardDescription>
+              </div>
             </div>
             <Button variant="outline" size="sm" asChild>
               <Link href={`/masters/process-templates/${template.processTemplateId}`}>
-                View Details
+                View Full Process
               </Link>
             </Button>
           </div>
+        </CardHeader>
+        <CardContent>
+          {processWithSteps && processWithSteps.steps && processWithSteps.steps.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="border-b">
+                  <tr className="text-left">
+                    <th className="pb-3 text-sm font-medium text-muted-foreground w-12">Step</th>
+                    <th className="pb-3 text-sm font-medium text-muted-foreground">Process Name</th>
+                    <th className="pb-3 text-sm font-medium text-muted-foreground">Mandatory</th>
+                    <th className="pb-3 text-sm font-medium text-muted-foreground">Can Be Parallel</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processWithSteps.steps
+                    .sort((a, b) => a.stepNo - b.stepNo)
+                    .map((step) => (
+                      <tr key={step.id} className="border-b last:border-0">
+                        <td className="py-3 text-sm text-muted-foreground font-medium">{step.stepNo}</td>
+                        <td className="py-3 text-sm font-medium">{step.processName || `Process ${step.processId}`}</td>
+                        <td className="py-3 text-sm">
+                          <Badge variant={step.isMandatory ? "default" : "secondary"} className="text-xs">
+                            {step.isMandatory ? "Yes" : "No"}
+                          </Badge>
+                        </td>
+                        <td className="py-3 text-sm">
+                          <Badge variant={step.canBeParallel ? "default" : "secondary"} className="text-xs">
+                            {step.canBeParallel ? "Yes" : "No"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No process steps defined</p>
+          )}
         </CardContent>
       </Card>
 
@@ -354,11 +385,6 @@ export default function ProductTemplateDetailPage() {
               <div className="flex gap-2">
                 <select className="flex-1 px-3 py-2 border rounded-md">
                   <option value="">Select a template...</option>
-                  {availableChildPartTemplates.map((cpt) => (
-                    <option key={cpt.id} value={cpt.id}>
-                      {cpt.templateName} ({cpt.childPartType})
-                    </option>
-                  ))}
                 </select>
                 <Button variant="outline" size="sm" asChild>
                   <Link href="/masters/child-part-templates">
@@ -366,7 +392,7 @@ export default function ProductTemplateDetailPage() {
                   </Link>
                 </Button>
               </div>
-              {availableChildPartTemplates.length === 0 && (
+              {(
                 <p className="text-xs text-muted-foreground">
                   No child part templates available for {template?.rollerType} rollers
                 </p>
@@ -446,11 +472,6 @@ export default function ProductTemplateDetailPage() {
                 <div className="flex gap-2">
                   <select className="flex-1 px-3 py-2 border rounded-md">
                     <option value="">Select a template...</option>
-                    {availableChildPartTemplates.map((cpt) => (
-                      <option key={cpt.id} value={cpt.id}>
-                        {cpt.templateName} ({cpt.childPartType})
-                      </option>
-                    ))}
                   </select>
                   <Button variant="outline" size="sm" asChild>
                     <Link href="/masters/child-part-templates">
@@ -458,7 +479,7 @@ export default function ProductTemplateDetailPage() {
                     </Link>
                   </Button>
                 </div>
-                {availableChildPartTemplates.length === 0 && (
+                {(
                   <p className="text-xs text-muted-foreground">
                     No child part templates available for {template?.rollerType} rollers
                   </p>

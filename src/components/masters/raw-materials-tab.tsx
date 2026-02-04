@@ -92,6 +92,7 @@ export function RawMaterialsTab({ searchQuery = '' }: RawMaterialsTabProps) {
       <AddRawMaterialDialog
         open={isAddMaterialOpen}
         onOpenChange={setIsAddMaterialOpen}
+        onSuccess={loadMaterials}
       />
 
       {/* Floating Action Button */}

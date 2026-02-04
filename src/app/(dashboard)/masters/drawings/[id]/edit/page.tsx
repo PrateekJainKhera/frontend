@@ -34,6 +34,7 @@ export default function EditDrawingPage() {
   const [drawingName, setDrawingName] = useState('')
   const [partType, setPartType] = useState<Drawing['partType']>('shaft')
   const [revision, setRevision] = useState('')
+  const [revisionDate, setRevisionDate] = useState('')
   const [status, setStatus] = useState<Drawing['status']>('draft')
   const [description, setDescription] = useState('')
   const [notes, setNotes] = useState('')
@@ -58,6 +59,7 @@ export default function EditDrawingPage() {
       setDrawingName(found.drawingName)
       setPartType(found.partType)
       setRevision(found.revision)
+      setRevisionDate(found.revisionDate)
       setStatus(found.status)
       setDescription(found.description)
       setNotes(found.notes || '')
@@ -72,22 +74,6 @@ export default function EditDrawingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // Validate manufacturing dimensions
-    if (!manufacturingDimensions.materialGrade) {
-      toast.error("Material Grade is required in Manufacturing Dimensions")
-      return
-    }
-
-    if (partType === 'shaft' && (!manufacturingDimensions.rodDiameter || !manufacturingDimensions.finishedLength)) {
-      toast.error("Rod Diameter and Finished Length are required for shaft drawings")
-      return
-    }
-
-    if (partType === 'pipe' && (!manufacturingDimensions.pipeOD || !manufacturingDimensions.cutLength)) {
-      toast.error("Pipe OD and Cut Length are required for pipe drawings")
-      return
-    }
 
     setSaving(true)
 
@@ -206,7 +192,7 @@ export default function EditDrawingPage() {
               <CardDescription>Part type, revision, and status</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="space-y-3">
                   <Label>Part Type *</Label>
                   <Select value={partType} onValueChange={(value) => setPartType(value as Drawing['partType'])}>
@@ -238,6 +224,20 @@ export default function EditDrawingPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Use A, B, C, etc. for revisions
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="revisionDate">Revision Date *</Label>
+                  <Input
+                    id="revisionDate"
+                    type="date"
+                    value={revisionDate}
+                    onChange={(e) => setRevisionDate(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Date when this revision was created
                   </p>
                 </div>
 

@@ -12,10 +12,10 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Eye, Edit } from 'lucide-react'
-import { MaterialCategory } from '@/types'
+import { MaterialCategoryResponse } from '@/lib/api/material-categories'
 
 interface MaterialCategoriesDataGridProps {
-    categories: MaterialCategory[]
+    categories: MaterialCategoryResponse[]
     onUpdate?: () => void
 }
 
@@ -53,7 +53,7 @@ export function MaterialCategoriesDataGrid({ categories }: MaterialCategoriesDat
     })
 
     // Define columns
-    const columns = useMemo<MRT_ColumnDef<MaterialCategory>[]>(
+    const columns = useMemo<MRT_ColumnDef<MaterialCategoryResponse>[]>(
         () => [
             {
                 accessorKey: 'categoryCode',

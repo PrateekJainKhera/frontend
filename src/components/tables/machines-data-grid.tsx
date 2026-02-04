@@ -19,32 +19,17 @@ import {
     Edit,
     Eye,
 } from 'lucide-react'
-import { format } from 'date-fns'
-
-// Types
-type MachineStatus = 'Active' | 'In_Use' | 'Idle' | 'Maintenance' | 'Breakdown' | 'Retired'
-
-interface Machine {
-    machineId: string
-    machineCode: string
-    machineName: string
-    type: string
-    status: MachineStatus
-    location: string
-    manufacturer?: string
-    model?: string
-    serialNumber?: string
-}
+import { MachineResponse } from '@/lib/api/machines'
 
 interface MachinesDataGridProps {
-    machines: Machine[]
-    onEdit?: (machine: Machine) => void
-    onView?: (machine: Machine) => void
+    machines: MachineResponse[]
+    onEdit?: (machine: MachineResponse) => void
+    onView?: (machine: MachineResponse) => void
 }
 
 // Status badge helper
-const getStatusBadge = (status: MachineStatus) => {
-    const variants: Record<MachineStatus, { icon: any; className: string }> = {
+const getStatusBadge = (status: string | null) => {
+    const variants: Record<string, { icon: any; className: string }> = {
         'Active': { icon: CheckCircle, className: 'bg-green-100 text-green-800 border-green-300' },
         'In_Use': { icon: Settings, className: 'bg-blue-100 text-blue-800 border-blue-300' },
         'Idle': { icon: CheckCircle, className: 'bg-gray-100 text-gray-800 border-gray-300' },
@@ -52,12 +37,13 @@ const getStatusBadge = (status: MachineStatus) => {
         'Breakdown': { icon: XCircle, className: 'bg-red-100 text-red-800 border-red-300' },
         'Retired': { icon: XCircle, className: 'bg-gray-100 text-gray-600 border-gray-300' },
     }
-    const config = variants[status]
+    const effectiveStatus = status ?? 'Idle'
+    const config = variants[effectiveStatus] || variants['Idle']
     const Icon = config.icon
     return (
         <Badge variant="outline" className={config.className}>
             <Icon className="mr-1 h-3 w-3" />
-            {status.replace('_', ' ')}
+            {effectiveStatus.replace('_', ' ')}
         </Badge>
     )
 }
@@ -96,7 +82,7 @@ export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridP
     })
 
     // Define columns
-    const columns = useMemo<MRT_ColumnDef<Machine>[]>(
+    const columns = useMemo<MRT_ColumnDef<MachineResponse>[]>(
         () => [
             {
                 accessorKey: 'machineCode',
@@ -110,38 +96,16 @@ export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridP
                 accessorKey: 'machineName',
                 header: 'Name',
                 size: 180,
-                Cell: ({ row }) => (
-                    <div className="flex flex-col">
-                        <span className="font-medium">{row.original.machineName}</span>
-                        {row.original.serialNumber && (
-                            <span className="text-xs text-muted-foreground">
-                                S/N: {row.original.serialNumber}
-                            </span>
-                        )}
-                    </div>
+                Cell: ({ cell }) => (
+                    <span className="font-medium">{cell.getValue<string>()}</span>
                 ),
             },
             {
-                accessorKey: 'type',
+                accessorKey: 'machineType',
                 header: 'Type',
                 size: 120,
                 Cell: ({ cell }) => (
                     <Badge variant="outline">{cell.getValue<string>()?.replace('_', ' ')}</Badge>
-                ),
-            },
-            {
-                id: 'manufacturer',
-                header: 'Manufacturer / Model',
-                size: 150,
-                Cell: ({ row }) => (
-                    <div className="flex flex-col">
-                        {row.original.manufacturer && (
-                            <span className="font-medium">{row.original.manufacturer}</span>
-                        )}
-                        {row.original.model && (
-                            <span className="text-xs text-muted-foreground">{row.original.model}</span>
-                        )}
-                    </div>
                 ),
             },
             {
@@ -159,7 +123,7 @@ export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridP
                 accessorKey: 'status',
                 header: 'Status',
                 size: 130,
-                Cell: ({ cell }) => getStatusBadge(cell.getValue<MachineStatus>()),
+                Cell: ({ cell }) => getStatusBadge(cell.getValue<string>()),
             },
         ],
         []

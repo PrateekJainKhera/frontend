@@ -149,8 +149,7 @@ export default function ProductTemplatesPage() {
       {/* Templates Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredTemplates.map((template) => (
-          <Link key={template.id} href={`/masters/product-templates/${template.id}`}>
-            <Card className="h-full border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-lg transition-shadow cursor-pointer hover:border-primary">
+          <Card key={template.id} className="h-full border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
@@ -173,7 +172,7 @@ export default function ProductTemplatesPage() {
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">
-                      {template.childParts.length} Child Parts
+                      {(template.bomItems || []).length} Child Parts
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
@@ -194,7 +193,6 @@ export default function ProductTemplatesPage() {
                 </div>
               </CardContent>
             </Card>
-          </Link>
         ))}
       </div>
 

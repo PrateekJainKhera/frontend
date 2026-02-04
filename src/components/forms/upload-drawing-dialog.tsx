@@ -28,6 +28,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
     const [drawingName, setDrawingName] = useState("")
     const [partType, setPartType] = useState<Drawing['partType']>("shaft")
     const [revision, setRevision] = useState("A")
+    const [revisionDate, setRevisionDate] = useState(new Date().toISOString().split('T')[0])
     const [status, setStatus] = useState<Drawing['status']>("draft")
     const [description, setDescription] = useState("")
     const [notes, setNotes] = useState("")
@@ -75,22 +76,6 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
             return
         }
 
-        // Validate manufacturing dimensions
-        if (!manufacturingDimensions.materialGrade) {
-            toast.error("Material Grade is required in Manufacturing Dimensions")
-            return
-        }
-
-        if (partType === 'shaft' && (!manufacturingDimensions.rodDiameter || !manufacturingDimensions.finishedLength)) {
-            toast.error("Rod Diameter and Finished Length are required for shaft drawings")
-            return
-        }
-
-        if (partType === 'pipe' && (!manufacturingDimensions.pipeOD || !manufacturingDimensions.cutLength)) {
-            toast.error("Pipe OD and Cut Length are required for pipe drawings")
-            return
-        }
-
         setUploading(true)
 
         // Simulate file upload and API call
@@ -102,6 +87,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
             drawingName,
             partType,
             revision,
+            revisionDate,
             status,
             description,
             notes,
@@ -124,6 +110,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
         setDrawingName("")
         setPartType("shaft")
         setRevision("A")
+        setRevisionDate(new Date().toISOString().split('T')[0])
         setStatus("draft")
         setDescription("")
         setNotes("")
@@ -246,7 +233,7 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
                             </div>
 
                             {/* Classification */}
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-4 gap-4">
                                 <div className="space-y-2">
                                     <Label>Part Type *</Label>
                                     <Select value={partType} onValueChange={(value) => setPartType(value as Drawing['partType'])}>
@@ -275,6 +262,17 @@ export function UploadDrawingDialog({ open, onOpenChange, onSuccess }: UploadDra
                                         required
                                         maxLength={3}
                                         className="font-mono"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="revisionDate">Revision Date *</Label>
+                                    <Input
+                                        id="revisionDate"
+                                        type="date"
+                                        value={revisionDate}
+                                        onChange={(e) => setRevisionDate(e.target.value)}
+                                        required
                                     />
                                 </div>
 

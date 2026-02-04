@@ -163,11 +163,11 @@ export function CreateProductDialog({
   useEffect(() => {
     if (watchedTemplateId && watchedTemplateId > 0) {
       const selectedTemplate = templates.find(t => t.id === watchedTemplateId)
-      if (selectedTemplate && selectedTemplate.childParts) {
-        // Convert template child parts to child part entries with optional drawing
-        const templateChildParts: ChildPartEntry[] = selectedTemplate.childParts.map(cp => ({
+      if (selectedTemplate && selectedTemplate.bomItems) {
+        // Convert template BOM items to child part entries with optional drawing
+        const templateChildParts: ChildPartEntry[] = selectedTemplate.bomItems.map(cp => ({
           id: `template-${cp.id}`,
-          type: cp.childPartName as ChildPartType,
+          type: cp.childPartTemplateName as ChildPartType,
           drawingFile: null,
           drawingFileName: '',
         }))

@@ -22,36 +22,28 @@ import {
 } from '@/components/ui/select'
 import { Settings, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { machineService } from '@/lib/api/machines'
 
 interface AddMachineDialogProps {
   open: boolean
   onClose: () => void
+  onSuccess?: () => void
 }
 
-export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
+export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    machineCode: '',
     machineName: '',
     type: '',
-    manufacturer: '',
-    model: '',
-    serialNumber: '',
     location: '',
     department: '',
     status: 'Idle',
-    purchaseCost: '',
-    hourlyRate: '',
     notes: '',
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation
-    if (!formData.machineCode.trim()) {
-      toast.error('Machine code is required')
-      return
-    }
     if (!formData.machineName.trim()) {
       toast.error('Machine name is required')
       return
@@ -65,28 +57,37 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
       return
     }
 
-    // Simulate save
-    toast.success('Machine added successfully', {
-      description: `${formData.machineCode} - ${formData.machineName}`,
-    })
+    setIsSubmitting(true)
+    try {
+      await machineService.create({
+        machineName: formData.machineName,
+        machineType: formData.type,
+        location: formData.location,
+        department: formData.department || undefined,
+        status: formData.status,
+        notes: formData.notes || undefined,
+      })
 
-    // Reset form
-    setFormData({
-      machineCode: '',
-      machineName: '',
-      type: '',
-      manufacturer: '',
-      model: '',
-      serialNumber: '',
-      location: '',
-      department: '',
-      status: 'Idle',
-      purchaseCost: '',
-      hourlyRate: '',
-      notes: '',
-    })
+      toast.success('Machine added successfully', {
+        description: `Machine: ${formData.machineName}`,
+      })
 
-    onClose()
+      setFormData({
+        machineName: '',
+        type: '',
+        location: '',
+        department: '',
+        status: 'Idle',
+        notes: '',
+      })
+
+      onClose()
+      onSuccess?.()
+    } catch (err) {
+      toast.error((err as Error).message || 'Failed to add machine')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -108,21 +109,6 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
             <div>
               <h3 className="font-semibold text-sm mb-3">Basic Information</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="machineCode">
-                    Machine Code <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="machineCode"
-                    placeholder="e.g., LAT-001"
-                    value={formData.machineCode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, machineCode: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
                 <div>
                   <Label htmlFor="machineName">
                     Machine Name <span className="text-red-500">*</span>
@@ -188,51 +174,6 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
               </div>
             </div>
 
-            {/* Manufacturer Details */}
-            <div>
-              <h3 className="font-semibold text-sm mb-3">Manufacturer Details</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="manufacturer">Manufacturer</Label>
-                  <Input
-                    id="manufacturer"
-                    placeholder="e.g., HMT"
-                    value={formData.manufacturer}
-                    onChange={(e) =>
-                      setFormData({ ...formData, manufacturer: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="model">Model</Label>
-                  <Input
-                    id="model"
-                    placeholder="e.g., NH-26"
-                    value={formData.model}
-                    onChange={(e) =>
-                      setFormData({ ...formData, model: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="serialNumber">Serial Number</Label>
-                  <Input
-                    id="serialNumber"
-                    placeholder="e.g., HMT-NH26-2018-001"
-                    value={formData.serialNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, serialNumber: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Location */}
             <div>
               <h3 className="font-semibold text-sm mb-3">Location</h3>
@@ -267,40 +208,6 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
               </div>
             </div>
 
-            {/* Financial */}
-            <div>
-              <h3 className="font-semibold text-sm mb-3">Financial</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="purchaseCost">Purchase Cost (₹)</Label>
-                  <Input
-                    id="purchaseCost"
-                    type="number"
-                    placeholder="e.g., 2500000"
-                    value={formData.purchaseCost}
-                    onChange={(e) =>
-                      setFormData({ ...formData, purchaseCost: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
-                  <Input
-                    id="hourlyRate"
-                    type="number"
-                    placeholder="e.g., 350"
-                    value={formData.hourlyRate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, hourlyRate: e.target.value })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Notes */}
             <div>
               <Label htmlFor="notes">Notes</Label>
@@ -321,7 +228,7 @@ export function AddMachineDialog({ open, onClose }: AddMachineDialogProps) {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="mr-2 h-4 w-4" />
               Add Machine
             </Button>

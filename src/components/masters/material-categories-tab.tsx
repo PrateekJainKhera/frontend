@@ -6,9 +6,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockMaterialCategories } from '@/lib/mock-data'
-import { MaterialCategory } from '@/types'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { materialCategoryService, MaterialCategoryResponse } from '@/lib/api/material-categories'
+import { toast } from 'sonner'
 import { MaterialCategoriesDataGrid } from '@/components/tables/material-categories-data-grid'
 
 interface MaterialCategoriesTabProps {
@@ -16,7 +15,7 @@ interface MaterialCategoriesTabProps {
 }
 
 export function MaterialCategoriesTab({ searchQuery = '' }: MaterialCategoriesTabProps) {
-  const [categories, setCategories] = useState<MaterialCategory[]>([])
+  const [categories, setCategories] = useState<MaterialCategoryResponse[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -25,9 +24,16 @@ export function MaterialCategoriesTab({ searchQuery = '' }: MaterialCategoriesTa
 
   const loadCategories = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockMaterialCategories, 800)
-    setCategories(data)
-    setLoading(false)
+    try {
+      const data = await materialCategoryService.getAll()
+      setCategories(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load material categories'
+      toast.error(message)
+      setCategories([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredCategories = categories.filter(

@@ -3,9 +3,12 @@ import { apiClient, ApiResponse } from './axios-config'
 
 export interface CreateMaterialRequest {
   materialName: string
+  materialType: string
   grade: string
   shape: string
   diameter: number
+  innerDiameter?: number
+  width?: number
   lengthInMM: number
   density: number
   weightKG: number
@@ -22,9 +25,12 @@ export interface MaterialResponse {
   id: number
   materialCode: string
   materialName: string
+  materialType: string
   grade: string
   shape: string
   diameter: number
+  innerDiameter?: number
+  width?: number
   lengthInMM: number
   density: number
   weightKG: number

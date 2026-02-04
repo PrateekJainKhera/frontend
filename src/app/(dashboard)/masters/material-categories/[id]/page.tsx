@@ -2,19 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockMaterialCategories } from '@/lib/mock-data'
-import { MaterialCategory } from '@/types'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { materialCategoryService, MaterialCategoryResponse } from '@/lib/api/material-categories'
+import { toast } from 'sonner'
 
 export default function ViewMaterialCategoryPage() {
   const params = useParams()
-  const [category, setCategory] = useState<MaterialCategory | null>(null)
+  const router = useRouter()
+  const [category, setCategory] = useState<MaterialCategoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,11 +23,28 @@ export default function ViewMaterialCategoryPage() {
 
   const loadCategory = async () => {
     setLoading(true)
-    // Simulate API call
-    const allCategories = await simulateApiCall(mockMaterialCategories, 800)
-    const found = allCategories.find((c) => c.id === Number(params.id))
-    setCategory(found || null)
-    setLoading(false)
+    try {
+      const data = await materialCategoryService.getById(Number(params.id))
+      setCategory(data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load material category'
+      toast.error(message)
+      setCategory(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this material category?')) return
+    try {
+      await materialCategoryService.delete(category!.id)
+      toast.success('Material category deleted successfully')
+      router.push('/masters/materials')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete material category'
+      toast.error(message)
+    }
   }
 
   if (loading) {
@@ -43,7 +60,7 @@ export default function ViewMaterialCategoryPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/masters/material-categories">
+          <Link href="/masters/materials">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -66,7 +83,7 @@ export default function ViewMaterialCategoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/masters/material-categories">
+          <Link href="/masters/materials">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -83,7 +100,7 @@ export default function ViewMaterialCategoryPage() {
               Edit
             </Button>
           </Link>
-          <Button variant="destructive">
+          <Button variant="destructive" onClick={handleDelete}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </Button>

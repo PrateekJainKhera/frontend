@@ -21,18 +21,47 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { MaterialType, MaterialGrade, MaterialShape } from '@/types/enums'
 import { toast } from 'sonner'
 
 const formSchema = z.object({
   materialName: z.string().min(2, 'Material name must be at least 2 characters'),
+  materialType: z.string().min(1, 'Material type is required'),
   grade: z.string().min(1, 'Grade is required'),
   shape: z.string().min(1, 'Shape is required'),
-  diameter: z.number().positive('Diameter must be positive'),
-  lengthInMM: z.number().positive('Length must be positive'),
-  density: z.number().positive('Density must be positive'),
-  weightKG: z.number().positive('Weight must be positive'),
+  diameter: z.number().optional(),
+  innerDiameter: z.number().optional(),
+  width: z.number().optional(),
+  lengthInMM: z.number().min(0.01, 'Length must be greater than 0'),
+  density: z.number().min(0.01, 'Density must be greater than 0'),
+  weightKG: z.number().min(0, 'Weight must be positive'),
+}).superRefine((data, ctx) => {
+  if (data.shape === 'Rod' || data.shape === 'Forged' || data.shape === 'Pipe') {
+    if (!data.diameter || data.diameter < 0.01) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['diameter'], message: 'Diameter is required' })
+    }
+  }
+  if (data.shape === 'Pipe') {
+    if (!data.innerDiameter || data.innerDiameter < 0.01) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['innerDiameter'], message: 'Inner diameter is required' })
+    } else if (data.diameter && data.innerDiameter >= data.diameter) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['innerDiameter'], message: 'Must be less than outer diameter' })
+    }
+  }
+  if (data.shape === 'Sheet') {
+    if (!data.width || data.width < 0.01) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['width'], message: 'Width is required' })
+    }
+  }
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -56,20 +85,34 @@ export function EditRawMaterialDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       materialName: material.materialName,
+      materialType: material.materialType,
       grade: material.grade,
       shape: material.shape,
-      diameter: material.diameter,
+      diameter: material.diameter ?? 0,
+      innerDiameter: material.innerDiameter ?? 0,
+      width: material.width ?? 0,
       lengthInMM: material.lengthInMM,
       density: material.density,
       weightKG: material.weightKG,
     },
   })
 
+  const shape = form.watch('shape')
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
       await materialService.update(material.id, {
-        ...data,
+        materialName: data.materialName,
+        materialType: data.materialType,
+        grade: data.grade,
+        shape: data.shape,
+        diameter: data.shape === 'Sheet' ? 0 : (data.diameter ?? 0),
+        innerDiameter: data.shape === 'Pipe' ? data.innerDiameter : undefined,
+        width: data.shape === 'Sheet' ? data.width : undefined,
+        lengthInMM: data.lengthInMM,
+        density: data.density,
+        weightKG: data.weightKG,
         id: material.id,
         isActive: material.isActive,
       })
@@ -109,6 +152,31 @@ export function EditRawMaterialDialog({
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="materialType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Material Type *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select material type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.values(MaterialType).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -116,9 +184,20 @@ export function EditRawMaterialDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Grade *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., EN31" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select grade" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.values(MaterialGrade).map((grade) => (
+                          <SelectItem key={grade} value={grade}>
+                            {grade}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -130,35 +209,114 @@ export function EditRawMaterialDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Shape *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Round, Square" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select shape" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.values(MaterialShape).map((shape) => (
+                          <SelectItem key={shape} value={shape}>
+                            {shape}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
+            {/* Shape-dependent dimension fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="diameter"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Diameter (mm) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="Enter diameter"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {(shape === 'Rod' || shape === 'Forged') && (
+                <FormField
+                  control={form.control}
+                  name="diameter"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Diameter (mm) *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="50"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {shape === 'Pipe' && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="diameter"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Outer Diameter (mm) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="60"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="innerDiameter"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Inner Diameter (mm) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="50"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {shape === 'Sheet' && (
+                <FormField
+                  control={form.control}
+                  name="width"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Width (mm) *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="500"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}
@@ -170,9 +328,9 @@ export function EditRawMaterialDialog({
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="Enter length"
+                        placeholder="3000"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -192,9 +350,9 @@ export function EditRawMaterialDialog({
                       <Input
                         type="number"
                         step="0.001"
-                        placeholder="Enter density"
+                        placeholder="7.85"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -212,9 +370,9 @@ export function EditRawMaterialDialog({
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="Enter weight"
+                        placeholder="46.2"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
