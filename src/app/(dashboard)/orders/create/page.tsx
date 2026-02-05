@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { ArrowLeft, Plus, FileText, Upload, Send } from 'lucide-react'
+import { ArrowLeft, Plus, FileText, Upload, Send, XCircle } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,17 +27,16 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { mockCustomers, mockProducts, mockProcessTemplates, mockDrawings } from '@/lib/mock-data'
-import { Drawing } from '@/lib/mock-data/drawings'
 import { Priority, Product, OrderSource, SchedulingStrategy } from '@/types'
+import { Customer } from '@/types/customer'
+import { customerService } from '@/lib/api/customer'
+import { productService } from '@/lib/api/products'
+import { drawingService, DrawingResponse } from '@/lib/api/drawings'
+import { orderService } from '@/lib/api/orders'
 import { Separator } from '@/components/ui/separator'
 import { CreateCustomerDialog } from '@/components/forms/create-customer-dialog'
 import { CreateProductDialog } from '@/components/forms/create-product-dialog'
-import { UploadDrawingDialog } from '@/components/forms/upload-drawing-dialog'
-import { BulkUploadDrawingsDialog } from '@/components/forms/bulk-upload-drawings-dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 
 // Drawing Source options
@@ -77,12 +76,38 @@ export default function CreateOrderPage() {
   const [orderSource, setOrderSource] = useState<OrderSource>(OrderSource.DIRECT)
   const [createCustomerDialogOpen, setCreateCustomerDialogOpen] = useState(false)
   const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false)
-  const [uploadDrawingDialogOpen, setUploadDrawingDialogOpen] = useState(false)
-  const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false)
   const [drawingSource, setDrawingSource] = useState<DrawingSource | ''>('')
-  const [selectedDrawing, setSelectedDrawing] = useState<Drawing | null>(null)
-  const [customerDrawingTiming, setCustomerDrawingTiming] = useState<'now' | 'later'>('now')
-  const [customerDrawingsUploaded, setCustomerDrawingsUploaded] = useState(false)
+  const [selectedDrawing, setSelectedDrawing] = useState<DrawingResponse | null>(null)
+
+  // Drawings to be uploaded after order creation
+  const [pendingDrawings, setPendingDrawings] = useState<Array<{
+    file: File
+    drawingName: string
+    drawingType: string
+  }>>([])
+
+  // Master data loaded from API
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [drawings, setDrawings] = useState<DrawingResponse[]>([])
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [c, p, d] = await Promise.all([
+          customerService.getAll(),
+          productService.getAll(),
+          drawingService.getAll(),
+        ])
+        setCustomers(c)
+        setProducts(p)
+        setDrawings(d)
+      } catch (err) {
+        console.error('Failed to load master data:', err)
+      }
+    }
+    load()
+  }, [])
 
   // Get default due date (today + 14 days)
   const getDefaultDueDate = () => {
@@ -112,42 +137,87 @@ export default function CreateOrderPage() {
 
   // Filter products by selected customer
   const filteredProducts = selectedCustomerId
-    ? mockProducts.filter(p => {
-      const customer = mockCustomers.find(c => c.id === parseInt(selectedCustomerId))
+    ? products.filter(p => {
+      const customer = customers.find(c => c.id === Number(selectedCustomerId))
       return customer && p.customerName === customer.customerName
     })
-    : mockProducts
+    : products
 
   // Filter agent customers only
-  const agentCustomers = mockCustomers.filter(c => c.customerType === 'Agent')
+  const agentCustomers = customers.filter(c => c.customerType === 'Agent')
 
-  // Find linked process template
-  const linkedTemplate = selectedProduct
-    ? mockProcessTemplates.find(t =>
-      t.id === selectedProduct.processTemplateId ||
-      t.applicableTypes.includes(selectedProduct.rollerType)
-    )
-    : null
+  // Handle adding a drawing
+  const handleAddDrawing = (file: File, drawingName: string, drawingType: string) => {
+    setPendingDrawings(prev => [...prev, { file, drawingName, drawingType }])
+    toast.success(`Drawing "${drawingName}" added`)
+  }
+
+  // Handle removing a drawing
+  const handleRemoveDrawing = (index: number) => {
+    setPendingDrawings(prev => prev.filter((_, i) => i !== index))
+    toast.info('Drawing removed')
+  }
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     toast.loading('Creating order...')
 
     try {
-      // Generate order number
-      const orderNo = `ORD-2024-${String(Math.floor(Math.random() * 999) + 100).padStart(3, '0')}`
+      const payload: any = {
+        dueDate: data.dueDate,
+        customerId: Number(data.customerId),
+        productId: Number(data.productId),
+        quantity: data.quantity,
+        priority: data.priority,
+        orderSource: data.orderSource,
+        schedulingStrategy: data.schedulingStrategy,
+      }
 
-      // Simulate API call
-      await simulateApiCall({ ...data, orderNo, template: linkedTemplate }, 1500)
+      if (data.customerMachine) payload.customerMachine = data.customerMachine
+      if (data.materialGradeRemark) payload.materialGradeRemark = data.materialGradeRemark
+      if (data.agentCustomerId) payload.agentCustomerId = Number(data.agentCustomerId)
+      if (data.drawingNotes) payload.drawingNotes = data.drawingNotes
+
+      // Drawing source mapping
+      if (data.drawingSource === 'from_master' && data.drawingId) {
+        payload.primaryDrawingId = Number(data.drawingId)
+        payload.drawingSource = 'company'
+      } else if (data.drawingSource === 'customer_provides') {
+        payload.drawingSource = 'customer'
+      } else if (data.drawingSource === 'create_new') {
+        payload.drawingSource = 'company'
+      }
+
+      const orderId = await orderService.create(payload)
+      const created = await orderService.getById(orderId)
 
       toast.dismiss()
-      toast.success(`Order created successfully: ${orderNo}`)
+      toast.success(`Order created successfully: ${created.orderNo}`)
 
-      // Redirect to orders list
+      // Upload pending drawings if any
+      if (pendingDrawings.length > 0) {
+        toast.loading(`Uploading ${pendingDrawings.length} drawing(s)...`)
+        try {
+          for (const drawing of pendingDrawings) {
+            await drawingService.upload(drawing.file, {
+              drawingName: drawing.drawingName,
+              drawingType: drawing.drawingType,
+              status: 'draft',
+              linkedOrderId: orderId
+            })
+          }
+          toast.dismiss()
+          toast.success(`Order and ${pendingDrawings.length} drawing(s) uploaded successfully!`)
+        } catch (drawingError) {
+          toast.dismiss()
+          toast.warning(`Order created but some drawings failed to upload: ${drawingError instanceof Error ? drawingError.message : 'Unknown error'}`)
+        }
+      }
+
       router.push('/orders')
     } catch (error) {
       toast.dismiss()
-      toast.error('Failed to create order')
+      toast.error(error instanceof Error ? error.message : 'Failed to create order')
     } finally {
       setIsSubmitting(false)
     }
@@ -201,7 +271,7 @@ export default function CreateOrderPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {mockCustomers.map((customer) => (
+                            {customers.map((customer) => (
                               <SelectItem key={customer.id} value={customer.id.toString()}>
                                 {customer.customerName}
                               </SelectItem>
@@ -237,7 +307,7 @@ export default function CreateOrderPage() {
                         <Select
                           onValueChange={(value) => {
                             field.onChange(value)
-                            const product = mockProducts.find(p => p.id === Number(value))
+                            const product = products.find(p => p.id === Number(value))
                             setSelectedProduct(product || null)
                           }}
                           value={field.value}
@@ -346,87 +416,99 @@ export default function CreateOrderPage() {
                     )}
                   />
 
-                  {/* Customer Provides Drawing */}
+                  {/* Multi-Drawing Upload Section */}
                   {drawingSource === 'customer_provides' && (
                     <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
                       <p className="text-sm font-semibold text-blue-900">
-                        📄 Customer will provide the drawing
+                        📄 Upload Multiple Drawings (Shaft, Tikki, Gear, Ends, Bearing, Patti, Assembly)
                       </p>
 
-                      {/* Upload Timing Options */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">When will you upload the drawing?</Label>
-                        <RadioGroup
-                          value={customerDrawingTiming}
-                          onValueChange={(value) => setCustomerDrawingTiming(value as 'now' | 'later')}
-                          className="flex gap-4"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="now" id="upload-now" />
-                            <Label htmlFor="upload-now" className="font-normal cursor-pointer">
-                              Upload Now
-                            </Label>
+                      {/* Upload Form */}
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <Label htmlFor="drawing-file" className="text-xs">Select Drawing File *</Label>
+                            <Input
+                              id="drawing-file"
+                              type="file"
+                              accept=".pdf,.png,.jpg,.jpeg,.dwg"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  const drawingNameInput = document.getElementById('temp-drawing-name') as HTMLInputElement
+                                  const drawingTypeSelect = document.getElementById('temp-drawing-type') as HTMLSelectElement
+                                  if (drawingNameInput?.value && drawingTypeSelect?.value) {
+                                    handleAddDrawing(file, drawingNameInput.value, drawingTypeSelect.value)
+                                    e.target.value = ''
+                                    drawingNameInput.value = ''
+                                  } else {
+                                    toast.error('Please enter drawing name and select type first')
+                                    e.target.value = ''
+                                  }
+                                }
+                              }}
+                              className="mt-1"
+                            />
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="later" id="upload-later" />
-                            <Label htmlFor="upload-later" className="font-normal cursor-pointer">
-                              Upload Later
-                            </Label>
+                          <div>
+                            <Label htmlFor="temp-drawing-name" className="text-xs">Drawing Name *</Label>
+                            <Input
+                              id="temp-drawing-name"
+                              placeholder="e.g., Shaft Drawing"
+                              className="mt-1"
+                            />
                           </div>
-                        </RadioGroup>
+                          <div>
+                            <Label htmlFor="temp-drawing-type" className="text-xs">Type *</Label>
+                            <Select defaultValue="shaft">
+                              <SelectTrigger id="temp-drawing-type" className="mt-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="shaft">Shaft</SelectItem>
+                                <SelectItem value="tikki">Tikki</SelectItem>
+                                <SelectItem value="gear">Gear</SelectItem>
+                                <SelectItem value="ends">Ends</SelectItem>
+                                <SelectItem value="bearing">Bearing</SelectItem>
+                                <SelectItem value="patti">Patti</SelectItem>
+                                <SelectItem value="assembly">Assembly</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Add each drawing one by one. Select file after entering name and type.
+                        </p>
                       </div>
 
-                      {/* Upload Now Options */}
-                      {customerDrawingTiming === 'now' && (
-                        <div className="space-y-3">
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setUploadDrawingDialogOpen(true)}
-                            >
-                              <Upload className="mr-2 h-4 w-4" />
-                              Single Upload
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setBulkUploadDialogOpen(true)}
-                            >
-                              <Upload className="mr-2 h-4 w-4" />
-                              Bulk Upload
-                            </Button>
+                      {/* List of Pending Drawings */}
+                      {pendingDrawings.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-xs font-semibold">Drawings to be uploaded ({pendingDrawings.length}):</Label>
+                          <div className="space-y-2">
+                            {pendingDrawings.map((drawing, index) => (
+                              <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                                <div className="flex items-center gap-3">
+                                  <FileText className="h-4 w-4 text-blue-600" />
+                                  <div>
+                                    <p className="text-sm font-medium">{drawing.drawingName}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Type: <span className="capitalize">{drawing.drawingType}</span> • {drawing.file.name}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRemoveDrawing(index)}
+                                >
+                                  <XCircle className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </div>
+                            ))}
                           </div>
-
-                          {/* Upload Status */}
-                          {customerDrawingsUploaded && (
-                            <div className="p-3 bg-green-100 rounded-lg border border-green-300">
-                              <p className="text-sm font-semibold text-green-800">
-                                ✅ Drawings uploaded successfully
-                              </p>
-                              <Button
-                                type="button"
-                                variant="default"
-                                size="sm"
-                                className="mt-2"
-                                onClick={() => {
-                                  toast.success('Drawings sent to Drawing Team for review!')
-                                }}
-                              >
-                                <Send className="mr-2 h-4 w-4" />
-                                Send to Drawing Team for Review
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Upload Later Message */}
-                      {customerDrawingTiming === 'later' && (
-                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                          <p className="text-sm text-amber-800">
-                            ⏳ Drawing will be uploaded later. You can upload from the order details page after creating the order.
-                          </p>
                         </div>
                       )}
 
@@ -455,16 +537,9 @@ export default function CreateOrderPage() {
                       <p className="text-sm font-semibold text-green-900">
                         🛠️ Drawing will be created in-house
                       </p>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setUploadDrawingDialogOpen(true)}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Create New Drawing
-                        </Button>
-                      </div>
+                      <p className="text-sm text-green-800">
+                        Technical drawings will be prepared by our in-house design team based on the specifications provided below.
+                      </p>
                       <FormField
                         control={form.control}
                         name="drawingNotes"
@@ -496,7 +571,7 @@ export default function CreateOrderPage() {
                             <Select
                               onValueChange={(value) => {
                                 field.onChange(value)
-                                const drawing = mockDrawings.find(d => d.id === value)
+                                const drawing = drawings.find(d => d.id === Number(value))
                                 setSelectedDrawing(drawing || null)
                               }}
                               value={field.value}
@@ -507,10 +582,10 @@ export default function CreateOrderPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {mockDrawings
+                                {drawings
                                   .filter(d => d.status === 'approved')
                                   .map((drawing) => (
-                                    <SelectItem key={drawing.id} value={drawing.id}>
+                                    <SelectItem key={drawing.id} value={drawing.id.toString()}>
                                       {drawing.drawingNumber} - {drawing.drawingName} (Rev {drawing.revision})
                                     </SelectItem>
                                   ))}
@@ -803,66 +878,18 @@ export default function CreateOrderPage() {
           </CardContent>
         </Card>
 
-        {/* Process Template Preview (Auto-linked) */}
+        {/* Order Summary */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Process Template</CardTitle>
-              <CardDescription>Auto-linked production workflow</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {linkedTemplate ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-primary/10 rounded-md">
-                    <p className="font-semibold text-sm text-primary">
-                      {linkedTemplate.templateName}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {linkedTemplate.description}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground">
-                      Process Flow ({linkedTemplate.steps.length} steps):
-                    </p>
-                    {linkedTemplate.steps.map((step) => (
-                      <div
-                        key={step.id}
-                        className="flex items-center gap-2 text-sm p-2 bg-muted/50 rounded"
-                      >
-                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                          {step.stepNo}
-                        </span>
-                        <span className="flex-1">{step.processName}</span>
-                        {step.isMandatory && (
-                          <span className="text-[10px] text-destructive font-semibold">
-                            *
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <p className="text-xs text-muted-foreground italic">
-                    * Mandatory steps cannot be skipped
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Select a product to see the process template
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Order Summary */}
           {selectedProduct && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Product:</span>
+                  <span className="font-semibold">{selectedProduct.partCode}</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Quantity:</span>
                   <span className="font-semibold">{form.watch('quantity')} pcs</span>
@@ -878,16 +905,24 @@ export default function CreateOrderPage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Est. Process Time:</span>
-                  <span className="font-semibold">
-                    {linkedTemplate
-                      ? `${linkedTemplate.steps.length} steps`
-                      : '-'}
-                  </span>
+                  <span className="text-muted-foreground">Order Source:</span>
+                  <span className="font-semibold">{form.watch('orderSource')}</span>
                 </div>
               </CardContent>
             </Card>
           )}
+
+          {/* Drawing Review Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Next Step</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                After order creation, the drawing will need to be reviewed and approved before production planning begins.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -908,30 +943,6 @@ export default function CreateOrderPage() {
         onSuccess={() => {
           // In a real app, you would refresh products list here
           toast.success('Product created! Please refresh to see the new product.')
-        }}
-      />
-
-      {/* Upload Drawing Dialog */}
-      <UploadDrawingDialog
-        open={uploadDrawingDialogOpen}
-        onOpenChange={setUploadDrawingDialogOpen}
-        onSuccess={() => {
-          toast.success('Drawing uploaded successfully!')
-          if (drawingSource === 'customer_provides') {
-            setCustomerDrawingsUploaded(true)
-          }
-        }}
-      />
-
-      {/* Bulk Upload Drawings Dialog */}
-      <BulkUploadDrawingsDialog
-        open={bulkUploadDialogOpen}
-        onOpenChange={setBulkUploadDialogOpen}
-        onSuccess={() => {
-          toast.success('Drawings uploaded successfully!')
-          if (drawingSource === 'customer_provides') {
-            setCustomerDrawingsUploaded(true)
-          }
         }}
       />
     </div>

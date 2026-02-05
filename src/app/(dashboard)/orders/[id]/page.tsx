@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, Clock, AlertTriangle, CheckCircle2, Package, Factory } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, AlertTriangle, CheckCircle2, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -11,53 +11,82 @@ import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import { mockOrders, mockProcessTemplates, getDelayDays, getOrderProgress } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
 import { formatDate, formatDateTime } from '@/lib/utils/formatters'
-import { Order, ProcessTemplate, JobCard } from '@/types'
+import { Order, OrderStatus, Priority, PlanningStatus, DrawingReviewStatus, OrderSource, SchedulingStrategy } from '@/types'
+import { orderService, OrderResponse } from '@/lib/api/orders'
+import { productService } from '@/lib/api/products'
+import { customerService } from '@/lib/api/customer'
+import { getDelayDays, getOrderProgress } from '@/lib/mock-data/orders'
 import { RescheduleOrderDialog } from '@/components/dialogs/reschedule-order-dialog'
-import { GenerateJobCardsDialog } from '@/components/dialogs/generate-job-cards-dialog'
 import { format } from 'date-fns'
-import { useRouter } from 'next/navigation'
 
 export default function OrderDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
-  const [generateJobCardsDialogOpen, setGenerateJobCardsDialogOpen] = useState(false)
-  const [processTemplate, setProcessTemplate] = useState<ProcessTemplate | null>(null)
-  const [hasJobCards, setHasJobCards] = useState(false)
 
   useEffect(() => {
     loadOrder()
   }, [params.id])
 
+  const mapToOrder = (r: OrderResponse): Order => ({
+    id: String(r.id),
+    orderNo: r.orderNo,
+    customerId: String(r.customerId),
+    customer: r.customerName ? { customerName: r.customerName } as any : undefined,
+    productId: String(r.productId),
+    product: r.productCode ? { partCode: r.productCode, modelName: r.productName } as any : undefined,
+    quantity: r.quantity,
+    originalQuantity: r.originalQuantity,
+    qtyCompleted: r.qtyCompleted,
+    qtyRejected: r.qtyRejected,
+    qtyInProgress: r.qtyInProgress,
+    orderDate: new Date(r.orderDate),
+    dueDate: new Date(r.dueDate),
+    adjustedDueDate: r.adjustedDueDate ? new Date(r.adjustedDueDate) : null,
+    delayReason: r.delayReason as any || null,
+    status: r.status as OrderStatus,
+    priority: r.priority as Priority,
+    planningStatus: r.planningStatus as PlanningStatus,
+    drawingReviewStatus: r.drawingReviewStatus as DrawingReviewStatus,
+    orderSource: r.orderSource as OrderSource,
+    agentCustomerId: r.agentCustomerId ? String(r.agentCustomerId) : undefined,
+    agentCommission: r.agentCommission ? Number(r.agentCommission) : undefined,
+    schedulingStrategy: r.schedulingStrategy as SchedulingStrategy,
+    canReschedule: r.planningStatus !== 'Released',
+    createdAt: new Date(r.createdAt),
+    updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+    createdBy: r.createdBy || '',
+  })
+
   const loadOrder = async () => {
     setLoading(true)
-    const foundOrder = mockOrders.find(o => o.id === params.id)
-    const data = await simulateApiCall(foundOrder || null, 800)
-    setOrder(data)
+    try {
+      const data = await orderService.getById(Number(params.id))
+      const mapped = mapToOrder(data)
 
-    // Load process template if order has a product with template
-    if (data?.product?.processTemplateId) {
-      const template = mockProcessTemplates.find(t => t.id === data.product?.processTemplateId)
-      setProcessTemplate(template || null)
+      // Load full product details
+      try {
+        const product = await productService.getById(data.productId)
+        mapped.product = product as any
+      } catch {}
+
+      // Load agent customer if order is through agent
+      if (data.agentCustomerId) {
+        try {
+          const agent = await customerService.getById(data.agentCustomerId)
+          mapped.agentCustomer = agent as any
+        } catch {}
+      }
+
+      setOrder(mapped)
+
+    } catch (err) {
+      console.error('Failed to load order:', err)
+      setOrder(null)
     }
-
-    // Check if job cards already exist (in real app, would check via API)
-    // For now, check if order has jobCards property or flag
-    setHasJobCards(false) // Will be updated when we implement job card checking
-
     setLoading(false)
-  }
-
-  const handleJobCardsGenerated = (jobCards: JobCard[]) => {
-    setHasJobCards(true)
-    setGenerateJobCardsDialogOpen(false)
-    // Navigate to job cards list
-    router.push('/dashboard/production/job-cards')
   }
 
   if (loading) {
@@ -113,12 +142,6 @@ export default function OrderDetailPage() {
             <Button onClick={() => setRescheduleDialogOpen(true)}>
               <Calendar className="mr-2 h-4 w-4" />
               Reschedule
-            </Button>
-          )}
-          {!hasJobCards && order.status !== 'Completed' && processTemplate && (
-            <Button onClick={() => setGenerateJobCardsDialogOpen(true)}>
-              <Factory className="mr-2 h-4 w-4" />
-              Generate Job Cards
             </Button>
           )}
           <Button variant="outline">Edit Order</Button>
@@ -379,6 +402,31 @@ export default function OrderDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Drawing Review Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Drawing Review</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status:</span>
+                <Badge variant={
+                  order.drawingReviewStatus === 'Approved' ? 'default' :
+                  order.drawingReviewStatus === 'Needs Revision' ? 'destructive' : 'secondary'
+                }>
+                  {order.drawingReviewStatus}
+                </Badge>
+              </div>
+              {order.drawingReviewStatus !== 'Approved' && (
+                <Button asChild variant="outline" className="w-full mt-2">
+                  <Link href={`/drawing-review/review/${order.id}`}>
+                    Go to Drawing Review
+                  </Link>
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Dates */}
           <Card>
             <CardHeader>
@@ -463,16 +511,6 @@ export default function OrderDetailPage() {
         />
       )}
 
-      {/* Generate Job Cards Dialog */}
-      {order && processTemplate && (
-        <GenerateJobCardsDialog
-          order={order}
-          processTemplate={processTemplate}
-          open={generateJobCardsDialogOpen}
-          onOpenChange={setGenerateJobCardsDialogOpen}
-          onSuccess={handleJobCardsGenerated}
-        />
-      )}
     </div>
   )
 }

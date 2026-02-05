@@ -12,10 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { mockOrders } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Order, OrderStatus, OrderSource } from '@/types'
+import { Order, OrderStatus, OrderSource, Priority, PlanningStatus, DrawingReviewStatus, SchedulingStrategy } from '@/types'
 import { OrdersTable } from '@/components/tables/orders-table'
+import { orderService, OrderResponse } from '@/lib/api/orders'
 
 export function AllOrdersTab() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -28,10 +27,44 @@ export function AllOrdersTab() {
     loadOrders()
   }, [])
 
+  const mapToOrder = (r: OrderResponse): Order => ({
+    id: String(r.id),
+    orderNo: r.orderNo,
+    customerId: String(r.customerId),
+    customer: r.customerName ? { customerName: r.customerName } as any : undefined,
+    productId: String(r.productId),
+    product: r.productCode ? { partCode: r.productCode, modelName: r.productName } as any : undefined,
+    quantity: r.quantity,
+    originalQuantity: r.originalQuantity,
+    qtyCompleted: r.qtyCompleted,
+    qtyRejected: r.qtyRejected,
+    qtyInProgress: r.qtyInProgress,
+    orderDate: new Date(r.orderDate),
+    dueDate: new Date(r.dueDate),
+    adjustedDueDate: r.adjustedDueDate ? new Date(r.adjustedDueDate) : null,
+    delayReason: r.delayReason as any || null,
+    status: r.status as OrderStatus,
+    priority: r.priority as Priority,
+    planningStatus: r.planningStatus as PlanningStatus,
+    drawingReviewStatus: r.drawingReviewStatus as DrawingReviewStatus,
+    orderSource: r.orderSource as OrderSource,
+    agentCustomerId: r.agentCustomerId ? String(r.agentCustomerId) : undefined,
+    agentCommission: r.agentCommission ? Number(r.agentCommission) : undefined,
+    schedulingStrategy: r.schedulingStrategy as SchedulingStrategy,
+    canReschedule: r.planningStatus !== 'Released',
+    createdAt: new Date(r.createdAt),
+    updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+    createdBy: r.createdBy || '',
+  })
+
   const loadOrders = async () => {
     setLoading(true)
-    const data = await simulateApiCall(mockOrders, 800)
-    setOrders(data)
+    try {
+      const data = await orderService.getAll()
+      setOrders(data.map(mapToOrder))
+    } catch (err) {
+      console.error('Failed to load orders:', err)
+    }
     setLoading(false)
   }
 

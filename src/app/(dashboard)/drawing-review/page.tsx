@@ -7,14 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockOrders } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Order, OrderStatus, DrawingReviewStatus } from '@/types'
+import { orderService, OrderResponse } from '@/lib/api/orders'
 import { formatDate } from '@/lib/utils/formatters'
 
 export default function DrawingReviewDashboardPage() {
   const [loading, setLoading] = useState(true)
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<OrderResponse[]>([])
 
   useEffect(() => {
     loadData()
@@ -22,27 +20,31 @@ export default function DrawingReviewDashboardPage() {
 
   const loadData = async () => {
     setLoading(true)
-    const ordersData = await simulateApiCall(mockOrders, 500)
-    setOrders(ordersData)
+    try {
+      const data = await orderService.getAll()
+      setOrders(data)
+    } catch (err) {
+      console.error('Failed to load orders:', err)
+    }
     setLoading(false)
   }
 
   // Filter orders by drawing review status
   const pendingReviewOrders = orders.filter(order =>
-    order.drawingReviewStatus === DrawingReviewStatus.PENDING &&
-    (order.status === OrderStatus.PENDING || order.status === OrderStatus.IN_PROGRESS)
+    order.drawingReviewStatus === 'Pending' &&
+    (order.status === 'Pending' || order.status === 'In Progress')
   )
 
   const inReviewOrders = orders.filter(order =>
-    order.drawingReviewStatus === DrawingReviewStatus.IN_REVIEW
+    order.drawingReviewStatus === 'In Review'
   )
 
   const needsRevisionOrders = orders.filter(order =>
-    order.drawingReviewStatus === DrawingReviewStatus.NEEDS_REVISION
+    order.drawingReviewStatus === 'Needs Revision'
   )
 
   const approvedOrders = orders.filter(order =>
-    order.drawingReviewStatus === DrawingReviewStatus.APPROVED
+    order.drawingReviewStatus === 'Approved'
   )
 
   // Stats
@@ -53,15 +55,15 @@ export default function DrawingReviewDashboardPage() {
     approved: approvedOrders.length
   }
 
-  const getStatusBadge = (status: DrawingReviewStatus) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case DrawingReviewStatus.PENDING:
+      case 'Pending':
         return <Badge variant="outline" className="border-gray-500 text-gray-700">Pending</Badge>
-      case DrawingReviewStatus.IN_REVIEW:
+      case 'In Review':
         return <Badge variant="outline" className="border-blue-500 text-blue-700">In Review</Badge>
-      case DrawingReviewStatus.APPROVED:
+      case 'Approved':
         return <Badge variant="outline" className="border-green-500 text-green-700">Approved</Badge>
-      case DrawingReviewStatus.NEEDS_REVISION:
+      case 'Needs Revision':
         return <Badge variant="outline" className="border-orange-500 text-orange-700">Needs Revision</Badge>
       default:
         return null
@@ -171,11 +173,11 @@ export default function DrawingReviewDashboardPage() {
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customer?.customerName}</span>
+                        <span className="ml-2">{order.customerName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.product?.modelName}</span>
+                        <span className="ml-2">{order.productName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Quantity:</span>
@@ -234,11 +236,11 @@ export default function DrawingReviewDashboardPage() {
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customer?.customerName}</span>
+                        <span className="ml-2">{order.customerName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.product?.modelName}</span>
+                        <span className="ml-2">{order.productName}</span>
                       </div>
                       {order.drawingReviewNotes && (
                         <div className="col-span-3">
@@ -295,11 +297,11 @@ export default function DrawingReviewDashboardPage() {
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customer?.customerName}</span>
+                        <span className="ml-2">{order.customerName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.product?.modelName}</span>
+                        <span className="ml-2">{order.productName}</span>
                       </div>
                       {order.drawingReviewNotes && (
                         <div className="col-span-3">
@@ -353,7 +355,7 @@ export default function DrawingReviewDashboardPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <p className="font-semibold">{order.orderNo}</p>
-                      <Badge variant="outline">{order.customer?.customerName}</Badge>
+                      <Badge variant="outline">{order.customerName}</Badge>
                       {getStatusBadge(order.drawingReviewStatus)}
                       {order.linkedProductTemplateId && (
                         <Badge variant="secondary" className="text-xs">
@@ -364,11 +366,11 @@ export default function DrawingReviewDashboardPage() {
                     <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.product?.modelName}</span>
+                        <span className="ml-2">{order.productName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Reviewed By:</span>
-                        <span className="ml-2">{order.reviewedBy || 'N/A'}</span>
+                        <span className="ml-2">{order.drawingReviewedBy || 'N/A'}</span>
                       </div>
                     </div>
                   </div>

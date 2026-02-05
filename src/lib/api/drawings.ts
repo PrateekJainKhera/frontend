@@ -17,6 +17,8 @@ export interface DrawingResponse {
   linkedPartId?: number
   linkedProductId?: number
   linkedCustomerId?: number
+  linkedOrderId?: number
+  linkedOrderNo?: string
   description?: string
   notes?: string
   isActive: boolean
@@ -39,6 +41,7 @@ export interface CreateDrawingRequest {
   linkedPartId?: number
   linkedProductId?: number
   linkedCustomerId?: number
+  linkedOrderId?: number
   description?: string
   notes?: string
 }
@@ -74,6 +77,18 @@ class DrawingService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to fetch drawing: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getByOrderId(orderId: number): Promise<DrawingResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<DrawingResponse[]>>(`/orders/${orderId}/drawings`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch drawings for order: ${error.message}`)
       }
       throw error
     }

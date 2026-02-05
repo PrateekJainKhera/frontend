@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, FileText, CheckCircle2, XCircle, Save, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, FileText, CheckCircle2, XCircle, Save, AlertTriangle, Eye, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -16,11 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { mockOrders } from '@/lib/mock-data'
-import { mockProductTemplates } from '@/lib/mock-data/product-templates'
-import { mockChildPartTemplates } from '@/lib/mock-data/child-part-templates'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Order, DrawingReviewStatus } from '@/types'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { toast } from 'sonner'
+import { orderService, OrderResponse } from '@/lib/api/orders'
+import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
+import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 import { formatDate } from '@/lib/utils/formatters'
 
 export default function DrawingReviewDetailPage() {
@@ -29,10 +36,16 @@ export default function DrawingReviewDetailPage() {
   const orderId = params.orderId as string
 
   const [loading, setLoading] = useState(true)
-  const [order, setOrder] = useState<Order | null>(null)
+  const [order, setOrder] = useState<OrderResponse | null>(null)
+  const [productTemplates, setProductTemplates] = useState<ProductTemplateResponse[]>([])
+  const [drawings, setDrawings] = useState<DrawingResponse[]>([])
+  const [selectedDrawing, setSelectedDrawing] = useState<DrawingResponse | null>(null)
   const [reviewNotes, setReviewNotes] = useState('')
   const [selectedProductTemplateId, setSelectedProductTemplateId] = useState('')
-  const [selectedChildPartTemplateIds, setSelectedChildPartTemplateIds] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Track which drawings have been reviewed/passed
+  const [reviewedDrawings, setReviewedDrawings] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     loadData()
@@ -40,89 +53,117 @@ export default function DrawingReviewDetailPage() {
 
   const loadData = async () => {
     setLoading(true)
-    const ordersData = await simulateApiCall(mockOrders, 500)
-    const foundOrder = ordersData.find(o => o.id === orderId)
-
-    if (foundOrder) {
-      setOrder(foundOrder)
-      setReviewNotes(foundOrder.drawingReviewNotes || '')
-      setSelectedProductTemplateId(foundOrder.linkedProductTemplateId || '')
-      setSelectedChildPartTemplateIds(foundOrder.linkedChildPartTemplateIds || [])
+    try {
+      const [orderData, templates, orderDrawings] = await Promise.all([
+        orderService.getById(Number(orderId)),
+        productTemplateService.getAll(),
+        drawingService.getByOrderId(Number(orderId))
+      ])
+      setOrder(orderData)
+      setProductTemplates(templates)
+      setDrawings(orderDrawings)
+      setReviewNotes(orderData.drawingReviewNotes || '')
+      if (orderData.linkedProductTemplateId) {
+        setSelectedProductTemplateId(String(orderData.linkedProductTemplateId))
+      }
+      // Auto-select first drawing if available
+      if (orderDrawings.length > 0) {
+        setSelectedDrawing(orderDrawings[0])
+      }
+    } catch (err) {
+      console.error('Failed to load data:', err)
     }
-
     setLoading(false)
   }
 
-  const handleApprove = () => {
-    if (!selectedProductTemplateId) {
-      alert('Please select a Product Template before approving')
+  const handleApprove = async () => {
+    if (!selectedProductTemplateId || selectedProductTemplateId === 'new') {
+      toast.error('Please select a Product Template before approving')
       return
     }
-
-    // In real app, this would call API
-    console.log('Approving drawing review:', {
-      orderId,
-      status: DrawingReviewStatus.APPROVED,
-      productTemplateId: selectedProductTemplateId,
-      childPartTemplateIds: selectedChildPartTemplateIds,
-      notes: reviewNotes
-    })
-
-    alert('Drawing approved! Order is now ready for Planning.')
-    router.push('/drawing-review')
+    setIsSubmitting(true)
+    try {
+      await orderService.approveDrawingReview(
+        Number(orderId),
+        'Admin',
+        reviewNotes || null,
+        Number(selectedProductTemplateId)
+      )
+      toast.success('Drawing approved! Order is now ready for Planning.')
+      router.push('/drawing-review')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to approve drawing review')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleRequestRevision = () => {
+  const handleRequestRevision = async () => {
     if (!reviewNotes.trim()) {
-      alert('Please add notes explaining what needs to be revised')
+      toast.error('Please add notes explaining what needs to be revised')
       return
     }
-
-    // In real app, this would call API
-    console.log('Requesting revision:', {
-      orderId,
-      status: DrawingReviewStatus.NEEDS_REVISION,
-      notes: reviewNotes
-    })
-
-    alert('Revision requested. Customer/sales will be notified.')
-    router.push('/drawing-review')
+    setIsSubmitting(true)
+    try {
+      await orderService.rejectDrawingReview(Number(orderId), 'Admin', reviewNotes)
+      toast.success('Revision requested.')
+      router.push('/drawing-review')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to request revision')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleSaveDraft = () => {
-    // In real app, this would call API
-    console.log('Saving draft:', {
-      orderId,
-      status: DrawingReviewStatus.IN_REVIEW,
-      productTemplateId: selectedProductTemplateId,
-      childPartTemplateIds: selectedChildPartTemplateIds,
-      notes: reviewNotes
-    })
-
-    alert('Draft saved successfully')
+    toast.info('Draft saved')
   }
 
-  const getStatusBadge = (status: DrawingReviewStatus) => {
+  const toggleDrawingReview = (drawingId: number) => {
+    setReviewedDrawings(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(drawingId)) {
+        newSet.delete(drawingId)
+      } else {
+        newSet.add(drawingId)
+      }
+      return newSet
+    })
+  }
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case DrawingReviewStatus.PENDING:
+      case 'Pending':
         return <Badge variant="outline" className="border-gray-500 text-gray-700">Pending</Badge>
-      case DrawingReviewStatus.IN_REVIEW:
+      case 'In Review':
         return <Badge variant="outline" className="border-blue-500 text-blue-700">In Review</Badge>
-      case DrawingReviewStatus.APPROVED:
+      case 'Approved':
         return <Badge variant="outline" className="border-green-500 text-green-700">Approved</Badge>
-      case DrawingReviewStatus.NEEDS_REVISION:
+      case 'Needs Revision':
         return <Badge variant="outline" className="border-orange-500 text-orange-700">Needs Revision</Badge>
+      default:
+        return null
     }
   }
 
-  // Get child part templates for selected product template
-  const availableChildPartTemplates = selectedProductTemplateId
-    ? mockChildPartTemplates.filter(cpt =>
-        mockProductTemplates
-          .find(pt => pt.id === selectedProductTemplateId)
-          ?.childParts?.some(linked => linked.childPartTemplateId === cpt.id)
-      )
-    : []
+  const getDrawingTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      shaft: 'bg-blue-100 text-blue-800',
+      gear: 'bg-purple-100 text-purple-800',
+      bearing: 'bg-green-100 text-green-800',
+      assembly: 'bg-amber-100 text-amber-800',
+      tikki: 'bg-pink-100 text-pink-800',
+      ends: 'bg-cyan-100 text-cyan-800',
+      patti: 'bg-indigo-100 text-indigo-800',
+    }
+    return <span className={`px-2 py-1 rounded text-xs font-medium ${colors[type] || 'bg-gray-100 text-gray-800'}`}>{type}</span>
+  }
+
+  // Get BOM items for the selected product template
+  const selectedTemplate = selectedProductTemplateId && selectedProductTemplateId !== 'new'
+    ? productTemplates.find(pt => pt.id === Number(selectedProductTemplateId))
+    : null
+  const bomItems = selectedTemplate?.bomItems || []
 
   if (loading) {
     return (
@@ -150,7 +191,7 @@ export default function DrawingReviewDetailPage() {
     )
   }
 
-  const isApproved = order.drawingReviewStatus === DrawingReviewStatus.APPROVED
+  const isApproved = order.drawingReviewStatus === 'Approved'
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -167,7 +208,7 @@ export default function DrawingReviewDetailPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Drawing Review</h1>
             <p className="text-muted-foreground">
-              Order {order.orderNo} - {order.customer?.customerName}
+              Order {order.orderNo} - {order.customerName}
             </p>
           </div>
         </div>
@@ -196,15 +237,15 @@ export default function DrawingReviewDetailPage() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Customer</Label>
-                  <p className="font-medium">{order.customer?.customerName}</p>
+                  <p className="font-medium">{order.customerName}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Product</Label>
-                  <p className="font-medium">{order.product?.modelName}</p>
+                  <p className="font-medium">{order.productName}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Roller Type</Label>
-                  <p className="font-medium">{order.product?.rollerType || 'N/A'}</p>
+                  <Label className="text-muted-foreground">Product Code</Label>
+                  <p className="font-medium">{order.productCode || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Quantity</Label>
@@ -218,48 +259,137 @@ export default function DrawingReviewDetailPage() {
                   <Label className="text-muted-foreground">Due Date</Label>
                   <p className="font-medium">{formatDate(order.dueDate)}</p>
                 </div>
-                {order.primaryDrawingNumber && (
-                  <>
-                    <div>
-                      <Label className="text-muted-foreground">Drawing Number</Label>
-                      <p className="font-medium">{order.primaryDrawingNumber}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Drawing Revision</Label>
-                      <p className="font-medium">{order.primaryDrawingRevision}</p>
-                    </div>
-                  </>
-                )}
+                <div>
+                  <Label className="text-muted-foreground">Drawing Source</Label>
+                  <p className="font-medium capitalize">{order.drawingSource || 'Not specified'}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Drawing Viewer */}
+          {/* Drawing Preview */}
+          {selectedDrawing && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Drawing Preview</CardTitle>
+                <CardDescription>
+                  {selectedDrawing.drawingName} ({selectedDrawing.drawingNumber})
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg p-8 bg-muted/30 flex flex-col items-center justify-center min-h-96">
+                  <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center">
+                    {selectedDrawing.fileUrl ? (
+                      <>
+                        <span className="font-semibold">{selectedDrawing.fileName}</span><br />
+                        <span className="text-xs">PDF/CAD viewer would appear here</span><br />
+                        <span className="text-xs text-muted-foreground">File URL: {selectedDrawing.fileUrl}</span>
+                      </>
+                    ) : (
+                      'No file attached to this drawing'
+                    )}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Drawings Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Drawing Preview</CardTitle>
-              <CardDescription>Customer provided drawing for review</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg p-8 bg-muted/30 flex flex-col items-center justify-center min-h-96">
-                <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-center">
-                  {order.primaryDrawingNumber ? (
-                    <>
-                      Drawing: {order.primaryDrawingNumber}<br />
-                      Revision: {order.primaryDrawingRevision}<br />
-                      <span className="text-xs">PDF/CAD viewer would appear here</span>
-                    </>
-                  ) : (
-                    'No drawing attached'
-                  )}
-                </p>
-                {order.primaryDrawingNumber && (
-                  <Button variant="outline" className="mt-4">
-                    Download Drawing
-                  </Button>
-                )}
+              <div>
+                <CardTitle>Order Drawings</CardTitle>
+                <CardDescription>
+                  Review drawings attached during order creation. Mark each drawing as reviewed/passed before approval.
+                </CardDescription>
               </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {drawings.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                  <p>No drawings attached to this order</p>
+                  <p className="text-sm mt-1">Drawings should be uploaded during order creation</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[40px]">#</TableHead>
+                        <TableHead>Drawing No</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Revision</TableHead>
+                        <TableHead>File</TableHead>
+                        <TableHead className="w-[100px]">Review Status</TableHead>
+                        <TableHead className="w-[80px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {drawings.map((drawing, idx) => {
+                        const isReviewed = reviewedDrawings.has(drawing.id)
+                        return (
+                          <TableRow
+                            key={drawing.id}
+                            className={`cursor-pointer ${selectedDrawing?.id === drawing.id ? 'bg-blue-50' : 'hover:bg-muted/50'}`}
+                            onClick={() => setSelectedDrawing(drawing)}
+                          >
+                            <TableCell>{idx + 1}</TableCell>
+                            <TableCell className="font-mono text-sm">{drawing.drawingNumber}</TableCell>
+                            <TableCell className="font-medium">{drawing.drawingName}</TableCell>
+                            <TableCell>{getDrawingTypeBadge(drawing.drawingType)}</TableCell>
+                            <TableCell className="text-sm">{drawing.revision || '—'}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {drawing.fileName ? (
+                                <span className="flex items-center gap-1">
+                                  <FileText className="h-3 w-3" />
+                                  {drawing.fileName.substring(0, 20)}...
+                                </span>
+                              ) : '—'}
+                            </TableCell>
+                            <TableCell>
+                              {!isApproved && (
+                                <Button
+                                  size="sm"
+                                  variant={isReviewed ? "default" : "outline"}
+                                  className={isReviewed ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleDrawingReview(drawing.id)
+                                  }}
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  {isReviewed ? 'Passed' : 'Mark'}
+                                </Button>
+                              )}
+                              {isApproved && (
+                                <Badge variant="default" className="bg-green-600 text-xs">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Passed
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedDrawing(drawing)
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -284,8 +414,8 @@ export default function DrawingReviewDetailPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="new">+ Create New Template</SelectItem>
-                    {mockProductTemplates.map(template => (
-                      <SelectItem key={template.id} value={template.id}>
+                    {productTemplates.map(template => (
+                      <SelectItem key={template.id} value={String(template.id)}>
                         {template.templateName} - {template.templateCode}
                       </SelectItem>
                     ))}
@@ -296,27 +426,30 @@ export default function DrawingReviewDetailPage() {
                 </p>
               </div>
 
-              {selectedProductTemplateId && selectedProductTemplateId !== 'new' && (
+              {selectedTemplate && (
                 <div className="space-y-2">
-                  <Label>Included Child Part Templates</Label>
+                  <Label>Child Parts (BOM Items)</Label>
                   <div className="border rounded-lg p-4 space-y-2">
-                    {availableChildPartTemplates.length > 0 ? (
-                      availableChildPartTemplates.map(cpt => (
-                        <div key={cpt.id} className="flex items-center gap-2 text-sm">
+                    {bomItems.length > 0 ? (
+                      bomItems.map(item => (
+                        <div key={item.id} className="flex items-center gap-2 text-sm">
                           <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          <span>{cpt.templateName}</span>
+                          <span>{item.childPartTemplateName}</span>
                           <Badge variant="secondary" className="text-xs">
-                            {cpt.childPartType}
+                            {item.childPartType}
                           </Badge>
+                          <span className="text-xs text-muted-foreground ml-auto">Qty: {item.quantity}</span>
                         </div>
                       ))
                     ) : (
                       <p className="text-sm text-muted-foreground">No child parts linked to this template</p>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    You can override these child parts after approval if needed
-                  </p>
+                  {selectedTemplate.processTemplateName && (
+                    <p className="text-xs text-muted-foreground">
+                      Assembly process: {selectedTemplate.processTemplateName}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -369,14 +502,27 @@ export default function DrawingReviewDetailPage() {
                 <CardDescription>Approve or request revision</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
+                {/* Warning if not all drawings reviewed */}
+                {drawings.length > 0 && reviewedDrawings.size < drawings.length && (
+                  <div className="border border-orange-200 rounded-lg p-3 bg-orange-50 flex items-start gap-2">
+                    <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-900">Not all drawings reviewed</p>
+                      <p className="text-xs text-orange-700 mt-1">
+                        Please mark all drawings as reviewed/passed before approving ({reviewedDrawings.size}/{drawings.length} reviewed)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   onClick={handleApprove}
                   className="w-full bg-green-600 hover:bg-green-700"
                   size="lg"
-                  disabled={!selectedProductTemplateId}
+                  disabled={!selectedProductTemplateId || selectedProductTemplateId === 'new' || isSubmitting}
                 >
                   <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Approve & Release to Planning
+                  {isSubmitting ? 'Approving...' : 'Approve & Release to Planning'}
                 </Button>
 
                 <Button
@@ -384,6 +530,7 @@ export default function DrawingReviewDetailPage() {
                   variant="outline"
                   className="w-full border-orange-500 text-orange-700 hover:bg-orange-50"
                   size="lg"
+                  disabled={isSubmitting}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
                   Request Revision
@@ -393,6 +540,7 @@ export default function DrawingReviewDetailPage() {
                   onClick={handleSaveDraft}
                   variant="outline"
                   className="w-full"
+                  disabled={isSubmitting}
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Save Draft
@@ -410,15 +558,15 @@ export default function DrawingReviewDetailPage() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>Reviewed by: {order.reviewedBy}</span>
+                    <span>Reviewed by: {order.drawingReviewedBy || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>Date: {order.reviewedAt ? formatDate(order.reviewedAt) : 'N/A'}</span>
+                    <span>Date: {formatDate(order.drawingReviewedAt)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>Template: {order.linkedProductTemplateId || 'Not linked'}</span>
+                    <span>Template: {selectedTemplate?.templateName || 'Not linked'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -440,15 +588,22 @@ export default function DrawingReviewDetailPage() {
                 <p className="font-medium">{order.priority}</p>
               </div>
               <div className="text-sm">
-                <p className="text-muted-foreground">Drawing Source</p>
-                <p className="font-medium capitalize">{order.drawingSource || 'Not specified'}</p>
+                <p className="text-muted-foreground">Total Drawings</p>
+                <p className="font-medium">{drawings.length} attached</p>
               </div>
-              {order.planningStatus && (
-                <div className="text-sm">
-                  <p className="text-muted-foreground">Planning Status</p>
-                  <p className="font-medium">{order.planningStatus}</p>
-                </div>
-              )}
+              <div className="text-sm">
+                <p className="text-muted-foreground">Drawings Reviewed</p>
+                <p className="font-medium">
+                  {reviewedDrawings.size} / {drawings.length}
+                  {reviewedDrawings.size === drawings.length && drawings.length > 0 && (
+                    <CheckCircle2 className="inline-block h-4 w-4 ml-2 text-green-600" />
+                  )}
+                </p>
+              </div>
+              <div className="text-sm">
+                <p className="text-muted-foreground">Planning Status</p>
+                <p className="font-medium">{order.planningStatus}</p>
+              </div>
             </CardContent>
           </Card>
         </div>
