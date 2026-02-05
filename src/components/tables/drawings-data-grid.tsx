@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Eye, FileText } from 'lucide-react'
 import { Drawing } from '@/lib/mock-data'
 
+const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace(/\/api$/, '')
+
 interface DrawingsDataGridProps {
     drawings: Drawing[]
     onUpdate?: () => void
@@ -172,7 +174,13 @@ export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
                     <div>
                         <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{row.original.fileName}</span>
+                            {row.original.fileUrl ? (
+                                <a href={FILE_BASE_URL + row.original.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                                    {row.original.fileName}
+                                </a>
+                            ) : (
+                                <span className="text-sm">{row.original.fileName || '—'}</span>
+                            )}
                         </div>
                         <div className="text-xs text-muted-foreground">{row.original.fileSize} KB</div>
                     </div>

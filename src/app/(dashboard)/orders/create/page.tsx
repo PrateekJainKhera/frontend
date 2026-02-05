@@ -77,14 +77,17 @@ export default function CreateOrderPage() {
   const [createCustomerDialogOpen, setCreateCustomerDialogOpen] = useState(false)
   const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false)
   const [drawingSource, setDrawingSource] = useState<DrawingSource | ''>('')
-  const [selectedDrawing, setSelectedDrawing] = useState<DrawingResponse | null>(null)
+  const [selectedMasterDrawingIds, setSelectedMasterDrawingIds] = useState<number[]>([])
 
-  // Drawings to be uploaded after order creation
+  // Drawings to be uploaded after order creation (customer_provides)
   const [pendingDrawings, setPendingDrawings] = useState<Array<{
     file: File
     drawingName: string
     drawingType: string
   }>>([])
+  const [newDrawingName, setNewDrawingName] = useState('')
+  const [newDrawingType, setNewDrawingType] = useState('shaft')
+  const [newDrawingFile, setNewDrawingFile] = useState<File | null>(null)
 
   // Master data loaded from API
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -179,8 +182,8 @@ export default function CreateOrderPage() {
       if (data.drawingNotes) payload.drawingNotes = data.drawingNotes
 
       // Drawing source mapping
-      if (data.drawingSource === 'from_master' && data.drawingId) {
-        payload.primaryDrawingId = Number(data.drawingId)
+      if (data.drawingSource === 'from_master') {
+        if (selectedMasterDrawingIds.length > 0) payload.primaryDrawingId = selectedMasterDrawingIds[0]
         payload.drawingSource = 'company'
       } else if (data.drawingSource === 'customer_provides') {
         payload.drawingSource = 'customer'
@@ -194,7 +197,7 @@ export default function CreateOrderPage() {
       toast.dismiss()
       toast.success(`Order created successfully: ${created.orderNo}`)
 
-      // Upload pending drawings if any
+      // Upload pending drawings (customer_provides) if any
       if (pendingDrawings.length > 0) {
         toast.loading(`Uploading ${pendingDrawings.length} drawing(s)...`)
         try {
@@ -211,6 +214,21 @@ export default function CreateOrderPage() {
         } catch (drawingError) {
           toast.dismiss()
           toast.warning(`Order created but some drawings failed to upload: ${drawingError instanceof Error ? drawingError.message : 'Unknown error'}`)
+        }
+      }
+
+      // Link selected master drawings (from_master) if any
+      if (selectedMasterDrawingIds.length > 0) {
+        toast.loading(`Linking ${selectedMasterDrawingIds.length} drawing(s) from master...`)
+        try {
+          for (const drawingId of selectedMasterDrawingIds) {
+            await drawingService.linkToOrder(drawingId, orderId)
+          }
+          toast.dismiss()
+          toast.success(`${selectedMasterDrawingIds.length} drawing(s) linked to order!`)
+        } catch (linkError) {
+          toast.dismiss()
+          toast.warning(`Order created but some drawings failed to link: ${linkError instanceof Error ? linkError.message : 'Unknown error'}`)
         }
       }
 
@@ -392,9 +410,8 @@ export default function CreateOrderPage() {
                           onValueChange={(value) => {
                             field.onChange(value)
                             setDrawingSource(value as DrawingSource)
-                            // Reset drawing selection when source changes
-                            form.setValue('drawingId', '')
-                            setSelectedDrawing(null)
+                            setSelectedMasterDrawingIds([])
+                            setPendingDrawings([])
                           }}
                           value={field.value}
                         >
@@ -427,41 +444,18 @@ export default function CreateOrderPage() {
                       <div className="space-y-3">
                         <div className="grid grid-cols-3 gap-3">
                           <div>
-                            <Label htmlFor="drawing-file" className="text-xs">Select Drawing File *</Label>
+                            <Label className="text-xs">Drawing Name *</Label>
                             <Input
-                              id="drawing-file"
-                              type="file"
-                              accept=".pdf,.png,.jpg,.jpeg,.dwg"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0]
-                                if (file) {
-                                  const drawingNameInput = document.getElementById('temp-drawing-name') as HTMLInputElement
-                                  const drawingTypeSelect = document.getElementById('temp-drawing-type') as HTMLSelectElement
-                                  if (drawingNameInput?.value && drawingTypeSelect?.value) {
-                                    handleAddDrawing(file, drawingNameInput.value, drawingTypeSelect.value)
-                                    e.target.value = ''
-                                    drawingNameInput.value = ''
-                                  } else {
-                                    toast.error('Please enter drawing name and select type first')
-                                    e.target.value = ''
-                                  }
-                                }
-                              }}
+                              placeholder="e.g. Shaft Drawing"
+                              value={newDrawingName}
+                              onChange={(e) => setNewDrawingName(e.target.value)}
                               className="mt-1"
                             />
                           </div>
                           <div>
-                            <Label htmlFor="temp-drawing-name" className="text-xs">Drawing Name *</Label>
-                            <Input
-                              id="temp-drawing-name"
-                              placeholder="e.g., Shaft Drawing"
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="temp-drawing-type" className="text-xs">Type *</Label>
-                            <Select defaultValue="shaft">
-                              <SelectTrigger id="temp-drawing-type" className="mt-1">
+                            <Label className="text-xs">Type *</Label>
+                            <Select value={newDrawingType} onValueChange={setNewDrawingType}>
+                              <SelectTrigger className="mt-1">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -476,10 +470,32 @@ export default function CreateOrderPage() {
                               </SelectContent>
                             </Select>
                           </div>
+                          <div>
+                            <Label className="text-xs">File *</Label>
+                            <Input
+                              type="file"
+                              accept=".pdf,.png,.jpg,.jpeg,.dwg"
+                              onChange={(e) => setNewDrawingFile(e.target.files?.[0] || null)}
+                              className="mt-1"
+                            />
+                          </div>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Add each drawing one by one. Select file after entering name and type.
-                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!newDrawingName.trim() || !newDrawingFile}
+                          onClick={() => {
+                            if (newDrawingFile && newDrawingName.trim()) {
+                              handleAddDrawing(newDrawingFile, newDrawingName.trim(), newDrawingType)
+                              setNewDrawingName('')
+                              setNewDrawingFile(null)
+                            }
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Drawing
+                        </Button>
                       </div>
 
                       {/* List of Pending Drawings */}
@@ -559,74 +575,52 @@ export default function CreateOrderPage() {
                     </div>
                   )}
 
-                  {/* Select from Drawing Master */}
+                  {/* Select from Drawing Master — multi-select */}
                   {drawingSource === 'from_master' && (
-                    <div className="space-y-3">
-                      <FormField
-                        control={form.control}
-                        name="drawingId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Select Drawing *</FormLabel>
-                            <Select
-                              onValueChange={(value) => {
-                                field.onChange(value)
-                                const drawing = drawings.find(d => d.id === Number(value))
-                                setSelectedDrawing(drawing || null)
-                              }}
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select from approved drawings" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {drawings
-                                  .filter(d => d.status === 'approved')
-                                  .map((drawing) => (
-                                    <SelectItem key={drawing.id} value={drawing.id.toString()}>
-                                      {drawing.drawingNumber} - {drawing.drawingName} (Rev {drawing.revision})
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                            <FormDescription>
-                              Only approved drawings are shown
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200 space-y-3">
+                      <p className="text-sm font-semibold text-purple-900">
+                        📚 Select one or more drawings from Drawing Master
+                      </p>
 
-                      {/* Selected Drawing Preview */}
-                      {selectedDrawing && (
-                        <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
-                          <p className="font-semibold text-primary">Selected Drawing Details:</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <span className="text-muted-foreground">Drawing No:</span>
-                              <span className="ml-2 font-mono font-semibold">{selectedDrawing.drawingNumber}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Revision:</span>
-                              <span className="ml-2">{selectedDrawing.revision}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Part Type:</span>
-                              <span className="ml-2 capitalize">{selectedDrawing.drawingType}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">File:</span>
-                              <span className="ml-2 text-xs">{selectedDrawing.fileName}</span>
-                            </div>
-                          </div>
-                          {selectedDrawing.description && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                              <span className="font-medium">Description:</span> {selectedDrawing.description}
-                            </p>
-                          )}
+                      {drawings.filter(d => d.status === 'approved').length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No approved drawings available in master</p>
+                      ) : (
+                        <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-2 bg-white">
+                          {drawings
+                            .filter(d => d.status === 'approved')
+                            .map((drawing) => {
+                              const isChecked = selectedMasterDrawingIds.includes(drawing.id)
+                              return (
+                                <label
+                                  key={drawing.id}
+                                  className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${isChecked ? 'bg-purple-100' : 'hover:bg-gray-50'}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      setSelectedMasterDrawingIds(prev =>
+                                        isChecked ? prev.filter(id => id !== drawing.id) : [...prev, drawing.id]
+                                      )
+                                    }}
+                                    className="h-4 w-4 rounded border-gray-300 text-purple-600"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{drawing.drawingNumber} — {drawing.drawingName}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      <span className="capitalize">{drawing.drawingType}</span> • Rev {drawing.revision || '—'} • {drawing.fileName || 'No file'}
+                                    </p>
+                                  </div>
+                                </label>
+                              )
+                            })}
                         </div>
+                      )}
+
+                      {selectedMasterDrawingIds.length > 0 && (
+                        <p className="text-xs text-purple-700 font-medium">
+                          {selectedMasterDrawingIds.length} drawing(s) selected — will be linked to this order
+                        </p>
                       )}
                     </div>
                   )}

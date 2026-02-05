@@ -147,6 +147,7 @@ class DrawingService {
       if (metadata.linkedPartId) formData.append('linkedPartId', metadata.linkedPartId.toString())
       if (metadata.linkedProductId) formData.append('linkedProductId', metadata.linkedProductId.toString())
       if (metadata.linkedCustomerId) formData.append('linkedCustomerId', metadata.linkedCustomerId.toString())
+      if (metadata.linkedOrderId) formData.append('linkedOrderId', metadata.linkedOrderId.toString())
       if (metadata.description) formData.append('description', metadata.description)
       if (metadata.notes) formData.append('notes', metadata.notes)
 
@@ -158,6 +159,19 @@ class DrawingService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to upload drawing: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  // Link an existing drawing to an order (used for "Select from Master")
+  async linkToOrder(drawingId: number, orderId: number): Promise<boolean> {
+    try {
+      const response = await apiClient.patch<ApiResponse<boolean>>(`${this.baseUrl}/${drawingId}/link-order`, { linkedOrderId: orderId })
+      return response.data.success
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to link drawing to order: ${error.message}`)
       }
       throw error
     }

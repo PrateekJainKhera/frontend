@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, FileText, CheckCircle2, XCircle, Save, AlertTriangle, Eye, Check } from 'lucide-react'
+import { ArrowLeft, FileText, CheckCircle2, XCircle, Save, AlertTriangle, Eye, Check, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -30,6 +31,8 @@ import { productTemplateService, ProductTemplateResponse } from '@/lib/api/produ
 import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 import { formatDate } from '@/lib/utils/formatters'
 
+const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace(/\/api$/, '')
+
 export default function DrawingReviewDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -39,13 +42,19 @@ export default function DrawingReviewDetailPage() {
   const [order, setOrder] = useState<OrderResponse | null>(null)
   const [productTemplates, setProductTemplates] = useState<ProductTemplateResponse[]>([])
   const [drawings, setDrawings] = useState<DrawingResponse[]>([])
-  const [selectedDrawing, setSelectedDrawing] = useState<DrawingResponse | null>(null)
+
   const [reviewNotes, setReviewNotes] = useState('')
   const [selectedProductTemplateId, setSelectedProductTemplateId] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Track which drawings have been reviewed/passed
   const [reviewedDrawings, setReviewedDrawings] = useState<Set<number>>(new Set())
+
+  // Upload form state (for in-house drawing source)
+  const [uploadName, setUploadName] = useState('')
+  const [uploadType, setUploadType] = useState('shaft')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -65,10 +74,6 @@ export default function DrawingReviewDetailPage() {
       setReviewNotes(orderData.drawingReviewNotes || '')
       if (orderData.linkedProductTemplateId) {
         setSelectedProductTemplateId(String(orderData.linkedProductTemplateId))
-      }
-      // Auto-select first drawing if available
-      if (orderDrawings.length > 0) {
-        setSelectedDrawing(orderDrawings[0])
       }
     } catch (err) {
       console.error('Failed to load data:', err)
@@ -117,6 +122,33 @@ export default function DrawingReviewDetailPage() {
 
   const handleSaveDraft = () => {
     toast.info('Draft saved')
+  }
+
+  const handleUploadDrawing = async () => {
+    if (!uploadFile || !uploadName.trim()) {
+      toast.error('Please select a file and enter a drawing name')
+      return
+    }
+    setIsUploading(true)
+    try {
+      await drawingService.upload(uploadFile, {
+        drawingName: uploadName,
+        drawingType: uploadType,
+        status: 'draft',
+        linkedOrderId: Number(orderId)
+      })
+      toast.success(`Drawing "${uploadName}" uploaded`)
+      setUploadName('')
+      setUploadType('shaft')
+      setUploadFile(null)
+      // Reload drawings list
+      const updated = await drawingService.getByOrderId(Number(orderId))
+      setDrawings(updated)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const toggleDrawingReview = (drawingId: number) => {
@@ -267,33 +299,6 @@ export default function DrawingReviewDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Drawing Preview */}
-          {selectedDrawing && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Drawing Preview</CardTitle>
-                <CardDescription>
-                  {selectedDrawing.drawingName} ({selectedDrawing.drawingNumber})
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg p-8 bg-muted/30 flex flex-col items-center justify-center min-h-96">
-                  <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground text-center">
-                    {selectedDrawing.fileUrl ? (
-                      <>
-                        <span className="font-semibold">{selectedDrawing.fileName}</span><br />
-                        <span className="text-xs">PDF/CAD viewer would appear here</span><br />
-                        <span className="text-xs text-muted-foreground">File URL: {selectedDrawing.fileUrl}</span>
-                      </>
-                    ) : (
-                      'No file attached to this drawing'
-                    )}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Drawings Table */}
           <Card>
@@ -306,11 +311,70 @@ export default function DrawingReviewDetailPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Upload form — visible only for in-house drawing source before approval */}
+              {order.drawingSource === 'company' && !isApproved && (
+                <div className="border rounded-lg p-4 bg-green-50 border-green-200 space-y-3">
+                  <p className="text-sm font-semibold text-green-900">
+                    Upload Drawing (In-house)
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">Drawing Name *</Label>
+                      <Input
+                        placeholder="e.g. Shaft Drawing"
+                        value={uploadName}
+                        onChange={(e) => setUploadName(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Type *</Label>
+                      <Select value={uploadType} onValueChange={setUploadType}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="shaft">Shaft</SelectItem>
+                          <SelectItem value="tikki">Tikki</SelectItem>
+                          <SelectItem value="gear">Gear</SelectItem>
+                          <SelectItem value="ends">Ends</SelectItem>
+                          <SelectItem value="bearing">Bearing</SelectItem>
+                          <SelectItem value="patti">Patti</SelectItem>
+                          <SelectItem value="assembly">Assembly</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">File *</Label>
+                      <Input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.dwg"
+                        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleUploadDrawing}
+                    disabled={isUploading || !uploadFile || !uploadName.trim()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {isUploading ? 'Uploading...' : 'Upload Drawing'}
+                  </Button>
+                </div>
+              )}
+
               {drawings.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
                   <p>No drawings attached to this order</p>
-                  <p className="text-sm mt-1">Drawings should be uploaded during order creation</p>
+                  {order.drawingSource === 'company'
+                    ? <p className="text-sm mt-1">Upload drawings using the form above</p>
+                    : <p className="text-sm mt-1">Drawings should be uploaded during order creation</p>
+                  }
                 </div>
               ) : (
                 <div className="border rounded-lg">
@@ -333,8 +397,7 @@ export default function DrawingReviewDetailPage() {
                         return (
                           <TableRow
                             key={drawing.id}
-                            className={`cursor-pointer ${selectedDrawing?.id === drawing.id ? 'bg-blue-50' : 'hover:bg-muted/50'}`}
-                            onClick={() => setSelectedDrawing(drawing)}
+                            className="hover:bg-muted/50"
                           >
                             <TableCell>{idx + 1}</TableCell>
                             <TableCell className="font-mono text-sm">{drawing.drawingNumber}</TableCell>
@@ -343,10 +406,17 @@ export default function DrawingReviewDetailPage() {
                             <TableCell className="text-sm">{drawing.revision || '—'}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {drawing.fileName ? (
-                                <span className="flex items-center gap-1">
-                                  <FileText className="h-3 w-3" />
-                                  {drawing.fileName.substring(0, 20)}...
-                                </span>
+                                drawing.fileUrl ? (
+                                  <a href={FILE_BASE_URL + drawing.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline">
+                                    <FileText className="h-3 w-3" />
+                                    {drawing.fileName.length > 20 ? drawing.fileName.substring(0, 20) + '...' : drawing.fileName}
+                                  </a>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    <FileText className="h-3 w-3" />
+                                    {drawing.fileName.length > 20 ? drawing.fileName.substring(0, 20) + '...' : drawing.fileName}
+                                  </span>
+                                )
                               ) : '—'}
                             </TableCell>
                             <TableCell>
@@ -372,16 +442,17 @@ export default function DrawingReviewDetailPage() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSelectedDrawing(drawing)
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
+                              {drawing.fileUrl ? (
+                                <a href={FILE_BASE_URL + drawing.fileUrl} target="_blank" rel="noopener noreferrer">
+                                  <Button size="sm" variant="ghost" title="Open drawing">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </a>
+                              ) : (
+                                <Button size="sm" variant="ghost" disabled title="No file attached">
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         )
