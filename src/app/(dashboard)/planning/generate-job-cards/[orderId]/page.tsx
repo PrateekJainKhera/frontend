@@ -3,54 +3,25 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, Layers, FileText, AlertTriangle, CheckCircle2, Edit2 } from 'lucide-react'
+import { ArrowLeft, Package, AlertTriangle, CheckCircle2, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  mockOrders,
-  mockProducts,
-  mockProductTemplates,
-  mockChildPartTemplates,
-  mockDrawings
-} from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Order, Product, ProductTemplate, ChildPartTemplate } from '@/types'
-import type { Drawing } from '@/lib/mock-data/drawings'
+import { orderService, OrderResponse } from '@/lib/api/orders'
+import { productTemplateService, ProductTemplateResponse, ProductTemplateBOMItemResponse } from '@/lib/api/product-templates'
+import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
+import { processTemplateService, ProcessTemplateStepResponse } from '@/lib/api/process-templates'
+import { jobCardService, CreateJobCardPayload } from '@/lib/api/job-cards'
 import { formatDate } from '@/lib/utils/formatters'
 
 interface ChildPartPlanningItem {
-  childPart: ProductTemplate['childParts'][0]
-  childPartTemplate: ChildPartTemplate | null
-  selectedDrawing: Drawing | null
-  autoSelectedDrawing: Drawing | null
+  bomItem: ProductTemplateBOMItemResponse
+  childPartTemplate: ChildPartTemplateResponse | null
+  processSteps: ProcessTemplateStepResponse[]
   materialAvailable: boolean
-  materialShortfall: {
-    materialName: string
-    required: number
-    available: number
-    shortfall: number
-    unit: string
-  } | null
 }
 
 export default function GenerateJobCardsPage() {
@@ -59,21 +30,15 @@ export default function GenerateJobCardsPage() {
   const orderId = params.orderId as string
 
   const [loading, setLoading] = useState(true)
-  const [order, setOrder] = useState<Order | null>(null)
-  const [product, setProduct] = useState<Product | null>(null)
-  const [productTemplate, setProductTemplate] = useState<ProductTemplate | null>(null)
+  const [order, setOrder] = useState<OrderResponse | null>(null)
+  const [productTemplate, setProductTemplate] = useState<ProductTemplateResponse | null>(null)
   const [childPartItems, setChildPartItems] = useState<ChildPartPlanningItem[]>([])
+  const [assemblyProcessSteps, setAssemblyProcessSteps] = useState<ProcessTemplateStepResponse[]>([])
+  const [assemblyExpanded, setAssemblyExpanded] = useState(true) // Expanded by default
+  const [expandedParts, setExpandedParts] = useState<Set<number>>(new Set()) // Track which child parts are expanded
 
-  // Change Drawing Dialog state
-  const [changeDrawingDialogOpen, setChangeDrawingDialogOpen] = useState(false)
-  const [selectedChildPartIndex, setSelectedChildPartIndex] = useState<number | null>(null)
-  const [availableDrawings, setAvailableDrawings] = useState<Drawing[]>([])
-  const [newSelectedDrawingId, setNewSelectedDrawingId] = useState<string>('')
-
-  // Primary Drawing Selection Dialog state
-  const [primaryDrawingDialogOpen, setPrimaryDrawingDialogOpen] = useState(false)
-  const [selectedPrimaryDrawingId, setSelectedPrimaryDrawingId] = useState<string>('')
-  const [primaryDrawingOptions, setPrimaryDrawingOptions] = useState<Drawing[]>([])
+  // Order-level overrides for material name/grade
+  const [materialOverrides, setMaterialOverrides] = useState<Record<string, { materialName?: string; materialGrade?: string }>>({})
 
   useEffect(() => {
     loadData()
@@ -81,308 +46,336 @@ export default function GenerateJobCardsPage() {
 
   const loadData = async () => {
     setLoading(true)
+    try {
+      const orderData = await orderService.getById(Number(orderId))
+      setOrder(orderData)
 
-    // Load order
-    const orderData = await simulateApiCall(
-      mockOrders.find(o => o.id === orderId) || null,
-      500
-    )
+      if (!orderData.linkedProductTemplateId) {
+        setLoading(false)
+        return
+      }
 
-    if (!orderData) {
-      setLoading(false)
-      return
-    }
+      const templateData = await productTemplateService.getById(orderData.linkedProductTemplateId)
+      console.log('Product template loaded:', templateData)
+      console.log('Product template processTemplateId:', templateData.processTemplateId)
+      setProductTemplate(templateData)
 
-    setOrder(orderData)
+      // Fetch each child part template
+      const childPartTemplates = await Promise.all(
+        templateData.bomItems.map(item => childPartTemplateService.getById(item.childPartTemplateId))
+      )
 
-    // Load product
-    const productData = mockProducts.find(p => p.id === Number(orderData.productId))
-    setProduct(productData || null)
+      // Fetch process steps for each child part from their process templates
+      const items: ChildPartPlanningItem[] = await Promise.all(
+        templateData.bomItems.map(async (bomItem, idx) => {
+          const childTemplate = childPartTemplates[idx]
 
-    // Load product template (find by rollerType match)
-    const templateData = mockProductTemplates.find(
-      t => t.rollerType === productData?.rollerType
-    )
-    setProductTemplate(templateData || null)
-
-    // Build child part planning items
-    if (templateData) {
-      const items: ChildPartPlanningItem[] = templateData.childParts.map(cp => {
-        // Find child part template
-        const childTemplate = mockChildPartTemplates.find(
-          cpt => cpt.id === cp.childPartTemplateId
-        )
-
-        // Auto-select latest approved drawing for this child part
-        const autoDrawing = mockDrawings
-          .filter(d =>
-            d.status === 'approved' &&
-            d.drawingNumber === childTemplate?.drawingNumber
-          )
-          .sort((a, b) => {
-            // Sort by revision (highest first) - simple alphabetical for now
-            return b.revision.localeCompare(a.revision)
-          })[0] || null
-
-        // Simulate material availability check
-        const materialAvailable = Math.random() > 0.3 // 70% available
-
-        return {
-          childPart: cp,
-          childPartTemplate: childTemplate || null,
-          selectedDrawing: autoDrawing,
-          autoSelectedDrawing: autoDrawing,
-          materialAvailable,
-          materialShortfall: materialAvailable ? null : {
-            materialName: childTemplate?.materialRequirements[0]?.rawMaterialName || 'Unknown Material',
-            required: 100,
-            available: 60,
-            shortfall: 40,
-            unit: childTemplate?.materialRequirements[0]?.unit || 'units'
+          // Fetch process steps from process template
+          let processSteps: ProcessTemplateStepResponse[] = []
+          if (childTemplate?.processTemplateId) {
+            try {
+              processSteps = await processTemplateService.getStepsByTemplateId(childTemplate.processTemplateId)
+            } catch (error) {
+              console.error(`Failed to load process steps for ${childTemplate.templateName}:`, error)
+            }
           }
-        }
-      })
+
+          // Simulate material availability check
+          const materialAvailable = Math.random() > 0.3
+
+          return {
+            bomItem,
+            childPartTemplate: childTemplate,
+            processSteps,
+            materialAvailable,
+          }
+        })
+      )
 
       setChildPartItems(items)
-    }
 
-    setLoading(false)
+      // Fetch assembly process steps from product template's process template
+      console.log('=== ASSEMBLY PROCESS DEBUGGING ===')
+      console.log('Product template:', templateData.templateName)
+      console.log('Process template ID:', templateData.processTemplateId)
+      console.log('Process template name:', templateData.processTemplateName)
+
+      if (templateData.processTemplateId) {
+        try {
+          console.log('Fetching assembly steps from process template ID:', templateData.processTemplateId)
+          const assemblySteps = await processTemplateService.getStepsByTemplateId(templateData.processTemplateId)
+          console.log('Assembly steps loaded successfully. Count:', assemblySteps.length)
+          console.log('Assembly steps details:', assemblySteps)
+
+          if (assemblySteps.length === 0) {
+            toast.warning('No assembly steps configured', {
+              description: `Process template "${templateData.processTemplateName}" has no steps defined.`,
+              duration: 5000,
+            })
+          } else {
+            toast.success(`Loaded ${assemblySteps.length} assembly step(s)`, {
+              duration: 3000,
+            })
+          }
+
+          setAssemblyProcessSteps(assemblySteps)
+        } catch (error) {
+          console.error('Failed to load assembly process steps:', error)
+          toast.error('Assembly process not configured', {
+            description: 'Product template needs assembly process steps configured in Master Data.',
+            duration: 4000,
+          })
+          setAssemblyProcessSteps([])
+        }
+      } else {
+        console.warn('Product template has no processTemplateId assigned')
+        toast.warning('No assembly process', {
+          description: 'Product template needs an assembly process template assigned.',
+          duration: 4000,
+        })
+        setAssemblyProcessSteps([])
+      }
+      console.log('=== END ASSEMBLY PROCESS DEBUGGING ===')
+
+    } catch (error) {
+      toast.error('Failed to load order data', {
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        duration: 4000,
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleGenerateJobCards = async () => {
-    if (!order || !product || !productTemplate) return
+    if (!order || !productTemplate) return
 
-    // Show loading toast
+    // Check if all manufactured (non-purchased) child parts have processes
+    const partsWithoutProcesses = childPartItems.filter(
+      item => !item.childPartTemplate?.isPurchased && item.processSteps.length === 0
+    )
+
+    if (partsWithoutProcesses.length > 0) {
+      toast.error('Cannot generate job cards', {
+        description: `${partsWithoutProcesses.length} manufactured child part(s) are missing process steps. Please configure process templates.`,
+        duration: 5000,
+      })
+      return
+    }
+
     toast.loading('Generating job cards...')
 
     try {
-      // Simulate API call with delay
-      await simulateApiCall(null, 1500)
+      let jobCardCount = 0
 
-      // Calculate total job cards to be generated
-      const totalJobCards = childPartItems.reduce((sum, item) =>
-        sum + (item.childPartTemplate?.processSteps.length || 0), 0
-      )
+      for (const item of childPartItems) {
+        // Skip purchased parts - they go directly to assembly
+        if (!item.childPartTemplate || item.childPartTemplate.isPurchased) continue
+        if (item.processSteps.length === 0) continue
 
-      // Count material issues
-      const materialIssuesCount = childPartItems.filter(item => !item.materialAvailable).length
+        for (const step of item.processSteps) {
+          const jobCardNo = `JC-${order.orderNo}-${item.childPartTemplate.templateCode}-${String(step.stepNo).padStart(2, '0')}`
 
-      // Dismiss loading toast
-      toast.dismiss()
-
-      // Show success toast with details
-      if (materialIssuesCount > 0) {
-        toast.success(
-          `Job Cards Generated Successfully!`,
-          {
-            description: `${totalJobCards} job cards created for order ${order.orderNo}. ${materialIssuesCount} job card(s) flagged as "Pending Material".`,
-            duration: 5000,
+          const payload: CreateJobCardPayload = {
+            jobCardNo,
+            creationType: 'auto',
+            orderId: order.id,
+            orderNo: order.orderNo,
+            drawingId: null,
+            drawingNumber: item.childPartTemplate.drawingNumber || null,
+            drawingRevision: item.childPartTemplate.drawingRevision || null,
+            drawingName: null,
+            drawingSelectionType: 'template',
+            childPartName: item.bomItem.childPartTemplateName,
+            childPartTemplateId: item.childPartTemplate.id,
+            processId: step.processId,
+            processName: step.processName || null,
+            stepNo: step.stepNo,
+            processTemplateId: item.childPartTemplate.processTemplateId,
+            quantity: order.quantity * item.bomItem.quantity,
+            priority: order.priority,
+            manufacturingDimensions: null,
+            createdBy: 'Admin',
+            specialNotes: !item.materialAvailable ? 'Pending Material - Material shortage detected' : null,
           }
-        )
-      } else {
-        toast.success(
-          `Job Cards Generated Successfully!`,
-          {
-            description: `${totalJobCards} job cards created for order ${order.orderNo}. All materials are available.`,
-            duration: 5000,
-          }
-        )
+
+          await jobCardService.create(payload)
+          jobCardCount++
+        }
       }
 
-      // Log the generation details (in real app, this would be API call)
-      console.log('Job Cards Generated:', {
-        orderId: order.id,
-        orderNo: order.orderNo,
-        totalJobCards,
-        childParts: childPartItems.length,
-        materialIssues: materialIssuesCount,
-        jobCardDetails: childPartItems.map(item => ({
-          childPartName: item.childPart.childPartName,
-          drawingNumber: item.selectedDrawing?.drawingNumber,
-          drawingRevision: item.selectedDrawing?.revision,
-          materialAvailable: item.materialAvailable,
-          processSteps: item.childPartTemplate?.processSteps.length || 0
-        }))
+      // Generate assembly job cards
+      for (const step of assemblyProcessSteps) {
+        const jobCardNo = `JC-${order.orderNo}-ASSY-${String(step.stepNo).padStart(2, '0')}`
+
+        const payload: CreateJobCardPayload = {
+          jobCardNo,
+          creationType: 'auto',
+          orderId: order.id,
+          orderNo: order.orderNo,
+          drawingId: null,
+          drawingNumber: productTemplate.drawingNumber || null,
+          drawingRevision: productTemplate.drawingRevision || null,
+          drawingName: null,
+          drawingSelectionType: 'template',
+          childPartName: 'Final Assembly',
+          childPartTemplateId: null,
+          processId: step.processId,
+          processName: step.processName || null,
+          stepNo: step.stepNo,
+          processTemplateId: productTemplate.processTemplateId,
+          quantity: order.quantity,
+          priority: order.priority,
+          manufacturingDimensions: null,
+          createdBy: 'Admin',
+        }
+
+        await jobCardService.create(payload)
+        jobCardCount++
+      }
+
+      toast.dismiss()
+
+      const materialIssuesCount = childPartItems.filter(item => !item.materialAvailable).length
+      toast.success('Job Cards Generated Successfully!', {
+        description: `${jobCardCount} job cards created for order ${order.orderNo}.${materialIssuesCount > 0 ? ` ${materialIssuesCount} job card(s) flagged as "Pending Material".` : ''}`,
+        duration: 5000,
       })
 
-      // Redirect to planning dashboard after short delay
       setTimeout(() => {
         router.push('/planning')
       }, 2000)
-
     } catch (error) {
       toast.dismiss()
       toast.error('Failed to generate job cards', {
-        description: 'An error occurred while generating job cards. Please try again.',
+        description: error instanceof Error ? error.message : 'An error occurred while generating job cards.',
         duration: 4000,
       })
-      console.error('Error generating job cards:', error)
     }
-  }
-
-  const handleOpenChangeDrawing = (index: number) => {
-    const item = childPartItems[index]
-    if (!item.childPartTemplate) return
-
-    // Filter drawings by child part template's drawing number
-    // Include both approved and obsolete for manual override
-    const drawings = mockDrawings.filter(d =>
-      d.drawingNumber === item.childPartTemplate?.drawingNumber
-    ).sort((a, b) => {
-      // Sort by status (approved first) then by revision (highest first)
-      if (a.status === 'approved' && b.status !== 'approved') return -1
-      if (a.status !== 'approved' && b.status === 'approved') return 1
-      return b.revision.localeCompare(a.revision)
-    })
-
-    setAvailableDrawings(drawings)
-    setSelectedChildPartIndex(index)
-    setNewSelectedDrawingId(item.selectedDrawing?.id || '')
-    setChangeDrawingDialogOpen(true)
-  }
-
-  const handleApplyDrawingChange = () => {
-    if (selectedChildPartIndex === null) return
-
-    const newDrawing = availableDrawings.find(d => d.id === newSelectedDrawingId)
-    if (!newDrawing) return
-
-    const updatedItems = [...childPartItems]
-    updatedItems[selectedChildPartIndex].selectedDrawing = newDrawing
-
-    setChildPartItems(updatedItems)
-    setChangeDrawingDialogOpen(false)
-
-    toast.success('Drawing updated successfully', {
-      description: `Changed to ${newDrawing.drawingNumber} Rev ${newDrawing.revision}`,
-      duration: 3000,
-    })
-  }
-
-  const handleOpenPrimaryDrawingSelection = () => {
-    // Filter drawings by product type or show all 'final' type drawings
-    const drawings = mockDrawings.filter(d =>
-      d.status === 'approved' &&
-      (d.drawingType === 'final' || d.drawingType === 'roller')
-    ).sort((a, b) => {
-      // Sort by drawing number and revision
-      const numCompare = a.drawingNumber.localeCompare(b.drawingNumber)
-      if (numCompare !== 0) return numCompare
-      return b.revision.localeCompare(a.revision)
-    })
-
-    setPrimaryDrawingOptions(drawings)
-    setSelectedPrimaryDrawingId(order?.primaryDrawingId || '')
-    setPrimaryDrawingDialogOpen(true)
-  }
-
-  const handleApplyPrimaryDrawing = () => {
-    if (!order) return
-
-    const selectedDrawing = primaryDrawingOptions.find(d => d.id === selectedPrimaryDrawingId)
-    if (!selectedDrawing) return
-
-    // Update order with primary drawing
-    const updatedOrder = {
-      ...order,
-      primaryDrawingId: selectedDrawing.id,
-      primaryDrawingNumber: selectedDrawing.drawingNumber,
-      primaryDrawingRevision: selectedDrawing.revision,
-      drawingSource: (selectedDrawing.linkedCustomerId ? 'customer' : 'company') as 'customer' | 'company'
-    }
-
-    setOrder(updatedOrder)
-    setPrimaryDrawingDialogOpen(false)
-
-    toast.success('Primary drawing assigned successfully', {
-      description: `${selectedDrawing.drawingNumber} Rev ${selectedDrawing.revision} is now the primary drawing for this order`,
-      duration: 4000,
-    })
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="px-6 pb-6 space-y-4 max-w-5xl">
         <Skeleton className="h-12 w-64" />
         <Skeleton className="h-96" />
       </div>
     )
   }
 
-  if (!order || !product) {
+  if (!order) {
     return (
-      <div className="space-y-6">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-5 w-5" />
-          <AlertDescription>
-            Order not found
-          </AlertDescription>
-        </Alert>
+      <div className="px-6 pb-6 space-y-4 max-w-5xl">
         <Link href="/planning">
-          <Button variant="outline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Planning
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         </Link>
+        <Alert variant="destructive">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertDescription>Order not found</AlertDescription>
+        </Alert>
       </div>
     )
   }
 
   const allMaterialsAvailable = childPartItems.every(item => item.materialAvailable)
-  const someDrawingsSelected = childPartItems.every(item => item.selectedDrawing !== null)
+  // Count process steps for manufactured parts (exclude purchased) + assembly steps
+  const manufacturingSteps = childPartItems
+    .filter(item => !item.childPartTemplate?.isPurchased)
+    .reduce((sum, item) => sum + item.processSteps.length, 0)
+  const totalProcessSteps = manufacturingSteps + assemblyProcessSteps.length
+  const partsWithoutProcesses = childPartItems.filter(
+    item => !item.childPartTemplate?.isPurchased && item.processSteps.length === 0
+  )
+  const purchasedParts = childPartItems.filter(item => item.childPartTemplate?.isPurchased)
+
+  // Aggregate material requirements across all child parts
+  const aggregatedMaterials = (() => {
+    const map = new Map<string, {
+      rawMaterialId: string
+      materialName: string
+      materialGrade: string
+      unit: string
+      totalRequired: number
+      totalWithWastage: number
+      wastagePercent: number
+      hasShortage: boolean
+      forChildParts: string[]
+    }>()
+
+    childPartItems.forEach(item => {
+      if (!item.childPartTemplate || !item.childPartTemplate.materialRequirements) return
+      const childQty = item.bomItem.quantity
+
+      item.childPartTemplate.materialRequirements.forEach(req => {
+        const key = String(req.rawMaterialId)
+        const netRequired = req.quantityRequired * childQty * (order?.quantity ?? 1)
+        const grossRequired = netRequired * (1 + req.wastagePercent / 100)
+
+        const existing = map.get(key)
+        if (existing) {
+          existing.totalRequired += netRequired
+          existing.totalWithWastage += grossRequired
+          if (!existing.forChildParts.includes(item.bomItem.childPartTemplateName)) {
+            existing.forChildParts.push(item.bomItem.childPartTemplateName)
+          }
+          if (!item.materialAvailable) existing.hasShortage = true
+        } else {
+          map.set(key, {
+            rawMaterialId: key,
+            materialName: req.rawMaterialName,
+            materialGrade: req.materialGrade,
+            unit: req.unit,
+            totalRequired: netRequired,
+            totalWithWastage: grossRequired,
+            wastagePercent: req.wastagePercent,
+            hasShortage: !item.materialAvailable,
+            forChildParts: [item.bomItem.childPartTemplateName]
+          })
+        }
+      })
+    })
+
+    return Array.from(map.values()).map(mat => ({
+      ...mat,
+      totalRequired: Math.round(mat.totalRequired * 100) / 100,
+      totalWithWastage: Math.round(mat.totalWithWastage * 100) / 100,
+      availableQty: mat.hasShortage
+        ? Math.round(mat.totalWithWastage * 0.6 * 100) / 100
+        : Math.round(mat.totalWithWastage * 1.5 * 100) / 100
+    }))
+  })()
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/planning">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Generate Job Cards</h1>
-            <p className="text-muted-foreground mt-1">
-              Review child parts and generate job cards for order
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="px-6 pb-6 space-y-4 max-w-5xl">
+      {/* Back Button */}
+      <Link href="/planning">
+        <Button variant="ghost" size="sm">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Planning
+        </Button>
+      </Link>
 
       {/* Order Summary */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
             <div>
-              <CardTitle>Order Details</CardTitle>
-              <CardDescription className="mt-1">Order information and product</CardDescription>
+              <CardTitle className="text-xl">Generate Job Cards</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {order.customerName} • {order.productName}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-lg">{order.orderNo}</Badge>
               <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
                 {order.priority}
               </Badge>
-              {order.primaryDrawingNumber && (
-                <Badge variant="secondary" className="bg-blue-50 text-blue-700">
-                  <FileText className="mr-1 h-3 w-3" />
-                  Drawing: {order.primaryDrawingNumber} Rev {order.primaryDrawingRevision}
-                </Badge>
-              )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Customer:</span>
-              <span className="ml-2 font-medium">{order.customer?.customerName}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Product:</span>
-              <span className="ml-2 font-medium">{product.modelName}</span>
-            </div>
+          <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Quantity:</span>
               <span className="ml-2 font-medium">{order.quantity} pcs</span>
@@ -391,679 +384,364 @@ export default function GenerateJobCardsPage() {
               <span className="text-muted-foreground">Due Date:</span>
               <span className="ml-2 font-medium">{formatDate(order.dueDate)}</span>
             </div>
-          </div>
-          {order.primaryDrawingNumber && (
-            <div className="mt-3 pt-3 border-t">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium text-blue-600">Primary Drawing Reference:</span>
-                  <span className="text-muted-foreground">{order.primaryDrawingNumber} Rev {order.primaryDrawingRevision}</span>
-                  {order.drawingSource && (
-                    <Badge variant="outline" className="text-xs">
-                      {order.drawingSource === 'customer' ? 'Customer Provided' : 'Company Drawing'}
-                    </Badge>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleOpenPrimaryDrawingSelection}
-                >
-                  <Edit2 className="mr-2 h-3 w-3" />
-                  Change Drawing
-                </Button>
-              </div>
+            <div>
+              <span className="text-muted-foreground">Child Parts:</span>
+              <span className="ml-2 font-medium">{childPartItems.length}</span>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Primary Drawing Selection - Show when no drawing assigned */}
-      {!order.primaryDrawingNumber && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <FileText className="h-5 w-5 text-blue-600" />
-          <AlertDescription>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-semibold text-blue-900">Primary Drawing Required</p>
-                <p className="text-sm mt-1 text-blue-700">
-                  Select a primary drawing for this order before generating job cards. The drawing will define the manufacturing specifications.
-                </p>
-              </div>
-              <Button
-                onClick={handleOpenPrimaryDrawingSelection}
-                className="ml-4 bg-blue-600 hover:bg-blue-700"
-                size="sm"
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Select Drawing
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Material Availability Alert */}
+      {/* Material Alert */}
       {!allMaterialsAvailable && (
-        <Alert variant="destructive">
+        <Alert>
           <AlertTriangle className="h-5 w-5" />
           <AlertDescription>
             <p className="font-semibold">Material Shortage Detected</p>
             <p className="text-sm mt-1">
-              Some child parts have material shortages. Job cards will be generated with "Pending Material" status.
+              Some materials are short. Job cards will be flagged as "Pending Material".
             </p>
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Child Parts Explosion */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Layers className="h-5 w-5" />
-            Child Parts Breakdown
-          </CardTitle>
-          <CardDescription>
-            Order → Child Parts → Process Steps → Job Cards
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!productTemplate ? (
-            <Alert>
-              <AlertTriangle className="h-5 w-5" />
-              <AlertDescription>
-                No product template found for this product. Cannot generate job cards.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="space-y-4">
-              {childPartItems.map((item, index) => (
-                <div
-                  key={item.childPart.id}
-                  className="border rounded-lg p-4 space-y-3"
-                >
-                  {/* Child Part Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold">{item.childPart.childPartName}</p>
-                          <Badge variant="outline" className="text-xs">
-                            {item.childPart.childPartCode}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            Qty: {item.childPart.quantity}
-                          </Badge>
-                        </div>
-                        {item.childPartTemplate && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {item.childPartTemplate.templateName} • {item.childPartTemplate.processSteps.length} process steps
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Material Status */}
-                    {item.materialAvailable ? (
-                      <Badge className="bg-green-600">
-                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                        Material Available
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive">
-                        <AlertTriangle className="mr-1 h-3 w-3" />
-                        Material Shortage
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Material Shortfall Details */}
-                  {item.materialShortfall && (
-                    <Alert variant="destructive" className="py-2">
-                      <AlertDescription className="text-xs">
-                        <strong>Shortfall:</strong> {item.materialShortfall.materialName} -
-                        Need {item.materialShortfall.required} {item.materialShortfall.unit},
-                        Available {item.materialShortfall.available} {item.materialShortfall.unit},
-                        Short by {item.materialShortfall.shortfall} {item.materialShortfall.unit}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Separator />
-
-                  {/* Drawing Selection */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Drawing Selection
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenChangeDrawing(index)}
-                        disabled={!item.childPartTemplate}
-                      >
-                        <Edit2 className="mr-2 h-3 w-3" />
-                        Change Drawing
-                      </Button>
-                    </div>
-
-                    {item.selectedDrawing ? (
-                      <div className="bg-muted/50 rounded-md p-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm">{item.selectedDrawing.drawingNumber}</p>
-                              <Badge variant="outline" className="text-xs">
-                                Rev {item.selectedDrawing.revision}
-                              </Badge>
-                              {item.selectedDrawing.id === item.autoSelectedDrawing?.id && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Auto-selected
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {item.selectedDrawing.drawingName}
-                            </p>
-                            {item.selectedDrawing.manufacturingDimensions && (
-                              <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
-                                {item.selectedDrawing.manufacturingDimensions.materialGrade && (
-                                  <div>
-                                    <span className="text-muted-foreground">Material:</span>
-                                    <span className="ml-1">{item.selectedDrawing.manufacturingDimensions.materialGrade}</span>
-                                  </div>
-                                )}
-                                {item.selectedDrawing.manufacturingDimensions.finishedLength && (
-                                  <div>
-                                    <span className="text-muted-foreground">Length:</span>
-                                    <span className="ml-1">{item.selectedDrawing.manufacturingDimensions.finishedLength}mm</span>
-                                  </div>
-                                )}
-                                {item.selectedDrawing.manufacturingDimensions.finishedDiameter && (
-                                  <div>
-                                    <span className="text-muted-foreground">Diameter:</span>
-                                    <span className="ml-1">Ø{item.selectedDrawing.manufacturingDimensions.finishedDiameter}mm</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <Alert>
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
-                          No approved drawing found for this child part
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-
-                  {/* Process Steps Preview */}
-                  {item.childPartTemplate && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Process Steps ({item.childPartTemplate.processSteps.length})</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {item.childPartTemplate.processSteps.map((step) => (
-                          <div
-                            key={step.id}
-                            className="bg-muted/30 rounded-md p-2 text-xs"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary font-semibold text-xs">
-                                {step.stepNumber}
-                              </div>
-                              <span className="font-medium">{step.processName}</span>
-                            </div>
-                            <p className="text-muted-foreground mt-1 ml-7">
-                              {step.description}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+      {/* Process Configuration Alert */}
+      {partsWithoutProcesses.length > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-5 w-5" />
+          <AlertDescription>
+            <p className="font-semibold">Process Steps Missing</p>
+            <p className="text-sm mt-1">
+              {partsWithoutProcesses.length} child part(s) don't have process templates configured.
+              Please configure process templates in Master Data.
+            </p>
+            <ul className="mt-2 text-xs space-y-1">
+              {partsWithoutProcesses.map(item => (
+                <li key={item.bomItem.id}>• {item.bomItem.childPartTemplateName}</li>
               ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
 
-      {/* Generation Summary */}
-      {productTemplate && (
+      {/* Material Requirements */}
+      {productTemplate && aggregatedMaterials.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Job Cards to be Generated</CardTitle>
+            <CardTitle>Material Requirements</CardTitle>
             <CardDescription>
-              Summary of job cards that will be created
+              Raw materials required for all child parts (includes wastage allowance)
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total Child Parts:</span>
-                <span className="font-medium">{childPartItems.length}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total Process Steps:</span>
-                <span className="font-medium">
-                  {childPartItems.reduce((sum, item) =>
-                    sum + (item.childPartTemplate?.processSteps.length || 0), 0
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total Job Cards:</span>
-                <span className="font-medium">
-                  {childPartItems.reduce((sum, item) =>
-                    sum + (item.childPartTemplate?.processSteps.length || 0), 0
-                  )}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Material Status:</span>
-                {allMaterialsAvailable ? (
-                  <Badge className="bg-green-600">All Available</Badge>
-                ) : (
-                  <Badge variant="destructive">
-                    {childPartItems.filter(i => !i.materialAvailable).length} Shortage(s)
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Drawing Selection:</span>
-                {someDrawingsSelected ? (
-                  <Badge className="bg-green-600">All Selected</Badge>
-                ) : (
-                  <Badge variant="destructive">Missing Drawings</Badge>
-                )}
-              </div>
+            <div className="rounded-md border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Material</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Used For</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Required (incl. wastage)</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">In Stock</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aggregatedMaterials.map((mat, idx) => {
+                    const isShortage = mat.availableQty < mat.totalWithWastage
+                    return (
+                      <tr
+                        key={mat.rawMaterialId}
+                        className={`border-t ${isShortage ? 'bg-red-50' : idx % 2 === 1 ? 'bg-muted/30' : ''}`}
+                      >
+                        <td className="px-4 py-3">
+                          <input
+                            className="font-medium bg-transparent border-b border-transparent hover:border-muted focus:border-primary focus:outline-none w-full text-sm"
+                            value={materialOverrides[mat.rawMaterialId]?.materialName ?? mat.materialName}
+                            onChange={(e) => setMaterialOverrides(prev => ({
+                              ...prev,
+                              [mat.rawMaterialId]: { ...prev[mat.rawMaterialId], materialName: e.target.value }
+                            }))}
+                          />
+                          <input
+                            className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-muted focus:border-primary focus:outline-none w-full mt-0.5"
+                            value={materialOverrides[mat.rawMaterialId]?.materialGrade ?? mat.materialGrade}
+                            onChange={(e) => setMaterialOverrides(prev => ({
+                              ...prev,
+                              [mat.rawMaterialId]: { ...prev[mat.rawMaterialId], materialGrade: e.target.value }
+                            }))}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">
+                          {mat.forChildParts.join(', ')}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="font-medium">{mat.totalWithWastage} {mat.unit}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Net {mat.totalRequired} {mat.unit} + {mat.wastagePercent}% wastage
+                          </div>
+                        </td>
+                        <td className={`px-4 py-3 text-right font-medium ${isShortage ? 'text-red-600' : 'text-green-700'}`}>
+                          {mat.availableQty} {mat.unit}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isShortage ? (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertTriangle className="mr-1 h-3 w-3" />
+                              Short: {(mat.totalWithWastage - mat.availableQty).toFixed(2)} {mat.unit}
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-green-600 text-xs">
+                              <CheckCircle2 className="mr-1 h-3 w-3" />
+                              Available
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-
-            <div className="mt-6 flex gap-3">
-              <Button
-                onClick={handleGenerateJobCards}
-                disabled={!someDrawingsSelected || !order.primaryDrawingNumber}
-                className="flex-1"
-              >
-                <Package className="mr-2 h-4 w-4" />
-                Generate Job Cards
-              </Button>
-              <Button variant="outline" onClick={() => router.push('/planning')}>
-                Cancel
-              </Button>
-            </div>
-
-            {!order.primaryDrawingNumber && (
-              <Alert className="mt-4 border-blue-200 bg-blue-50">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="text-xs text-blue-700">
-                  Primary drawing must be selected before generating job cards.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {!allMaterialsAvailable && (
-              <Alert className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  Job cards with material shortages will be created with "Pending Material" status.
-                  Stores/Procurement will be notified automatically.
-                </AlertDescription>
-              </Alert>
-            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Change Drawing Dialog */}
-      <Dialog open={changeDrawingDialogOpen} onOpenChange={setChangeDrawingDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Change Drawing</DialogTitle>
-            <DialogDescription>
-              Select a different drawing revision for this child part
-            </DialogDescription>
-          </DialogHeader>
+      {/* Child Parts List */}
+      <div className="space-y-2">
+        <h2 className="font-medium text-sm text-muted-foreground px-1">Child Parts</h2>
 
-          <div className="space-y-4 py-4">
-            {selectedChildPartIndex !== null && (
-              <>
-                {/* Current Child Part Info */}
-                <div className="bg-muted/50 rounded-md p-3">
-                  <p className="text-sm font-medium">
-                    {childPartItems[selectedChildPartIndex].childPart.childPartName}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {childPartItems[selectedChildPartIndex].childPartTemplate?.templateName}
-                  </p>
-                </div>
+        {childPartItems.map((item, itemIndex) => {
+          const isPurchased = item.childPartTemplate?.isPurchased || false
+          const processCount = item.processSteps.length
+          const hasProcesses = processCount > 0
+          const isExpanded = expandedParts.has(itemIndex)
 
-                {/* Drawing Selection */}
-                <div className="space-y-2">
-                  <Label>Select Drawing</Label>
-                  {availableDrawings.length > 0 ? (
-                    <Select
-                      value={newSelectedDrawingId}
-                      onValueChange={setNewSelectedDrawingId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a drawing revision" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableDrawings.map((drawing) => (
-                          <SelectItem key={drawing.id} value={drawing.id}>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{drawing.drawingNumber}</span>
-                              <span className="text-xs text-muted-foreground">Rev {drawing.revision}</span>
-                              {drawing.status === 'approved' ? (
-                                <Badge variant="outline" className="text-xs bg-green-50">Approved</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs bg-red-50">
-                                  {drawing.status === 'obsolete' ? 'Obsolete' : 'Draft'}
-                                </Badge>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+          const toggleExpanded = () => {
+            const newExpanded = new Set(expandedParts)
+            if (isExpanded) {
+              newExpanded.delete(itemIndex)
+            } else {
+              newExpanded.add(itemIndex)
+            }
+            setExpandedParts(newExpanded)
+          }
+
+          return (
+            <div key={item.bomItem.id} className="space-y-2">
+              {/* Child Part Header - Clickable to expand/collapse */}
+              <div
+                className={`flex items-center justify-between p-3 rounded-lg border bg-card cursor-pointer hover:bg-accent/50 transition-colors ${
+                  isPurchased ? 'border-blue-200 bg-blue-50' : hasProcesses ? '' : 'border-red-200 bg-red-50'
+                }`}
+                onClick={toggleExpanded}
+              >
+                <div className="flex items-center gap-3">
+                  {hasProcesses && !isPurchased ? (
+                    isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )
                   ) : (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription className="text-xs">
-                        No drawings found for this child part
-                      </AlertDescription>
-                    </Alert>
+                    <div className="w-4" /> // Spacer for alignment
+                  )}
+                  <span className="font-medium">{item.bomItem.childPartTemplateName}</span>
+                  <Badge variant="outline" className="text-xs">
+                    Qty: {item.bomItem.quantity}
+                  </Badge>
+                  {item.childPartTemplate?.drawingNumber && (
+                    <Badge variant="secondary" className="text-xs">
+                      Dwg: {item.childPartTemplate.drawingNumber} Rev {item.childPartTemplate.drawingRevision || '-'}
+                    </Badge>
                   )}
                 </div>
-
-                {/* Selected Drawing Details */}
-                {newSelectedDrawingId && availableDrawings.find(d => d.id === newSelectedDrawingId) && (
-                  <div className="border rounded-lg p-3 space-y-2">
-                    <p className="text-sm font-medium">Drawing Details</p>
-                    {(() => {
-                      const drawing = availableDrawings.find(d => d.id === newSelectedDrawingId)
-                      if (!drawing) return null
-                      return (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                              <span className="text-muted-foreground">Drawing Number:</span>
-                              <span className="ml-2 font-medium">{drawing.drawingNumber}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Revision:</span>
-                              <span className="ml-2 font-medium">{drawing.revision}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Status:</span>
-                              <span className="ml-2">
-                                <Badge variant={drawing.status === 'approved' ? 'outline' : 'secondary'} className="text-xs">
-                                  {drawing.status}
-                                </Badge>
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">File:</span>
-                              <span className="ml-2 font-medium">{drawing.fileName}</span>
-                            </div>
-                          </div>
-                          <div className="text-xs">
-                            <span className="text-muted-foreground">Description:</span>
-                            <p className="mt-1">{drawing.description}</p>
-                          </div>
-                          {drawing.notes && (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">Notes:</span>
-                              <p className="mt-1 text-amber-700">{drawing.notes}</p>
-                            </div>
-                          )}
-                          {drawing.manufacturingDimensions && (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">Key Dimensions:</span>
-                              <div className="grid grid-cols-3 gap-2 mt-1">
-                                {drawing.manufacturingDimensions.materialGrade && (
-                                  <div>
-                                    <span className="text-muted-foreground">Material:</span>
-                                    <span className="ml-1">{drawing.manufacturingDimensions.materialGrade}</span>
-                                  </div>
-                                )}
-                                {drawing.manufacturingDimensions.finishedLength && (
-                                  <div>
-                                    <span className="text-muted-foreground">Length:</span>
-                                    <span className="ml-1">{drawing.manufacturingDimensions.finishedLength}mm</span>
-                                  </div>
-                                )}
-                                {drawing.manufacturingDimensions.finishedDiameter && (
-                                  <div>
-                                    <span className="text-muted-foreground">Diameter:</span>
-                                    <span className="ml-1">Ø{drawing.manufacturingDimensions.finishedDiameter}mm</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
-
-                {/* Warning for obsolete drawings */}
-                {newSelectedDrawingId &&
-                  availableDrawings.find(d => d.id === newSelectedDrawingId)?.status === 'obsolete' && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription className="text-xs">
-                        Warning: This drawing is marked as obsolete. Use with caution.
-                      </AlertDescription>
-                    </Alert>
+                <div className="flex items-center gap-3">
+                  {isPurchased ? (
+                    <Badge className="bg-blue-600">
+                      <CheckCircle2 className="mr-1 h-3 w-3" />
+                      Purchased (Direct to Assembly)
+                    </Badge>
+                  ) : hasProcesses ? (
+                    <Badge className="bg-green-600">
+                      <CheckCircle2 className="mr-1 h-3 w-3" />
+                      {processCount} process{processCount !== 1 ? 'es' : ''}
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive">
+                      <AlertCircle className="mr-1 h-3 w-3" />
+                      No processes
+                    </Badge>
                   )}
-              </>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setChangeDrawingDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleApplyDrawingChange}
-              disabled={!newSelectedDrawingId}
-            >
-              Apply Change
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Primary Drawing Selection Dialog */}
-      <Dialog open={primaryDrawingDialogOpen} onOpenChange={setPrimaryDrawingDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Select Primary Drawing</DialogTitle>
-            <DialogDescription>
-              Choose the primary manufacturing drawing for this order. This drawing will be the reference for all job cards.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Order Info */}
-            <div className="bg-muted/50 rounded-md p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Order: {order?.orderNo}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Product: {product?.modelName} • Quantity: {order?.quantity} pcs
-                  </p>
+                  {item.materialAvailable ? (
+                    <Badge className="bg-green-600 text-xs">Material OK</Badge>
+                  ) : (
+                    <Badge variant="destructive" className="text-xs">Material Short</Badge>
+                  )}
                 </div>
-                <Badge variant="outline">{order?.priority}</Badge>
               </div>
-            </div>
 
-            {/* Drawing Selection Grid */}
-            <div className="space-y-2">
-              <Label>Available Drawings</Label>
-              {primaryDrawingOptions.length > 0 ? (
-                <div className="grid gap-3">
-                  {primaryDrawingOptions.map((drawing) => (
-                    <button
-                      key={drawing.id}
-                      onClick={() => setSelectedPrimaryDrawingId(drawing.id)}
-                      className={`text-left border rounded-lg p-4 transition-all hover:border-blue-300 hover:shadow-sm ${selectedPrimaryDrawingId === drawing.id
-                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                          : 'border-gray-200'
-                        }`}
+              {/* Child Part Process Steps - Expandable */}
+              {isExpanded && hasProcesses && !isPurchased && (
+                <div className="ml-7 space-y-2">
+                  {item.processSteps.map((step, stepIdx) => (
+                    <div
+                      key={step.id || stepIdx}
+                      className="flex items-center justify-between p-2.5 rounded-md border bg-white hover:bg-accent/50 transition-colors"
                     >
-                      <div className="space-y-2">
-                        {/* Drawing Header */}
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-blue-600" />
-                            <div>
-                              <p className="font-semibold text-sm">{drawing.drawingNumber}</p>
-                              <p className="text-xs text-muted-foreground">{drawing.drawingName}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              Rev {drawing.revision}
-                            </Badge>
-                            {drawing.status === 'approved' && (
-                              <Badge className="bg-green-600 text-xs">Approved</Badge>
-                            )}
-                            {selectedPrimaryDrawingId === drawing.id && (
-                              <CheckCircle2 className="h-5 w-5 text-blue-600" />
-                            )}
-                          </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                          {step.stepNo}
                         </div>
-
-                        {/* Drawing Details */}
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <span className="text-muted-foreground">Part Type:</span>
-                            <span className="ml-2 capitalize">{drawing.drawingType}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">File:</span>
-                            <span className="ml-2">{drawing.fileName}</span>
-                          </div>
-                          {drawing.linkedCustomerName && (
-                            <div>
-                              <span className="text-muted-foreground">Customer:</span>
-                              <span className="ml-2">{drawing.linkedCustomerName}</span>
-                            </div>
-                          )}
-                          {drawing.linkedProductName && (
-                            <div>
-                              <span className="text-muted-foreground">Product:</span>
-                              <span className="ml-2">{drawing.linkedProductName}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Description */}
-                        <p className="text-xs text-muted-foreground">{drawing.description}</p>
-
-                        {/* Manufacturing Dimensions */}
-                        {drawing.manufacturingDimensions && (
-                          <div className="bg-white rounded-md p-2 mt-2">
-                            <p className="text-xs font-medium mb-2">Manufacturing Dimensions:</p>
-                            <div className="grid grid-cols-3 gap-2 text-xs">
-                              {drawing.manufacturingDimensions.materialGrade && (
-                                <div>
-                                  <span className="text-muted-foreground">Material:</span>
-                                  <span className="ml-1 font-medium">{drawing.manufacturingDimensions.materialGrade}</span>
-                                </div>
-                              )}
-                              {drawing.manufacturingDimensions.finishedLength && (
-                                <div>
-                                  <span className="text-muted-foreground">Length:</span>
-                                  <span className="ml-1 font-medium">{drawing.manufacturingDimensions.finishedLength}mm</span>
-                                </div>
-                              )}
-                              {drawing.manufacturingDimensions.finishedDiameter && (
-                                <div>
-                                  <span className="text-muted-foreground">Diameter:</span>
-                                  <span className="ml-1 font-medium">Ø{drawing.manufacturingDimensions.finishedDiameter}mm</span>
-                                </div>
-                              )}
-                              {drawing.manufacturingDimensions.pipeOD && (
-                                <div>
-                                  <span className="text-muted-foreground">Pipe OD:</span>
-                                  <span className="ml-1 font-medium">{drawing.manufacturingDimensions.pipeOD}mm</span>
-                                </div>
-                              )}
-                              {drawing.manufacturingDimensions.pipeID && (
-                                <div>
-                                  <span className="text-muted-foreground">Pipe ID:</span>
-                                  <span className="ml-1 font-medium">{drawing.manufacturingDimensions.pipeID}mm</span>
-                                </div>
-                              )}
-                              {drawing.manufacturingDimensions.tolerance && (
-                                <div>
-                                  <span className="text-muted-foreground">Tolerance:</span>
-                                  <span className="ml-1 font-medium">{drawing.manufacturingDimensions.tolerance}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                        <div className="font-medium text-sm">{step.processName || `Step ${step.stepNo}`}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {step.isMandatory && (
+                          <Badge variant="outline" className="text-xs">
+                            Mandatory
+                          </Badge>
                         )}
-
-                        {/* Notes */}
-                        {drawing.notes && (
-                          <Alert className="py-2">
-                            <AlertDescription className="text-xs text-amber-700">
-                              <strong>Note:</strong> {drawing.notes}
-                            </AlertDescription>
-                          </Alert>
+                        {step.canBeParallel && (
+                          <Badge variant="secondary" className="text-xs">
+                            Parallel OK
+                          </Badge>
                         )}
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Assembly Process */}
+      {assemblyProcessSteps.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="font-medium text-sm text-muted-foreground px-1">Assembly Process</h2>
+
+          {/* Assembly Header - Clickable to expand/collapse */}
+          <div
+            className="flex items-center justify-between p-3 rounded-lg border bg-card border-purple-200 bg-purple-50 cursor-pointer hover:bg-purple-100 transition-colors"
+            onClick={() => setAssemblyExpanded(!assemblyExpanded)}
+          >
+            <div className="flex items-center gap-3">
+              {assemblyExpanded ? (
+                <ChevronDown className="h-4 w-4 text-purple-600" />
               ) : (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    No approved drawings found. Please contact engineering to create or approve drawings for this product type.
-                  </AlertDescription>
-                </Alert>
+                <ChevronRight className="h-4 w-4 text-purple-600" />
+              )}
+              <span className="font-medium">Final Assembly</span>
+              <Badge variant="outline" className="text-xs">
+                {productTemplate?.templateName}
+              </Badge>
+              {productTemplate?.drawingNumber && (
+                <Badge variant="secondary" className="text-xs">
+                  Dwg: {productTemplate.drawingNumber} Rev {productTemplate.drawingRevision || '-'}
+                </Badge>
+              )}
+            </div>
+            <Badge className="bg-purple-600">
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              {assemblyProcessSteps.length} assembly step{assemblyProcessSteps.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+
+          {/* Assembly Steps List - Expandable */}
+          {assemblyExpanded && (
+            <div className="ml-7 space-y-2 mt-2">
+              {assemblyProcessSteps.map((step, idx) => (
+                <div
+                  key={step.id || idx}
+                  className="flex items-center justify-between p-2.5 rounded-md border bg-white hover:bg-purple-50/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
+                      {step.stepNo}
+                    </div>
+                    <div className="font-medium text-sm">{step.processName || `Step ${step.stepNo}`}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {step.isMandatory && (
+                      <Badge variant="outline" className="text-xs">
+                        Mandatory
+                      </Badge>
+                    )}
+                    {step.canBeParallel && (
+                      <Badge variant="secondary" className="text-xs">
+                        Parallel OK
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Manufacturing Steps:</span>
+              <span className="font-medium">{manufacturingSteps}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Assembly Steps:</span>
+              <span className="font-medium">{assemblyProcessSteps.length}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm border-t pt-3">
+              <span className="text-muted-foreground font-semibold">Total Job Cards:</span>
+              <span className="font-semibold text-lg">{totalProcessSteps}</span>
+            </div>
+            {purchasedParts.length > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Purchased Parts:</span>
+                <Badge className="bg-blue-600">{purchasedParts.length} (Direct to Assembly)</Badge>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Material Status:</span>
+              {allMaterialsAvailable ? (
+                <Badge className="bg-green-600">All Available</Badge>
+              ) : (
+                <Badge variant="destructive">
+                  {childPartItems.filter(i => !i.materialAvailable).length} Shortage(s)
+                </Badge>
               )}
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="mt-6 flex gap-3">
             <Button
-              variant="outline"
-              onClick={() => setPrimaryDrawingDialogOpen(false)}
+              onClick={handleGenerateJobCards}
+              disabled={partsWithoutProcesses.length > 0}
+              className="flex-1"
+              size="lg"
             >
+              <Package className="mr-2 h-4 w-4" />
+              Generate {totalProcessSteps} Job Cards
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/planning')}>
               Cancel
             </Button>
-            <Button
-              onClick={handleApplyPrimaryDrawing}
-              disabled={!selectedPrimaryDrawingId}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Set as Primary Drawing
-            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+
+          {partsWithoutProcesses.length > 0 && (
+            <Alert className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Configure process templates for all child parts before generating job cards.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

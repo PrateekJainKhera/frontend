@@ -8,16 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { mockOrders, mockJobCards } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Order, OrderStatus } from '@/types'
-import { JobCard, JobCardStatus, MaterialStatus } from '@/types/job-card'
+import { orderService, OrderResponse } from '@/lib/api/orders'
+import { jobCardService, JobCardResponse } from '@/lib/api/job-cards'
 import { formatDate } from '@/lib/utils/formatters'
+import { toast } from 'sonner'
 
 export function PlanningDashboardTab() {
   const [loading, setLoading] = useState(true)
-  const [orders, setOrders] = useState<Order[]>([])
-  const [jobCards, setJobCards] = useState<JobCard[]>([])
+  const [orders, setOrders] = useState<OrderResponse[]>([])
+  const [jobCards, setJobCards] = useState<JobCardResponse[]>([])
 
   useEffect(() => {
     loadData()
@@ -25,41 +24,37 @@ export function PlanningDashboardTab() {
 
   const loadData = async () => {
     setLoading(true)
-    const [ordersData, jobCardsData] = await Promise.all([
-      simulateApiCall(mockOrders, 500),
-      simulateApiCall(mockJobCards, 500)
-    ])
-    setOrders(ordersData)
-    setJobCards(jobCardsData)
-    setLoading(false)
+    try {
+      const [ordersData, jobCardsData] = await Promise.all([
+        orderService.getAll(),
+        jobCardService.getAll()
+      ])
+      setOrders(ordersData)
+      setJobCards(jobCardsData)
+    } catch (error) {
+      toast.error('Failed to load planning data', {
+        description: error instanceof Error ? error.message : 'An error occurred'
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // 🔒 BUSINESS RULE: Planning blocked until drawingReviewStatus === 'APPROVED'
+  // Orders ready for planning: drawing review approved + not yet planned
   const pendingPlanningOrders = orders.filter(order =>
     order.drawingReviewStatus === 'Approved' &&
-    order.planningStatus === 'Not Planned' &&
-    (order.status === OrderStatus.PENDING || order.status === OrderStatus.IN_PROGRESS)
+    order.planningStatus === 'Not Planned'
   )
 
-  // Orders that are planned or released (explicit planning status check)
+  // Orders that are planned or released
   const plannedOrders = orders.filter(order =>
     order.planningStatus === 'Planned' || order.planningStatus === 'Released'
   )
 
   // Job cards pending material
   const materialPendingJobCards = jobCards.filter(jc =>
-    jc.materialStatus === MaterialStatus.PENDING ||
-    jc.status === JobCardStatus.PENDING_MATERIAL
+    jc.status === 'Pending Material'
   )
-
-  // Calculate days waiting for material
-  const calculateDaysWaiting = (jobCard: JobCard): number => {
-    if (!jobCard.materialStatusUpdatedAt) return 0
-    const now = new Date()
-    const updatedAt = new Date(jobCard.materialStatusUpdatedAt)
-    const diffTime = Math.abs(now.getTime() - updatedAt.getTime())
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  }
 
   // Stats
   const stats = {
@@ -166,38 +161,24 @@ export function PlanningDashboardTab() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {materialPendingJobCards.map((jc) => {
-                const daysWaiting = calculateDaysWaiting(jc)
-                return (
-                  <div
-                    key={jc.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm">{jc.jobCardNo}</p>
-                        <Badge variant="outline" className="text-xs">
-                          {jc.orderNo}
-                        </Badge>
-                        {daysWaiting > 3 && (
-                          <Badge variant="destructive" className="text-xs">
-                            {daysWaiting} days
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {jc.childPartName} • {jc.processName}
-                      </p>
-                      {jc.materialShortfall && (
-                        <p className="text-xs text-red-700 mt-1">
-                          <strong>Shortfall:</strong> {jc.materialShortfall.materialName} -
-                          Need {jc.materialShortfall.shortfall} {jc.materialShortfall.unit}
-                        </p>
-                      )}
+              {materialPendingJobCards.map((jc) => (
+                <div
+                  key={jc.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm">{jc.jobCardNo}</p>
+                      <Badge variant="outline" className="text-xs">
+                        {jc.orderNo}
+                      </Badge>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {jc.childPartName} • {jc.processName}
+                    </p>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -243,11 +224,11 @@ export function PlanningDashboardTab() {
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customer?.customerName}</span>
+                        <span className="ml-2">{order.customerName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.product?.modelName}</span>
+                        <span className="ml-2">{order.productName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Quantity:</span>
@@ -298,7 +279,7 @@ export function PlanningDashboardTab() {
             <div className="space-y-3">
               {plannedOrders.map((order) => {
                 const orderJobCards = jobCards.filter(jc => jc.orderId === order.id)
-                const completedJobCards = orderJobCards.filter(jc => jc.status === JobCardStatus.COMPLETED)
+                const completedJobCards = orderJobCards.filter(jc => jc.status === 'Completed')
                 const progress = orderJobCards.length > 0
                   ? Math.round((completedJobCards.length / orderJobCards.length) * 100)
                   : 0
@@ -311,7 +292,7 @@ export function PlanningDashboardTab() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <p className="font-semibold">{order.orderNo}</p>
-                        <Badge variant="outline">{order.customer?.customerName}</Badge>
+                        <Badge variant="outline">{order.customerName}</Badge>
                         <Badge variant="secondary">
                           {orderJobCards.length} job cards
                         </Badge>
@@ -325,7 +306,7 @@ export function PlanningDashboardTab() {
                       <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Product:</span>
-                          <span className="ml-2">{order.product?.modelName}</span>
+                          <span className="ml-2">{order.productName}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Progress:</span>

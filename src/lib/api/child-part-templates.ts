@@ -85,6 +85,8 @@ export interface ChildPartTemplateResponse {
   dimensionUnit: string
   description?: string | null
   technicalNotes?: string | null
+  materialRequirements: ChildPartTemplateMaterialRequirementResponse[]
+  processSteps: ChildPartTemplateProcessStepResponse[]
   isActive: boolean
   createdAt: string
   updatedAt: string

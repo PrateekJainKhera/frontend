@@ -166,6 +166,30 @@ class OrderService {
     }
   }
 
+  async getReadyForPlanning(): Promise<OrderResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<OrderResponse[]>>(`${this.baseUrl}/ready-for-planning`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch orders ready for planning: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getOrderDrawings(orderId: number): Promise<any[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<any[]>>(`${this.baseUrl}/${orderId}/drawings`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch order drawings: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async generateOrderNo(): Promise<string> {
     try {
       const response = await apiClient.get<ApiResponse<string>>(`${this.baseUrl}/generate-order-no`)
