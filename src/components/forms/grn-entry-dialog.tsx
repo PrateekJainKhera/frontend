@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { mockRawMaterials } from "@/lib/mock-data"
 import { toast } from "sonner"
+import { grnService, CreateGRNRequest } from "@/lib/api/grn"
 
 interface GRNEntryDialogProps {
     open: boolean
@@ -22,6 +23,7 @@ interface GRNEntryDialogProps {
 interface PieceBreakdown {
     id: string
     length: number // in meters
+    quantity: number // number of pieces at this length
 }
 
 interface MaterialLine {
@@ -46,6 +48,9 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
     const [vendorName, setVendorName] = useState("")
     const [materialLines, setMaterialLines] = useState<MaterialLine[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [showWarningDialog, setShowWarningDialog] = useState(false)
+    const [warningMessage, setWarningMessage] = useState<string[]>([])
+    const [pendingSubmit, setPendingSubmit] = useState(false)
 
     // Reset form when dialog opens
     useEffect(() => {
@@ -152,7 +157,8 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             if (line.id === lineId) {
                 const newPiece: PieceBreakdown = {
                     id: `piece-${Date.now()}`,
-                    length: 0
+                    length: 0,
+                    quantity: 1
                 }
                 return {
                     ...line,
@@ -175,13 +181,13 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
         }))
     }
 
-    const updatePiece = (lineId: string, pieceId: string, length: number) => {
+    const updatePiece = (lineId: string, pieceId: string, field: 'length' | 'quantity', value: number) => {
         setMaterialLines(materialLines.map(line => {
             if (line.id === lineId) {
                 return {
                     ...line,
                     pieces: line.pieces.map(p =>
-                        p.id === pieceId ? { ...p, length } : p
+                        p.id === pieceId ? { ...p, [field]: value } : p
                     )
                 }
             }
@@ -190,7 +196,23 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
     }
 
     const getTotalPieceLength = (pieces: PieceBreakdown[]) => {
-        return pieces.reduce((sum, p) => sum + p.length, 0)
+        return pieces.reduce((sum, p) => sum + (p.length * p.quantity), 0)
+    }
+
+    const getTotalPieceCount = (pieces: PieceBreakdown[]) => {
+        return pieces.reduce((sum, p) => sum + p.quantity, 0)
+    }
+
+    const handleWarningProceed = async () => {
+        setShowWarningDialog(false)
+        setPendingSubmit(false)
+        await performSubmit()
+    }
+
+    const handleWarningCancel = () => {
+        setShowWarningDialog(false)
+        setPendingSubmit(false)
+        setWarningMessage([])
     }
 
     const handleSubmit = async () => {
@@ -205,6 +227,9 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
         }
 
         // Validate each material line
+        let hasLengthMismatch = false
+        let mismatchDetails: string[] = []
+
         for (const line of materialLines) {
             if (!line.materialId) {
                 toast.error("Please select material for all lines")
@@ -217,23 +242,122 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
 
             const totalPieceLength = getTotalPieceLength(line.pieces)
             if (totalPieceLength > 0 && Math.abs(totalPieceLength - line.calculatedLength) > 0.1) {
-                toast.error(`Piece lengths don't match calculated length for ${line.materialName}`)
-                return
+                hasLengthMismatch = true
+                mismatchDetails.push(
+                    `${line.materialName}: ${totalPieceLength.toFixed(2)}m entered vs ${line.calculatedLength.toFixed(2)}m expected`
+                )
             }
         }
 
+        // Show warning if lengths don't match, but allow proceeding
+        if (hasLengthMismatch) {
+            setWarningMessage(mismatchDetails)
+            setShowWarningDialog(true)
+            setPendingSubmit(true)
+            return
+        }
+
+        await performSubmit()
+    }
+
+    const performSubmit = async () => {
         setIsSubmitting(true)
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        try {
+            // Create GRN request payload
+            // Each batch of pieces becomes a separate GRN line (since all pieces in a batch have the same length)
+            const grnLines: any[] = []
+            let sequenceNo = 0
 
-        toast.success("GRN saved successfully")
-        setIsSubmitting(false)
-        onSuccess()
-        onOpenChange(false)
+            for (const line of materialLines) {
+                // If no pieces specified, create one line with average length
+                if (line.pieces.length === 0) {
+                    sequenceNo++
+                    grnLines.push({
+                        sequenceNo,
+                        materialId: parseInt(line.materialId.replace(/\D/g, '')) || 0, // Extract number from 'rm-1' -> 1
+                        materialName: line.materialName,
+                        grade: line.grade,
+                        materialType: line.materialType === 'rod' ? 'Rod' : 'Pipe',
+                        diameter: line.materialType === 'rod' ? Number(line.diameter) : undefined,
+                        outerDiameter: line.materialType === 'pipe' ? Number(line.outerDiameter) : undefined,
+                        innerDiameter: line.materialType === 'pipe' ? Number(line.innerDiameter) : undefined,
+                        materialDensity: Number(line.materialDensity),
+                        totalWeightKG: Number(line.weight),
+                        numberOfPieces: 1,
+                        lengthPerPieceMM: Number(line.calculatedLength * 1000),
+                        unitPrice: 0,
+                    })
+                } else {
+                    // Each batch becomes a separate GRN line
+                    for (const batch of line.pieces) {
+                        sequenceNo++
+                        // Calculate weight for this batch
+                        const batchLength = batch.length * batch.quantity
+                        const batchWeight = (batchLength / line.calculatedLength) * line.weight
+
+                        grnLines.push({
+                            sequenceNo,
+                            materialId: parseInt(line.materialId.replace(/\D/g, '')) || 0, // Extract number from 'rm-1' -> 1
+                            materialName: line.materialName,
+                            grade: line.grade,
+                            materialType: line.materialType === 'rod' ? 'Rod' : 'Pipe',
+                            diameter: line.materialType === 'rod' ? Number(line.diameter) : undefined,
+                            outerDiameter: line.materialType === 'pipe' ? Number(line.outerDiameter) : undefined,
+                            innerDiameter: line.materialType === 'pipe' ? Number(line.innerDiameter) : undefined,
+                            materialDensity: Number(line.materialDensity),
+                            totalWeightKG: Number(batchWeight),
+                            numberOfPieces: Number(batch.quantity),
+                            lengthPerPieceMM: Number(batch.length * 1000), // All pieces in this batch have same length
+                            unitPrice: 0,
+                        })
+                    }
+                }
+            }
+
+            const grnRequest: CreateGRNRequest = {
+                grnNo: grnNumber,
+                grnDate: grnDate,
+                supplierName: vendorName,
+                lines: grnLines,
+                createdBy: 'Admin', // TODO: Get from auth context
+            }
+
+            // Debug: Log the request
+            console.log('GRN Request Payload:', JSON.stringify(grnRequest, null, 2))
+
+            // Validate no NaN values
+            for (const line of grnLines) {
+                if (isNaN(line.totalWeightKG) || isNaN(line.numberOfPieces) || isNaN(line.lengthPerPieceMM) || isNaN(line.materialDensity)) {
+                    toast.error('Invalid numeric values detected. Please check all fields.')
+                    setIsSubmitting(false)
+                    return
+                }
+            }
+
+            // Call API to create GRN
+            const result = await grnService.create(grnRequest)
+
+            toast.success(`GRN ${result.grnNo} created successfully!`, {
+                description: `${result.totalPieces} material pieces added to inventory`,
+                duration: 5000,
+            })
+
+            setIsSubmitting(false)
+            onSuccess()
+            onOpenChange(false)
+        } catch (error) {
+            console.error('Failed to create GRN:', error)
+            toast.error('Failed to create GRN', {
+                description: error instanceof Error ? error.message : 'An error occurred',
+                duration: 5000,
+            })
+            setIsSubmitting(false)
+        }
     }
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
                 <DialogHeader className="px-6 pt-6 pb-4 border-b">
@@ -465,7 +589,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                         onClick={() => addPiece(line.id)}
                                                     >
                                                         <Plus className="mr-2 h-3 w-3" />
-                                                        Add Piece
+                                                        Add Batch
                                                     </Button>
                                                 </div>
 
@@ -473,18 +597,33 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                     <div className="space-y-2">
                                                         {line.pieces.map((piece, pieceIndex) => (
                                                             <div key={piece.id} className="flex items-center gap-2">
-                                                                <span className="text-sm text-muted-foreground w-16">
-                                                                    Piece {pieceIndex + 1}:
+                                                                <span className="text-sm text-muted-foreground w-20">
+                                                                    Batch {pieceIndex + 1}:
                                                                 </span>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.1"
-                                                                    placeholder="Length (m)"
-                                                                    value={piece.length || ''}
-                                                                    onChange={(e) => updatePiece(line.id, piece.id, parseFloat(e.target.value) || 0)}
-                                                                    className="w-32"
-                                                                />
-                                                                <span className="text-sm">m</span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Input
+                                                                        type="number"
+                                                                        step="0.1"
+                                                                        placeholder="Length (m)"
+                                                                        value={piece.length || ''}
+                                                                        onChange={(e) => updatePiece(line.id, piece.id, 'length', parseFloat(e.target.value) || 0)}
+                                                                        className="w-28"
+                                                                    />
+                                                                    <span className="text-sm text-muted-foreground">m ×</span>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="1"
+                                                                        step="1"
+                                                                        placeholder="Qty"
+                                                                        value={piece.quantity || ''}
+                                                                        onChange={(e) => updatePiece(line.id, piece.id, 'quantity', parseInt(e.target.value) || 1)}
+                                                                        className="w-20"
+                                                                    />
+                                                                    <span className="text-sm text-muted-foreground">pcs</span>
+                                                                    <span className="text-sm font-medium text-blue-600 w-20">
+                                                                        = {(piece.length * piece.quantity).toFixed(2)}m
+                                                                    </span>
+                                                                </div>
                                                                 <Button
                                                                     type="button"
                                                                     variant="ghost"
@@ -497,26 +636,34 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                         ))}
 
                                                         {/* Total Validation */}
-                                                        <div className="flex items-center justify-between text-sm pt-2 border-t">
-                                                            <span className="font-medium">Total Pieces:</span>
-                                                            <span className={
-                                                                Math.abs(getTotalPieceLength(line.pieces) - line.calculatedLength) < 0.1
-                                                                    ? 'text-green-600 font-semibold'
-                                                                    : 'text-red-600 font-semibold'
-                                                            }>
-                                                                {getTotalPieceLength(line.pieces).toFixed(2)} m
-                                                                {Math.abs(getTotalPieceLength(line.pieces) - line.calculatedLength) < 0.1
-                                                                    ? ' ✓'
-                                                                    : ` (Expected: ${line.calculatedLength.toFixed(2)}m)`
-                                                                }
-                                                            </span>
+                                                        <div className="space-y-1 pt-2 border-t">
+                                                            <div className="flex items-center justify-between text-sm">
+                                                                <span className="font-medium">Total Pieces:</span>
+                                                                <span className="font-semibold">{getTotalPieceCount(line.pieces)} pieces</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-sm">
+                                                                <span className="font-medium">Total Length:</span>
+                                                                <span className={
+                                                                    Math.abs(getTotalPieceLength(line.pieces) - line.calculatedLength) < 0.1
+                                                                        ? 'text-green-600 font-semibold'
+                                                                        : 'text-red-600 font-semibold'
+                                                                }>
+                                                                    {getTotalPieceLength(line.pieces).toFixed(2)} m
+                                                                    {Math.abs(getTotalPieceLength(line.pieces) - line.calculatedLength) < 0.1
+                                                                        ? ' ✓'
+                                                                        : ` (Expected: ${line.calculatedLength.toFixed(2)}m)`
+                                                                    }
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
 
                                                 {line.pieces.length === 0 && (
                                                     <p className="text-sm text-muted-foreground text-center py-2">
-                                                        Click "Add Piece" to record individual {line.materialType === 'rod' ? 'rod' : 'pipe'} lengths
+                                                        Click "Add Batch" to record {line.materialType === 'rod' ? 'rod' : 'pipe'} lengths and quantities
+                                                        <br />
+                                                        <span className="text-xs">Example: 6m × 5 pieces = 30m total</span>
                                                     </p>
                                                 )}
                                             </div>
@@ -539,5 +686,52 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {/* Warning Dialog */}
+        <Dialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-orange-600">
+                        <span className="text-2xl">⚠️</span>
+                        Piece Length Mismatch Warning
+                    </DialogTitle>
+                    <DialogDescription className="pt-4">
+                        The entered piece lengths don't match the calculated total length:
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-2 py-4">
+                    {warningMessage.map((msg, index) => (
+                        <div key={index} className="bg-orange-50 border border-orange-200 rounded-md p-3 text-sm">
+                            {msg}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+                    <strong>Note:</strong> You can proceed with the GRN entry even if the lengths don't match exactly.
+                    This is useful for partial receipts or measurement variations.
+                </div>
+
+                <DialogFooter className="gap-2 sm:gap-0">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleWarningCancel}
+                        className="flex-1 sm:flex-none"
+                    >
+                        Go Back
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={handleWarningProceed}
+                        className="flex-1 sm:flex-none"
+                    >
+                        Proceed Anyway
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     )
 }
