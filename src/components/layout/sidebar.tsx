@@ -83,8 +83,13 @@ const navItems: NavItem[] = [
   },
   {
     title: 'Inventory',
-    href: '/inventory/raw-materials',
-    icon: Warehouse
+    href: '/inventory',
+    icon: Warehouse,
+    children: [
+      { title: 'Raw Materials', href: '/inventory/raw-materials', icon: Package },
+      { title: 'Material Pieces', href: '/inventory/material-pieces', icon: PackageCheck },
+      { title: 'Requisitions', href: '/inventory/material-requisitions', icon: FileText }
+    ]
   },
   {
     title: 'Stores',
