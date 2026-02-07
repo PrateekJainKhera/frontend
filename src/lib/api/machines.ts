@@ -46,6 +46,21 @@ class MachineService {
     }
   }
 
+  async getById(id: number): Promise<MachineResponse> {
+    try {
+      const response = await apiClient.get<ApiResponse<MachineResponse>>(`${this.baseUrl}/${id}`)
+      if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.message || 'Machine not found')
+      }
+      return response.data.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch machine: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async create(data: CreateMachineRequest): Promise<number> {
     try {
       const response = await apiClient.post<ApiResponse<number>>(this.baseUrl, data)

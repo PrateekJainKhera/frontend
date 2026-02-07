@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +27,7 @@ import { AddMachineDialog } from '@/components/dialogs/add-machine-dialog'
 import { MachinesDataGrid } from '@/components/tables/machines-data-grid'
 
 export default function MachinesMasterPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -177,8 +179,8 @@ export default function MachinesMasterPage() {
       {/* Data Grid */}
       <MachinesDataGrid
         machines={filteredMachines}
-        onEdit={(machine) => console.log('Edit', machine)}
-        onView={(machine) => console.log('View', machine)}
+        onEdit={(machine) => router.push(`/masters/machines/${machine.id}/edit`)}
+        onView={(machine) => router.push(`/masters/machines/${machine.id}/edit`)}
       />
 
       {/* Add Machine Dialog */}

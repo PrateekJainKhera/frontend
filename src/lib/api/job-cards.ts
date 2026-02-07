@@ -1,6 +1,35 @@
 import axios from 'axios'
 import { apiClient, ApiResponse } from './axios-config'
 
+export interface JobCardMaterialRequirementResponse {
+  id: number
+  jobCardId: number
+  jobCardNo?: string | null
+  rawMaterialId?: number | null
+  rawMaterialName: string
+  materialGrade: string
+  requiredQuantity: number
+  unit: string
+  wastagePercent: number
+  totalQuantityWithWastage: number
+  source: string
+  confirmedBy: string
+  confirmedAt: string
+  createdAt: string
+  createdBy?: string | null
+}
+
+export interface JobCardMaterialRequirementRequest {
+  rawMaterialId?: number | null
+  rawMaterialName: string
+  materialGrade?: string
+  requiredQuantity: number
+  unit: string
+  wastagePercent?: number
+  source?: string
+  confirmedBy?: string
+}
+
 export interface JobCardResponse {
   id: number
   jobCardNo: string
@@ -40,6 +69,8 @@ export interface JobCardResponse {
   updatedAt?: string | null
   updatedBy?: string | null
   version: number
+
+  materialRequirements?: JobCardMaterialRequirementResponse[]
 }
 
 export interface CreateJobCardPayload {
@@ -68,6 +99,7 @@ export interface CreateJobCardPayload {
   manufacturingDimensions?: string | null
   createdBy?: string | null
   prerequisiteJobCardIds?: number[]
+  materialRequirements?: JobCardMaterialRequirementRequest[]
 }
 
 export interface UpdateJobCardStatusPayload {

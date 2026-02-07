@@ -80,6 +80,30 @@ export interface CreateOrderPayload {
   materialGradeRemark?: string
 }
 
+export interface UpdateOrderPayload {
+  id: number
+  orderDate?: string
+  dueDate?: string
+  adjustedDueDate?: string
+  customerId?: number
+  productId?: number
+  quantity?: number
+  status?: string
+  priority?: string
+  planningStatus?: string
+  orderSource?: string
+  agentCustomerId?: number
+  agentCommission?: number
+  schedulingStrategy?: string
+  primaryDrawingId?: number
+  drawingSource?: string
+  linkedProductTemplateId?: number
+  customerMachine?: string
+  materialGradeRemark?: string
+  delayReason?: string
+  updatedBy?: string
+}
+
 class OrderService {
   private baseUrl = '/orders'
 
@@ -197,6 +221,22 @@ class OrderService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to generate order number: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async update(id: number, data: UpdateOrderPayload): Promise<OrderResponse> {
+    try {
+      const response = await apiClient.put<ApiResponse<OrderResponse>>(`${this.baseUrl}/${id}`, {
+        ...data,
+        id,
+      })
+      if (!response.data.success) throw new Error(response.data.message)
+      return response.data.data!
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to update order: ${error.message}`)
       }
       throw error
     }
