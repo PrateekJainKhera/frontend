@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Plus, Pencil, Trash2, CheckCircle2, XCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, CheckCircle2, XCircle, Check, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -42,6 +42,15 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   processMachineCapabilityService,
@@ -59,8 +68,6 @@ const capabilityFormSchema = z.object({
   maxWorkpieceLength: z.number().optional(),
   maxWorkpieceDiameter: z.number().optional(),
   maxBatchSize: z.number().optional(),
-  hourlyRate: z.number().optional(),
-  estimatedCostPerPiece: z.number().optional(),
   isActive: z.boolean(),
   remarks: z.string().optional(),
 })
@@ -147,8 +154,6 @@ export function MachineProcessCapabilities({
       maxWorkpieceLength: capability.maxWorkpieceLength,
       maxWorkpieceDiameter: capability.maxWorkpieceDiameter,
       maxBatchSize: capability.maxBatchSize,
-      hourlyRate: capability.hourlyRate,
-      estimatedCostPerPiece: capability.estimatedCostPerPiece,
       isActive: capability.isActive,
       remarks: capability.remarks || '',
     })
@@ -321,31 +326,59 @@ export function MachineProcessCapabilities({
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Process Selection */}
+                {/* Process Selection - Searchable Combobox */}
                 <FormField
                   control={form.control}
                   name="processId"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
                       <FormLabel>Process *</FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(parseInt(value))}
-                        value={field.value > 0 ? field.value.toString() : undefined}
-                        disabled={!!editingCapability}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a process" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {processes.map((process) => (
-                            <SelectItem key={process.id} value={process.id.toString()}>
-                              {process.processName} ({process.category})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              disabled={!!editingCapability}
+                              className={cn(
+                                'w-full justify-between',
+                                !field.value && 'text-muted-foreground'
+                              )}
+                            >
+                              {field.value > 0
+                                ? processes.find((process) => process.id === field.value)
+                                    ?.processName || 'Select a process'
+                                : 'Select a process'}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search process..." />
+                            <CommandEmpty>No process found.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {processes.map((process) => (
+                                <CommandItem
+                                  key={process.id}
+                                  value={`${process.processName} ${process.category}`}
+                                  onSelect={() => {
+                                    field.onChange(process.id)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      'mr-2 h-4 w-4',
+                                      field.value === process.id ? 'opacity-100' : 'opacity-0'
+                                    )}
+                                  />
+                                  {process.processName} ({process.category})
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -502,54 +535,6 @@ export function MachineProcessCapabilities({
                         <Input
                           type="number"
                           placeholder="100"
-                          {...field}
-                          value={field.value || ''}
-                          onChange={(e) =>
-                            field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Hourly Rate */}
-                <FormField
-                  control={form.control}
-                  name="hourlyRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hourly Rate (₹)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="500"
-                          {...field}
-                          value={field.value || ''}
-                          onChange={(e) =>
-                            field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Estimated Cost Per Piece */}
-                <FormField
-                  control={form.control}
-                  name="estimatedCostPerPiece"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estimated Cost per Piece (₹)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="50"
                           {...field}
                           value={field.value || ''}
                           onChange={(e) =>

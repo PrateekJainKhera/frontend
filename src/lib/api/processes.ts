@@ -5,6 +5,9 @@ export interface CreateProcessRequest {
   processName: string
   category: string
   defaultMachine?: string | null
+  defaultMachineId?: number | null
+  defaultSetupTimeHours?: number | null
+  defaultCycleTimePerPieceHours?: number | null
   standardSetupTimeMin?: number
   restTimeHours?: number
   description?: string | null
@@ -25,6 +28,11 @@ export interface ProcessResponse {
   processName: string
   category: string
   defaultMachine?: string | null
+  defaultMachineId?: number | null
+  defaultMachineName?: string | null
+  defaultMachineCode?: string | null
+  defaultSetupTimeHours?: number | null
+  defaultCycleTimePerPieceHours?: number | null
   standardSetupTimeMin: number
   restTimeHours?: number
   description?: string | null

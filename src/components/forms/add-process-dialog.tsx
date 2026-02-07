@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Check, ChevronsUpDown } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -33,11 +46,16 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ProcessCategory } from '@/types/enums'
 import { toast } from 'sonner'
 import { processService } from '@/lib/api/processes'
+import { machineService, MachineResponse } from '@/lib/api/machines'
+import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
   processName: z.string().min(2, 'Process name is required'),
   category: z.nativeEnum(ProcessCategory, { message: 'Category is required' }),
   defaultMachine: z.string().optional(),
+  defaultMachineId: z.number().optional(),
+  defaultSetupTimeHours: z.number().min(0, 'Setup time cannot be negative').optional(),
+  defaultCycleTimePerPieceHours: z.number().min(0, 'Cycle time cannot be negative').optional(),
   standardTimeMin: z.number().min(0, 'Setup time cannot be negative'),
   restTimeHours: z.number().min(0, 'Rest time cannot be negative').optional(),
   description: z.string().optional(),
@@ -54,6 +72,8 @@ interface AddProcessDialogProps {
 
 export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [machines, setMachines] = useState<MachineResponse[]>([])
+  const [machinesLoading, setMachinesLoading] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -63,9 +83,31 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
       description: '',
       standardTimeMin: 0,
       restTimeHours: 0,
+      defaultSetupTimeHours: 0.5,
+      defaultCycleTimePerPieceHours: 0.1,
       isOutsourced: false,
     },
   })
+
+  // Load machines when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadMachines()
+    }
+  }, [open])
+
+  const loadMachines = async () => {
+    setMachinesLoading(true)
+    try {
+      const data = await machineService.getAll()
+      setMachines(data.filter(m => m.isActive))
+    } catch (error) {
+      console.error('Failed to load machines:', error)
+      toast.error('Failed to load machines')
+    } finally {
+      setMachinesLoading(false)
+    }
+  }
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -75,6 +117,9 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
         processName: data.processName,
         category: data.category,
         defaultMachine: data.defaultMachine || null,
+        defaultMachineId: data.defaultMachineId || null,
+        defaultSetupTimeHours: data.defaultSetupTimeHours || 0.5,
+        defaultCycleTimePerPieceHours: data.defaultCycleTimePerPieceHours || 0.1,
         standardSetupTimeMin: data.standardTimeMin,
         restTimeHours: data.restTimeHours || 0,
         description: data.description || null,
@@ -153,12 +198,95 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
 
               <FormField
                 control={form.control}
-                name="defaultMachine"
+                name="defaultMachineId"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Default Machine</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            disabled={machinesLoading}
+                            className={cn(
+                              'w-full justify-between',
+                              !field.value && 'text-muted-foreground'
+                            )}
+                          >
+                            {field.value && field.value > 0
+                              ? machines.find((machine) => machine.id === field.value)
+                                  ?.machineName || 'Select machine'
+                              : machinesLoading ? 'Loading machines...' : 'Select machine'}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search machine..." />
+                          <CommandEmpty>No machine found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {machines.map((machine) => (
+                              <CommandItem
+                                key={machine.id}
+                                value={`${machine.machineName} ${machine.machineCode}`}
+                                onSelect={() => {
+                                  field.onChange(machine.id)
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    field.value === machine.id ? 'opacity-100' : 'opacity-0'
+                                  )}
+                                />
+                                {machine.machineName} ({machine.machineCode})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="defaultSetupTimeHours"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Default Machine</FormLabel>
+                    <FormLabel>Default Setup Time (hours)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., CNC-01" {...field} />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        placeholder="0.5"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="defaultCycleTimePerPieceHours"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Cycle Time/Piece (hours)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.1"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
