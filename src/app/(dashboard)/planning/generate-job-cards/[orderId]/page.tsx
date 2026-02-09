@@ -19,6 +19,8 @@ import { jobCardService, CreateJobCardPayload, JobCardMaterialRequirementRequest
 import { materialService, MaterialResponse } from '@/lib/api/materials'
 import { inventoryService, InventoryResponse } from '@/lib/api/inventory'
 import { materialRequisitionService, CreateMaterialRequisitionRequest } from '@/lib/api/material-requisitions'
+import { materialPieceService, MaterialPieceResponse } from '@/lib/api/material-pieces'
+import { PieceSelectionDialog } from '@/components/planning/PieceSelectionDialog'
 import { formatDate } from '@/lib/utils/formatters'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -65,6 +67,21 @@ export default function GenerateJobCardsPage() {
   // Track unsaved changes and saving state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Piece selection dialog state
+  const [pieceSelectionOpen, setPieceSelectionOpen] = useState(false)
+  const [selectedMaterialForPieces, setSelectedMaterialForPieces] = useState<{
+    materialId: number
+    materialName: string
+    materialGrade?: string
+    requiredLengthMM: number
+    aggregatedMaterialIndex: number
+  } | null>(null)
+
+  // Store selected pieces per material (key: materialId or aggregatedMaterialIndex)
+  const [selectedPiecesPerMaterial, setSelectedPiecesPerMaterial] = useState<
+    Map<number, Array<{ piece: MaterialPieceResponse; quantityMM: number }>>
+  >(new Map())
 
   useEffect(() => {
     loadData()
@@ -271,6 +288,29 @@ export default function GenerateJobCardsPage() {
     const lengthMm = (weightKg * 1000000) / (density * areaCm2)
 
     return lengthMm
+  }
+
+  // Handle opening piece selection dialog
+  const handleSelectPieces = (materialId: number, materialName: string, materialGrade: string | undefined, requiredLengthMM: number, aggregatedMaterialIndex: number) => {
+    setSelectedMaterialForPieces({
+      materialId,
+      materialName,
+      materialGrade,
+      requiredLengthMM,
+      aggregatedMaterialIndex
+    })
+    setPieceSelectionOpen(true)
+  }
+
+  // Handle piece selection confirmation
+  const handlePieceSelectionConfirm = (selectedPieces: Array<{ piece: MaterialPieceResponse; quantityMM: number }>) => {
+    if (!selectedMaterialForPieces) return
+
+    const newMap = new Map(selectedPiecesPerMaterial)
+    newMap.set(selectedMaterialForPieces.aggregatedMaterialIndex, selectedPieces)
+    setSelectedPiecesPerMaterial(newMap)
+
+    toast.success(`Selected ${selectedPieces.length} piece(s) for ${selectedMaterialForPieces.materialName}`)
   }
 
   // Check material availability based on real inventory
@@ -682,6 +722,29 @@ export default function GenerateJobCardsPage() {
         const requisitionNo = `REQ-${order.orderNo}-${Date.now()}`
         const requisitionDate = new Date().toISOString()
 
+        // Build a map of materialId to selected piece IDs from the aggregated materials
+        const materialIdToPieceIds = new Map<number, number[]>()
+        const aggregatedMaterials = getAggregatedMaterials()
+
+        aggregatedMaterials.forEach((material, idx) => {
+          const selectedPieces = selectedPiecesPerMaterial.get(idx)
+          if (selectedPieces && selectedPieces.length > 0) {
+            const pieceIds = selectedPieces.map(sp => sp.piece.id)
+
+            // Find the actual material ID from availableMaterials
+            const matchingMaterial = material.rawMaterialId
+              ? availableMaterials.find(m => m.id === material.rawMaterialId)
+              : availableMaterials.find(
+                  m => m.materialName === material.materialName &&
+                       (m.grade === material.materialGrade || (!m.grade && !material.materialGrade))
+                )
+
+            if (matchingMaterial) {
+              materialIdToPieceIds.set(matchingMaterial.id, pieceIds)
+            }
+          }
+        })
+
         // Create requisition items from job cards with material requirements
         const requisitionItems = []
         let lineNo = 1
@@ -689,9 +752,12 @@ export default function GenerateJobCardsPage() {
         // Add materials from job cards (with job card context)
         for (const jobCard of jobCardsWithMaterials) {
           for (const material of jobCard.materials) {
+            const materialId = material.rawMaterialId || 0
+            const selectedPieceIds = materialIdToPieceIds.get(materialId)
+
             requisitionItems.push({
               lineNo: lineNo++,
-              materialId: material.rawMaterialId || 0,
+              materialId,
               materialCode: '',
               materialName: material.rawMaterialName,
               materialGrade: material.materialGrade || '',
@@ -701,7 +767,8 @@ export default function GenerateJobCardsPage() {
               jobCardNo: jobCard.jobCardNo,
               processId: jobCard.processId,
               processName: jobCard.processName,
-              remarks: `For ${jobCard.childPartName} - ${jobCard.processName}`
+              selectedPieceIds: selectedPieceIds, // Include pre-selected pieces
+              remarks: `For ${jobCard.childPartName} - ${jobCard.processName}${selectedPieceIds ? ` (${selectedPieceIds.length} piece(s) pre-selected)` : ''}`
             })
           }
         }
@@ -1212,6 +1279,7 @@ export default function GenerateJobCardsPage() {
                       <th className="text-right p-3 font-semibold text-amber-900">Required (incl. wastage)</th>
                       <th className="text-right p-3 font-semibold text-amber-900">In Stock</th>
                       <th className="text-center p-3 font-semibold text-amber-900">Status</th>
+                      <th className="text-center p-3 font-semibold text-amber-900">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1303,6 +1371,35 @@ export default function GenerateJobCardsPage() {
                                       </Badge>
                                     )}
                                   </td>
+                                  <td className="p-3 text-center align-top" rowSpan={material.childParts.length + 1}>
+                                    {matchingMaterial && hasInventoryData && (
+                                      <div className="flex flex-col gap-2">
+                                        <Button
+                                          size="sm"
+                                          variant={selectedPiecesPerMaterial.has(idx) ? "default" : "outline"}
+                                          className="text-xs h-8"
+                                          onClick={() => handleSelectPieces(
+                                            matchingMaterial.id,
+                                            material.materialName,
+                                            material.materialGrade,
+                                            material.totalRequired,
+                                            idx
+                                          )}
+                                        >
+                                          <Package className="h-3 w-3 mr-1" />
+                                          {selectedPiecesPerMaterial.has(idx)
+                                            ? `${selectedPiecesPerMaterial.get(idx)?.length} Selected`
+                                            : 'Select Pieces'
+                                          }
+                                        </Button>
+                                        {selectedPiecesPerMaterial.has(idx) && (
+                                          <div className="text-xs text-muted-foreground">
+                                            {selectedPiecesPerMaterial.get(idx)?.reduce((sum, sp) => sum + sp.quantityMM, 0).toFixed(0)} mm
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </td>
                                 </>
                               )}
                             </tr>
@@ -1315,7 +1412,7 @@ export default function GenerateJobCardsPage() {
                             <td className="p-3 text-right text-amber-900">
                               {material.totalRequired.toFixed(2)} {material.unit}
                             </td>
-                            <td colSpan={2}></td>
+                            <td colSpan={3}></td>
                           </tr>
                         </React.Fragment>
                       )
@@ -1601,6 +1698,19 @@ export default function GenerateJobCardsPage() {
         >
           <Save className="h-6 w-6" />
         </Button>
+      )}
+
+      {/* Piece Selection Dialog */}
+      {selectedMaterialForPieces && (
+        <PieceSelectionDialog
+          open={pieceSelectionOpen}
+          onOpenChange={setPieceSelectionOpen}
+          materialId={selectedMaterialForPieces.materialId}
+          materialName={selectedMaterialForPieces.materialName}
+          materialGrade={selectedMaterialForPieces.materialGrade}
+          requiredLengthMM={selectedMaterialForPieces.requiredLengthMM}
+          onConfirm={handlePieceSelectionConfirm}
+        />
       )}
     </div>
   )

@@ -175,6 +175,86 @@ class MaterialPieceService {
       throw error
     }
   }
+
+  // Auto-suggest best pieces for a requirement using FIFO + Best Fit algorithm
+  suggestPieces(pieces: MaterialPieceResponse[], requiredLengthMM: number): SuggestedPiece[] {
+    // Only consider available pieces
+    const availablePieces = pieces.filter(p => p.status === 'Available')
+
+    if (availablePieces.length === 0) {
+      return []
+    }
+
+    // Sort by best fit (minimal waste) and then FIFO
+    const sortedPieces = [...availablePieces].sort((a, b) => {
+      // Calculate waste percentage for each piece
+      const wasteA = a.currentLengthMM >= requiredLengthMM
+        ? ((a.currentLengthMM - requiredLengthMM) / requiredLengthMM) * 100
+        : Infinity
+
+      const wasteB = b.currentLengthMM >= requiredLengthMM
+        ? ((b.currentLengthMM - requiredLengthMM) / requiredLengthMM) * 100
+        : Infinity
+
+      // If both pieces can fulfill the requirement
+      if (wasteA !== Infinity && wasteB !== Infinity) {
+        // Prefer piece with less waste (within 5% threshold)
+        if (Math.abs(wasteA - wasteB) > 5) {
+          return wasteA - wasteB
+        }
+        // If waste is similar, use FIFO (older piece first)
+        return new Date(a.receivedDate).getTime() - new Date(b.receivedDate).getTime()
+      }
+
+      // If only one can fulfill, prefer that one
+      if (wasteA === Infinity && wasteB !== Infinity) return 1
+      if (wasteA !== Infinity && wasteB === Infinity) return -1
+
+      // If neither can fulfill alone, use FIFO
+      return new Date(a.receivedDate).getTime() - new Date(b.receivedDate).getTime()
+    })
+
+    // Select pieces to fulfill the requirement
+    const selectedPieces: SuggestedPiece[] = []
+    let remainingLength = requiredLengthMM
+
+    for (const piece of sortedPieces) {
+      if (remainingLength <= 0) break
+
+      const quantityToUse = Math.min(piece.currentLengthMM, remainingLength)
+      const wastePercentage = piece.currentLengthMM >= remainingLength
+        ? ((piece.currentLengthMM - remainingLength) / remainingLength) * 100
+        : 0
+
+      selectedPieces.push({
+        ...piece,
+        suggestedQuantityMM: quantityToUse,
+        wastePercentage,
+        isSuggested: true
+      })
+
+      remainingLength -= quantityToUse
+
+      // If we found a piece that fulfills the requirement completely, stop
+      if (piece.currentLengthMM >= requiredLengthMM) {
+        break
+      }
+    }
+
+    return selectedPieces
+  }
+
+  // Get available pieces by material ID
+  async getAvailableByMaterialId(materialId: number): Promise<MaterialPieceResponse[]> {
+    const pieces = await this.getByMaterialId(materialId)
+    return pieces.filter(p => p.status === 'Available')
+  }
+}
+
+export interface SuggestedPiece extends MaterialPieceResponse {
+  suggestedQuantityMM: number
+  wastePercentage: number
+  isSuggested: boolean
 }
 
 export const materialPieceService = new MaterialPieceService()

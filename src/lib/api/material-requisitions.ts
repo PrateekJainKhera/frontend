@@ -44,6 +44,7 @@ export interface MaterialRequisitionItemResponse {
   jobCardNo?: string
   processId?: number
   processName?: string
+  selectedPieceIds?: number[] // Pre-selected material piece IDs
   remarks?: string
   createdAt: string
 }
@@ -85,6 +86,7 @@ export interface CreateMaterialRequisitionItemRequest {
   jobCardNo?: string
   processId?: number
   processName?: string
+  selectedPieceIds?: number[] // Pre-selected material piece IDs for allocation
   remarks?: string
 }
 
