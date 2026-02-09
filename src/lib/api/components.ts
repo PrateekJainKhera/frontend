@@ -27,6 +27,7 @@ export interface ComponentResponse {
   manufacturer?: string | null
   supplierName?: string | null
   specifications?: string | null
+  unitCost?: number | null
   leadTimeDays: number
   unit: string
   notes?: string | null

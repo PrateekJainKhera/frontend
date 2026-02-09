@@ -88,7 +88,8 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Raw Materials', href: '/inventory/raw-materials', icon: Package },
       { title: 'Material Pieces', href: '/inventory/material-pieces', icon: PackageCheck },
-      { title: 'Requisitions', href: '/inventory/material-requisitions', icon: FileText }
+      { title: 'Requisitions', href: '/inventory/material-requisitions', icon: FileText },
+      { title: 'Receive Components', href: '/inventory/receive-components', icon: PackageCheck }
     ]
   },
   {

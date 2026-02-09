@@ -404,6 +404,7 @@ export default function GenerateJobCardsPage() {
   // Aggregate all materials for summary table
   const getAggregatedMaterials = () => {
     const aggregated: Record<string, {
+      rawMaterialId?: number
       materialName: string
       materialGrade: string
       unit: string
@@ -425,10 +426,11 @@ export default function GenerateJobCardsPage() {
         const scaledQty = material.requiredQuantity * (order?.quantity || 1) * item.bomItem.quantity
         const totalWithWastage = scaledQty * (1 + (material.wastagePercent || 0) / 100)
 
-        const key = `${material.rawMaterialName}-${material.materialGrade || 'NoGrade'}`
+        const key = `${material.rawMaterialId || material.rawMaterialName}-${material.materialGrade || 'NoGrade'}`
 
         if (!aggregated[key]) {
           aggregated[key] = {
+            rawMaterialId: material.rawMaterialId || undefined,
             materialName: material.rawMaterialName,
             materialGrade: material.materialGrade || '',
             unit: material.unit,
@@ -1038,11 +1040,19 @@ export default function GenerateJobCardsPage() {
                   </thead>
                   <tbody>
                     {aggregatedMaterials.map((material, idx) => {
-                      // Get actual inventory data - find by material name and grade
-                      const matchingMaterial = availableMaterials.find(
-                        m => m.materialName === material.materialName &&
-                             (m.grade === material.materialGrade || (!m.grade && !material.materialGrade))
-                      )
+                      // Get actual inventory data - match by ID first, then by name and grade
+                      const matchingMaterial = material.rawMaterialId
+                        ? availableMaterials.find(m => m.id === material.rawMaterialId)
+                        : availableMaterials.find(
+                            m => m.materialName === material.materialName &&
+                                 (m.grade === material.materialGrade || (!m.grade && !material.materialGrade))
+                          )
+
+                      // Debug logging
+                      if (!matchingMaterial) {
+                        console.warn(`Could not find matching material for: ${material.materialName} (Grade: ${material.materialGrade}, ID: ${material.rawMaterialId})`)
+                      }
+
                       const inventory = matchingMaterial ? inventoryData.get(matchingMaterial.id) : null
 
                       // Convert weight (kg) from inventory to length (mm) for comparison
