@@ -101,6 +101,10 @@ export interface UpdateOrderPayload {
   customerMachine?: string
   materialGradeRemark?: string
   delayReason?: string
+  orderValue?: number
+  advancePayment?: number
+  balancePayment?: number
+  version?: number  // Required for optimistic locking
   updatedBy?: string
 }
 

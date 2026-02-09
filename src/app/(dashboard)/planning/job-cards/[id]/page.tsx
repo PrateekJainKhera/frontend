@@ -1,27 +1,24 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, FileText, Package, AlertTriangle, CheckCircle2, Clock, Layers, User } from 'lucide-react'
+import { ArrowLeft, FileText, Package, AlertTriangle, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
-import { mockJobCards } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { JobCard, JobCardStatus, MaterialStatus } from '@/types/job-card'
+import { jobCardService, JobCardResponse } from '@/lib/api/job-cards'
+import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/formatters'
 
 export default function JobCardDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const jobCardId = params.id as string
 
   const [loading, setLoading] = useState(true)
-  const [jobCard, setJobCard] = useState<JobCard | null>(null)
+  const [jobCard, setJobCard] = useState<JobCardResponse | null>(null)
 
   useEffect(() => {
     loadData()
@@ -29,23 +26,30 @@ export default function JobCardDetailPage() {
 
   const loadData = async () => {
     setLoading(true)
-    const data = await simulateApiCall(
-      mockJobCards.find(jc => jc.id === jobCardId) || null,
-      500
-    )
-    setJobCard(data)
-    setLoading(false)
+    try {
+      const data = await jobCardService.getById(Number(jobCardId))
+      setJobCard(data)
+    } catch (error) {
+      console.error('Failed to load job card:', error)
+      toast.error('Failed to load job card', {
+        description: error instanceof Error ? error.message : 'An error occurred'
+      })
+      setJobCard(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const getStatusBadgeVariant = (status: JobCardStatus) => {
+  const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case JobCardStatus.COMPLETED:
+      case 'Completed':
+      case 'QC Passed':
         return 'default'
-      case JobCardStatus.IN_PROGRESS:
+      case 'In Progress':
+      case 'Scheduled':
         return 'secondary'
-      case JobCardStatus.PENDING_MATERIAL:
-        return 'destructive'
-      case JobCardStatus.BLOCKED:
+      case 'Pending Material':
+      case 'Blocked':
         return 'destructive'
       default:
         return 'outline'
@@ -70,10 +74,10 @@ export default function JobCardDetailPage() {
             Job card not found
           </AlertDescription>
         </Alert>
-        <Link href="/planning/job-cards">
+        <Link href="/planning">
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Job Cards
+            Back to Planning
           </Button>
         </Link>
       </div>
@@ -85,7 +89,7 @@ export default function JobCardDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/planning/job-cards">
+          <Link href="/planning">
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
@@ -110,29 +114,6 @@ export default function JobCardDetailPage() {
         </div>
       </div>
 
-      {/* Material Shortage Alert */}
-      {jobCard.materialShortfall && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-5 w-5" />
-          <AlertDescription>
-            <p className="font-semibold">Material Shortage</p>
-            <p className="text-sm mt-1">
-              <strong>{jobCard.materialShortfall.materialName}:</strong> Need {jobCard.materialShortfall.required} {jobCard.materialShortfall.unit},
-              Available {jobCard.materialShortfall.available} {jobCard.materialShortfall.unit},
-              Short by {jobCard.materialShortfall.shortfall} {jobCard.materialShortfall.unit}
-            </p>
-            {jobCard.daysWaitingForMaterial && (
-              <p className="text-sm mt-1">
-                Waiting for {jobCard.daysWaitingForMaterial} days
-              </p>
-            )}
-            <p className="text-sm mt-2 text-muted-foreground">
-              Contact Stores/Procurement team to arrange material
-            </p>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Basic Information */}
       <Card>
         <CardHeader>
@@ -148,25 +129,25 @@ export default function JobCardDetailPage() {
               <span className="text-muted-foreground">Order No:</span>
               <p className="font-semibold mt-1">
                 <Link href={`/orders/${jobCard.orderId}`} className="text-blue-600 hover:underline">
-                  {jobCard.orderNo}
+                  {jobCard.orderNo || `Order #${jobCard.orderId}`}
                 </Link>
               </p>
             </div>
             <div>
               <span className="text-muted-foreground">Creation Type:</span>
-              <p className="font-semibold mt-1">{jobCard.creationType}</p>
+              <p className="font-semibold mt-1 capitalize">{jobCard.creationType}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Customer:</span>
-              <p className="font-semibold mt-1">{jobCard.customerName}</p>
+              <span className="text-muted-foreground">Status:</span>
+              <p className="font-semibold mt-1">{jobCard.status}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Product:</span>
-              <p className="font-semibold mt-1">{jobCard.productName}</p>
+              <span className="text-muted-foreground">Priority:</span>
+              <p className="font-semibold mt-1">{jobCard.priority}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Product Code:</span>
-              <p className="font-semibold mt-1">{jobCard.productCode}</p>
+              <span className="text-muted-foreground">Quantity:</span>
+              <p className="font-semibold mt-1">{jobCard.quantity} pcs</p>
             </div>
           </div>
         </CardContent>
@@ -182,26 +163,30 @@ export default function JobCardDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Child Part:</span>
-              <p className="font-semibold mt-1">{jobCard.childPartName || 'N/A'}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Process Name:</span>
-              <p className="font-semibold mt-1">{jobCard.processName}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Process Code:</span>
-              <p className="font-semibold mt-1">{jobCard.processCode}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Step Number:</span>
-              <p className="font-semibold mt-1">Step {jobCard.stepNo}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Quantity:</span>
-              <p className="font-semibold mt-1">{jobCard.quantity} pcs</p>
-            </div>
+            {jobCard.childPartName && (
+              <div>
+                <span className="text-muted-foreground">Child Part:</span>
+                <p className="font-semibold mt-1">{jobCard.childPartName}</p>
+              </div>
+            )}
+            {jobCard.processName && (
+              <div>
+                <span className="text-muted-foreground">Process Name:</span>
+                <p className="font-semibold mt-1">{jobCard.processName}</p>
+              </div>
+            )}
+            {jobCard.processCode && (
+              <div>
+                <span className="text-muted-foreground">Process Code:</span>
+                <p className="font-semibold mt-1">{jobCard.processCode}</p>
+              </div>
+            )}
+            {jobCard.stepNo && (
+              <div>
+                <span className="text-muted-foreground">Step Number:</span>
+                <p className="font-semibold mt-1">Step {jobCard.stepNo}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -221,248 +206,60 @@ export default function JobCardDetailPage() {
                 <span className="text-muted-foreground">Drawing Number:</span>
                 <p className="font-semibold mt-1">{jobCard.drawingNumber}</p>
               </div>
-              <div>
-                <span className="text-muted-foreground">Revision:</span>
-                <p className="font-semibold mt-1">Rev {jobCard.drawingRevision}</p>
-              </div>
+              {jobCard.drawingRevision && (
+                <div>
+                  <span className="text-muted-foreground">Revision:</span>
+                  <p className="font-semibold mt-1">Rev {jobCard.drawingRevision}</p>
+                </div>
+              )}
               <div>
                 <span className="text-muted-foreground">Selection Type:</span>
-                <p className="font-semibold mt-1">
-                  {jobCard.drawingSelectionType === 'auto' ? (
-                    <Badge variant="secondary">Auto-selected</Badge>
-                  ) : (
-                    <Badge variant="outline">Manual</Badge>
-                  )}
+                <p className="font-semibold mt-1 capitalize">
+                  {jobCard.drawingSelectionType || 'N/A'}
                 </p>
               </div>
-              <div className="col-span-2">
-                <span className="text-muted-foreground">Drawing Name:</span>
-                <p className="font-semibold mt-1">{jobCard.drawingName}</p>
-              </div>
-            </div>
-
-            {/* Manufacturing Dimensions */}
-            {jobCard.manufacturingDimensions && (
-              <>
-                <Separator className="my-4" />
-                <div>
-                  <p className="text-sm font-medium mb-3">Manufacturing Dimensions</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    {jobCard.manufacturingDimensions.materialGrade && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Material Grade</span>
-                        <p className="font-semibold">{jobCard.manufacturingDimensions.materialGrade}</p>
-                      </div>
-                    )}
-                    {jobCard.manufacturingDimensions.rodDiameter && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Rod Diameter</span>
-                        <p className="font-semibold">Ø{jobCard.manufacturingDimensions.rodDiameter}mm</p>
-                      </div>
-                    )}
-                    {jobCard.manufacturingDimensions.finishedDiameter && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Finished Diameter</span>
-                        <p className="font-semibold">Ø{jobCard.manufacturingDimensions.finishedDiameter}mm</p>
-                      </div>
-                    )}
-                    {jobCard.manufacturingDimensions.finishedLength && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Finished Length</span>
-                        <p className="font-semibold">{jobCard.manufacturingDimensions.finishedLength}mm</p>
-                      </div>
-                    )}
-                    {jobCard.manufacturingDimensions.pipeOD && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Pipe OD</span>
-                        <p className="font-semibold">{jobCard.manufacturingDimensions.pipeOD}mm</p>
-                      </div>
-                    )}
-                    {jobCard.manufacturingDimensions.pipeID && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Pipe ID</span>
-                        <p className="font-semibold">{jobCard.manufacturingDimensions.pipeID}mm</p>
-                      </div>
-                    )}
-                    {jobCard.manufacturingDimensions.pipeThickness && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Wall Thickness</span>
-                        <p className="font-semibold">{jobCard.manufacturingDimensions.pipeThickness}mm</p>
-                      </div>
-                    )}
-                    {jobCard.manufacturingDimensions.tolerance && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Tolerance</span>
-                        <p className="font-semibold">{jobCard.manufacturingDimensions.tolerance}</p>
-                      </div>
-                    )}
-                    {jobCard.manufacturingDimensions.surfaceFinish && (
-                      <div className="bg-muted/50 rounded p-2">
-                        <span className="text-muted-foreground text-xs">Surface Finish</span>
-                        <p className="font-semibold">{jobCard.manufacturingDimensions.surfaceFinish}</p>
-                      </div>
-                    )}
-                  </div>
+              {jobCard.drawingName && (
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Drawing Name:</span>
+                  <p className="font-semibold mt-1">{jobCard.drawingName}</p>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Material Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Material Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Material Status:</span>
-              {jobCard.materialStatus === MaterialStatus.AVAILABLE ? (
-                <Badge className="bg-green-600">
-                  <CheckCircle2 className="mr-1 h-3 w-3" />
-                  Available
-                </Badge>
-              ) : jobCard.materialStatus === MaterialStatus.PENDING ? (
-                <Badge variant="destructive">
-                  <AlertTriangle className="mr-1 h-3 w-3" />
-                  Pending
-                </Badge>
-              ) : jobCard.materialStatus === MaterialStatus.PARTIAL ? (
-                <Badge variant="outline">
-                  <Package className="mr-1 h-3 w-3" />
-                  Partial
-                </Badge>
-              ) : (
-                <Badge variant="outline">Not Checked</Badge>
-              )}
-            </div>
-
-            {jobCard.allocatedMaterials && jobCard.allocatedMaterials.length > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-sm font-medium mb-2">Allocated Materials</p>
-                  <div className="space-y-2">
-                    {jobCard.allocatedMaterials.map((mat, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-muted/50 rounded p-2 text-sm">
-                        <div>
-                          <p className="font-medium">{mat.materialName}</p>
-                          <p className="text-xs text-muted-foreground">{mat.materialCode}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">{mat.allocatedQuantity} {mat.unit}</p>
-                          {mat.isAllocated ? (
-                            <Badge variant="default" className="text-xs">Allocated</Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">Pending</Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+      {/* Material Requirements */}
+      {jobCard.materialRequirements && jobCard.materialRequirements.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Material Requirements
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {jobCard.materialRequirements.map((mat, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-muted/50 rounded p-3 text-sm">
+                  <div>
+                    <p className="font-medium">{mat.rawMaterialName}</p>
+                    {mat.materialGrade && (
+                      <p className="text-xs text-muted-foreground">Grade: {mat.materialGrade}</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{mat.requiredQuantity} {mat.unit}</p>
+                    {mat.wastagePercent > 0 && (
+                      <p className="text-xs text-muted-foreground">(+{mat.wastagePercent}% wastage)</p>
+                    )}
                   </div>
                 </div>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Assignment & Scheduling */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Assignment & Scheduling
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Assigned Machine:</span>
-              <p className="font-semibold mt-1">{jobCard.assignedMachineName || 'Not Assigned'}</p>
+              ))}
             </div>
-            <div>
-              <span className="text-muted-foreground">Assigned Operator:</span>
-              <p className="font-semibold mt-1">{jobCard.assignedOperatorName || 'Not Assigned'}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Estimated Time:</span>
-              <p className="font-semibold mt-1">{jobCard.estimatedTotalTimeMin || 0} min</p>
-            </div>
-            {jobCard.scheduledStartTime && (
-              <div>
-                <span className="text-muted-foreground">Scheduled Start:</span>
-                <p className="font-semibold mt-1">{formatDate(jobCard.scheduledStartTime)}</p>
-              </div>
-            )}
-            {jobCard.actualStartTime && (
-              <div>
-                <span className="text-muted-foreground">Actual Start:</span>
-                <p className="font-semibold mt-1">{formatDate(jobCard.actualStartTime)}</p>
-              </div>
-            )}
-            {jobCard.actualEndTime && (
-              <div>
-                <span className="text-muted-foreground">Actual End:</span>
-                <p className="font-semibold mt-1">{formatDate(jobCard.actualEndTime)}</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Production Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Production Progress
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="bg-green-50 border border-green-200 rounded p-3">
-                <span className="text-muted-foreground text-xs">Completed</span>
-                <p className="font-bold text-2xl text-green-700">{jobCard.completedQty}</p>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                <span className="text-muted-foreground text-xs">In Progress</span>
-                <p className="font-bold text-2xl text-blue-700">{jobCard.inProgressQty}</p>
-              </div>
-              <div className="bg-red-50 border border-red-200 rounded p-3">
-                <span className="text-muted-foreground text-xs">Rejected</span>
-                <p className="font-bold text-2xl text-red-700">{jobCard.rejectedQty}</p>
-              </div>
-              <div className="bg-orange-50 border border-orange-200 rounded p-3">
-                <span className="text-muted-foreground text-xs">Rework</span>
-                <p className="font-bold text-2xl text-orange-700">{jobCard.reworkQty}</p>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div>
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Overall Progress</span>
-                <span className="font-semibold">
-                  {jobCard.completedQty} / {jobCard.quantity} ({Math.round((jobCard.completedQty / jobCard.quantity) * 100)}%)
-                </span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-3">
-                <div
-                  className="bg-green-600 h-3 rounded-full"
-                  style={{ width: `${(jobCard.completedQty / jobCard.quantity) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Work Instructions & Notes */}
       {(jobCard.workInstructions || jobCard.qualityCheckpoints || jobCard.specialNotes) && (
@@ -474,7 +271,7 @@ export default function JobCardDetailPage() {
             {jobCard.workInstructions && (
               <div>
                 <p className="text-sm font-medium mb-2">Work Instructions</p>
-                <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
+                <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3 whitespace-pre-wrap">
                   {jobCard.workInstructions}
                 </p>
               </div>
@@ -482,7 +279,7 @@ export default function JobCardDetailPage() {
             {jobCard.qualityCheckpoints && (
               <div>
                 <p className="text-sm font-medium mb-2">Quality Checkpoints</p>
-                <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
+                <p className="text-sm text-muted-foreground bg-muted/50 rounded p-3 whitespace-pre-wrap">
                   {jobCard.qualityCheckpoints}
                 </p>
               </div>
@@ -490,7 +287,7 @@ export default function JobCardDetailPage() {
             {jobCard.specialNotes && (
               <div>
                 <p className="text-sm font-medium mb-2">Special Notes</p>
-                <p className="text-sm text-muted-foreground bg-amber-50 border border-amber-200 rounded p-3">
+                <p className="text-sm text-muted-foreground bg-amber-50 border border-amber-200 rounded p-3 whitespace-pre-wrap">
                   {jobCard.specialNotes}
                 </p>
               </div>
@@ -498,6 +295,39 @@ export default function JobCardDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Audit Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Audit Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Created:</span>
+              <p className="font-semibold mt-1">{formatDate(jobCard.createdAt)}</p>
+            </div>
+            {jobCard.createdBy && (
+              <div>
+                <span className="text-muted-foreground">Created By:</span>
+                <p className="font-semibold mt-1">{jobCard.createdBy}</p>
+              </div>
+            )}
+            {jobCard.updatedAt && (
+              <div>
+                <span className="text-muted-foreground">Last Updated:</span>
+                <p className="font-semibold mt-1">{formatDate(jobCard.updatedAt)}</p>
+              </div>
+            )}
+            {jobCard.updatedBy && (
+              <div>
+                <span className="text-muted-foreground">Updated By:</span>
+                <p className="font-semibold mt-1">{jobCard.updatedBy}</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

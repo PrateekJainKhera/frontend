@@ -18,6 +18,7 @@ import { processTemplateService, ProcessTemplateStepResponse } from '@/lib/api/p
 import { jobCardService, CreateJobCardPayload, JobCardMaterialRequirementRequest } from '@/lib/api/job-cards'
 import { materialService, MaterialResponse } from '@/lib/api/materials'
 import { inventoryService, InventoryResponse } from '@/lib/api/inventory'
+import { materialRequisitionService, CreateMaterialRequisitionRequest } from '@/lib/api/material-requisitions'
 import { formatDate } from '@/lib/utils/formatters'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -57,6 +58,9 @@ export default function GenerateJobCardsPage() {
 
   // Inventory data - Map of materialId to InventoryResponse
   const [inventoryData, setInventoryData] = useState<Map<number, InventoryResponse>>(new Map())
+
+  // Component inventory data - Map of componentId to InventoryResponse
+  const [componentInventoryData, setComponentInventoryData] = useState<Map<number, InventoryResponse>>(new Map())
 
   // Track unsaved changes and saving state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -177,6 +181,9 @@ export default function GenerateJobCardsPage() {
 
       // Load inventory data for all materials
       await loadInventoryData(materials)
+
+      // Load component inventory data
+      await loadComponentInventoryData()
     } catch (error) {
       console.error('Failed to load materials:', error)
       toast.error('Failed to load materials from master data')
@@ -205,6 +212,29 @@ export default function GenerateJobCardsPage() {
       setInventoryData(inventoryMap)
     } catch (error) {
       console.error('Failed to load inventory data:', error)
+      // Don't show error to user - just won't show stock levels
+    }
+  }
+
+  const loadComponentInventoryData = async () => {
+    try {
+      // Get all inventory items
+      const allInventory = await inventoryService.getAll()
+
+      // Filter for components (UOM is not mm or kg)
+      const componentInventory = allInventory.filter(
+        item => item.uom !== 'mm' && item.uom !== 'kg'
+      )
+
+      // Create map of componentId (materialId in inventory) to inventory data
+      const componentMap = new Map<number, InventoryResponse>()
+      componentInventory.forEach(inventory => {
+        componentMap.set(inventory.materialId, inventory)
+      })
+
+      setComponentInventoryData(componentMap)
+    } catch (error) {
+      console.error('Failed to load component inventory data:', error)
       // Don't show error to user - just won't show stock levels
     }
   }
@@ -453,6 +483,41 @@ export default function GenerateJobCardsPage() {
     return Object.values(aggregated)
   }
 
+  const getAggregatedPurchasedParts = () => {
+    const aggregated: Record<string, {
+      componentId?: number
+      componentName: string
+      partNumber?: string
+      unit: string
+      usedFor: string[]
+      totalRequired: number
+    }> = {}
+
+    childPartItems.forEach(item => {
+      // Only process purchased parts
+      if (!item.childPartTemplate || !item.childPartTemplate.isPurchased) return
+
+      const requiredQty = (order?.quantity || 1) * item.bomItem.quantity
+      const key = item.childPartTemplate.templateCode
+
+      if (!aggregated[key]) {
+        aggregated[key] = {
+          componentId: item.childPartTemplate.id,
+          componentName: item.bomItem.childPartTemplateName,
+          partNumber: item.childPartTemplate.templateCode,
+          unit: 'PCS', // Default unit for purchased parts
+          usedFor: [],
+          totalRequired: 0
+        }
+      }
+
+      aggregated[key].usedFor.push(`${order?.productName || 'Product'}`)
+      aggregated[key].totalRequired += requiredQty
+    })
+
+    return Object.values(aggregated)
+  }
+
   const handleGenerateJobCards = async () => {
     if (!order || !productTemplate) return
 
@@ -473,6 +538,21 @@ export default function GenerateJobCardsPage() {
 
     try {
       let jobCardCount = 0
+      // Store job cards with their material requirements for requisition
+      const jobCardsWithMaterials: Array<{
+        jobCardId: number
+        jobCardNo: string
+        processId: number
+        processName: string
+        childPartName: string
+        materials: Array<{
+          rawMaterialId: number | null | undefined
+          rawMaterialName: string
+          materialGrade: string | undefined
+          requiredQuantity: number
+          unit: string
+        }>
+      }> = []
 
       for (const item of childPartItems) {
         // Skip purchased parts - they go directly to assembly
@@ -522,8 +602,26 @@ export default function GenerateJobCardsPage() {
             materialRequirements
           }
 
-          await jobCardService.create(payload)
+          const jobCardId = await jobCardService.create(payload)
           jobCardCount++
+
+          // Store job card info with materials for requisition (only for first step with materials)
+          if (materialRequirements && materialRequirements.length > 0) {
+            jobCardsWithMaterials.push({
+              jobCardId,
+              jobCardNo,
+              processId: step.processId,
+              processName: step.processName || 'Unknown Process',
+              childPartName: item.bomItem.childPartTemplateName,
+              materials: materialRequirements.map(mr => ({
+                rawMaterialId: mr.rawMaterialId,
+                rawMaterialName: mr.rawMaterialName,
+                materialGrade: mr.materialGrade,
+                requiredQuantity: mr.requiredQuantity,
+                unit: mr.unit
+              }))
+            })
+          }
         }
       }
 
@@ -561,12 +659,90 @@ export default function GenerateJobCardsPage() {
       try {
         await orderService.update(order.id, {
           id: order.id,
-          planningStatus: 'Planned',
+          orderDate: order.orderDate,
+          dueDate: order.dueDate,
+          adjustedDueDate: order.adjustedDueDate || undefined,  // Convert null to undefined
+          customerId: order.customerId,
+          productId: order.productId,
+          quantity: order.quantity,
+          status: order.status,
+          priority: order.priority,
+          planningStatus: 'Planned',  // ✅ Update planning status
+          delayReason: order.delayReason || undefined,  // Convert null to undefined
+          version: order.version,  // ✅ Required for optimistic locking
           updatedBy: 'Admin'
         })
       } catch (error) {
         console.error('Failed to update order status:', error)
         // Continue anyway - job cards are created
+      }
+
+      // Create Material Requisition for the order with items
+      try {
+        const requisitionNo = `REQ-${order.orderNo}-${Date.now()}`
+        const requisitionDate = new Date().toISOString()
+
+        // Create requisition items from job cards with material requirements
+        const requisitionItems = []
+        let lineNo = 1
+
+        // Add materials from job cards (with job card context)
+        for (const jobCard of jobCardsWithMaterials) {
+          for (const material of jobCard.materials) {
+            requisitionItems.push({
+              lineNo: lineNo++,
+              materialId: material.rawMaterialId || 0,
+              materialCode: '',
+              materialName: material.rawMaterialName,
+              materialGrade: material.materialGrade || '',
+              quantityRequired: material.requiredQuantity,
+              uom: material.unit,
+              jobCardId: jobCard.jobCardId,
+              jobCardNo: jobCard.jobCardNo,
+              processId: jobCard.processId,
+              processName: jobCard.processName,
+              remarks: `For ${jobCard.childPartName} - ${jobCard.processName}`
+            })
+          }
+        }
+
+        // Add purchased components (these don't have job cards as they go to assembly)
+        const aggregatedPurchasedParts = getAggregatedPurchasedParts()
+        for (const part of aggregatedPurchasedParts) {
+          requisitionItems.push({
+            lineNo: lineNo++,
+            materialId: part.componentId || 0,
+            materialCode: part.partNumber,
+            materialName: part.componentName,
+            materialGrade: '',
+            quantityRequired: part.totalRequired,
+            uom: part.unit,
+            remarks: `Purchased component for: ${part.usedFor.join(', ')}`
+          })
+        }
+
+        const requisitionPayload: CreateMaterialRequisitionRequest = {
+          requisitionNo,
+          requisitionDate,
+          orderId: order.id,
+          orderNo: order.orderNo,
+          customerName: order.customerName || undefined,
+          priority: order.priority || 'Medium',
+          dueDate: order.dueDate,
+          requestedBy: 'Planning',
+          remarks: `Auto-generated from job card planning for order ${order.orderNo}`,
+          createdBy: 'Admin',
+          items: requisitionItems
+        }
+
+        await materialRequisitionService.create(requisitionPayload)
+        console.log(`✓ Material requisition created: ${requisitionNo} with ${requisitionItems.length} item(s)`)
+      } catch (error) {
+        console.error('Failed to create material requisition:', error)
+        toast.warning('Job cards created but failed to create material requisition', {
+          description: 'You may need to create material requisition manually',
+          duration: 5000,
+        })
       }
 
       toast.dismiss()
@@ -577,7 +753,7 @@ export default function GenerateJobCardsPage() {
         !checkMaterialAvailability(item.childPartTemplate.id)
       ).length
       toast.success('Job Cards Generated Successfully!', {
-        description: `${jobCardCount} job cards created for order ${order.orderNo}.${materialIssuesCount > 0 ? ` ${materialIssuesCount} job card(s) flagged as "Pending Material".` : ''}`,
+        description: `${jobCardCount} job cards created for order ${order.orderNo}. Material requisition created.${materialIssuesCount > 0 ? ` ${materialIssuesCount} job card(s) flagged as "Pending Material".` : ''}`,
         duration: 5000,
       })
 
@@ -1154,6 +1330,127 @@ export default function GenerateJobCardsPage() {
                   <strong>Live Inventory Data:</strong> Stock quantities shown are from the current inventory system.
                   Actual material availability will be verified during material issue.
                   Materials marked as "Short" will flag job cards as "Pending Material".
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
+      {/* Purchased Parts Requirements Summary */}
+      {!loading && order && childPartItems.length > 0 && (() => {
+        const aggregatedPurchasedParts = getAggregatedPurchasedParts()
+
+        return aggregatedPurchasedParts.length > 0 && (
+          <Card className="border-2 border-blue-200 bg-blue-50/30">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-blue-600" />
+                <CardTitle className="text-base">Purchased Parts Requirements Summary</CardTitle>
+              </div>
+              <CardDescription>
+                Purchased components required for assembly (SKF bearings, magnets, sleeves, etc.)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-blue-300">
+                      <th className="text-left p-3 font-semibold text-blue-900">Component Name</th>
+                      <th className="text-left p-3 font-semibold text-blue-900">Part Number</th>
+                      <th className="text-left p-3 font-semibold text-blue-900">Used For</th>
+                      <th className="text-right p-3 font-semibold text-blue-900">Quantity Required</th>
+                      <th className="text-right p-3 font-semibold text-blue-900">In Stock</th>
+                      <th className="text-center p-3 font-semibold text-blue-900">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aggregatedPurchasedParts.map((part, idx) => {
+                      // Get inventory data for this component - match by name since IDs might not align
+                      let inventory: InventoryResponse | null = null
+
+                      // First try to match by component ID
+                      if (part.componentId) {
+                        inventory = componentInventoryData.get(part.componentId) || null  // Convert undefined to null
+                      }
+
+                      // If not found by ID, try to match by component name
+                      if (!inventory) {
+                        for (const inv of componentInventoryData.values()) {
+                          if (inv.materialName.toLowerCase().trim() === part.componentName.toLowerCase().trim()) {
+                            inventory = inv
+                            console.log(`✓ Matched component by name: "${part.componentName}" → Found in inventory with ${inv.availableQuantity} ${inv.uom}`)
+                            break
+                          }
+                        }
+                      }
+
+                      // Debug logging for unmatched components
+                      if (!inventory) {
+                        console.warn(`Could not find inventory for component: ${part.componentName} (ID: ${part.componentId})`)
+                      }
+
+                      const inStock = inventory?.availableQuantity || 0
+                      const isShortage = inStock < part.totalRequired
+                      const hasInventoryData = inventory !== null
+
+                      return (
+                        <tr key={idx} className={`border-b ${isShortage ? 'bg-red-50' : 'bg-white'}`}>
+                          <td className="p-3 font-medium">
+                            {part.componentName}
+                          </td>
+                          <td className="p-3 text-gray-700">
+                            {part.partNumber || '-'}
+                          </td>
+                          <td className="p-3 text-gray-700 text-sm">
+                            {part.usedFor.join(', ')}
+                          </td>
+                          <td className="p-3 text-right font-medium">
+                            {part.totalRequired.toFixed(0)} {part.unit}
+                          </td>
+                          <td className="p-3 text-right font-semibold">
+                            {hasInventoryData ? (
+                              <>
+                                {inStock.toFixed(0)} {part.unit}
+                                {inventory?.isLowStock && !isShortage && (
+                                  <div className="text-xs text-yellow-600 font-normal mt-1">
+                                    Low Stock
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-gray-400 text-sm">No stock</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
+                            {!hasInventoryData || inStock === 0 ? (
+                              <Badge variant="destructive" className="text-xs">
+                                ⚠ Need to Purchase
+                              </Badge>
+                            ) : isShortage ? (
+                              <Badge variant="destructive" className="text-xs">
+                                ⚠ Short: {(part.totalRequired - inStock).toFixed(0)} {part.unit}
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-green-600 text-xs">
+                                ✓ Available
+                              </Badge>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <Alert className="mt-4 border-blue-300 bg-blue-50">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-xs">
+                  <strong>Component Inventory:</strong> Stock quantities are from component inventory.
+                  Components marked as "Need to Purchase" or "Short" will be included in material requisitions.
+                  Purchase orders should be created for components not in stock.
                 </AlertDescription>
               </Alert>
             </CardContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   FileText,
   Clock,
@@ -38,6 +39,7 @@ import { format } from "date-fns";
 import { CreateRequisitionDialog } from "@/components/forms/create-requisition-dialog";
 
 export default function MaterialRequisitionsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [requisitions, setRequisitions] = useState<MaterialRequisitionResponse[]>([]);
   const [filteredRequisitions, setFilteredRequisitions] = useState<MaterialRequisitionResponse[]>([]);
@@ -329,7 +331,9 @@ export default function MaterialRequisitionsPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => router.push(`/inventory/material-requisitions/${req.id}`)}>
+                                View Details
+                              </DropdownMenuItem>
                               {req.status === "Pending" && (
                                 <>
                                   <DropdownMenuItem onClick={() => handleApprove(req.id)}>

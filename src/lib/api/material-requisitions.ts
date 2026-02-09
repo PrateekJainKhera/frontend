@@ -70,6 +70,24 @@ export interface MaterialAllocationResponse {
   createdAt: string
 }
 
+export interface CreateMaterialRequisitionItemRequest {
+  lineNo: number
+  materialId: number
+  materialCode?: string
+  materialName?: string
+  materialGrade?: string
+  quantityRequired: number
+  uom?: string
+  lengthRequiredMM?: number
+  diameterMM?: number
+  numberOfPieces?: number
+  jobCardId?: number
+  jobCardNo?: string
+  processId?: number
+  processName?: string
+  remarks?: string
+}
+
 export interface CreateMaterialRequisitionRequest {
   requisitionNo: string
   requisitionDate: string
@@ -83,6 +101,7 @@ export interface CreateMaterialRequisitionRequest {
   requestedBy?: string
   remarks?: string
   createdBy?: string
+  items?: CreateMaterialRequisitionItemRequest[]
 }
 
 export interface UpdateMaterialRequisitionRequest {
@@ -135,6 +154,17 @@ class MaterialRequisitionService {
       throw new Error(response.data.message || 'Failed to fetch material requisition')
     }
     return response.data.data
+  }
+
+  // Get requisition items by requisition ID
+  async getItems(requisitionId: number): Promise<MaterialRequisitionItemResponse[]> {
+    const response = await apiClient.get<ApiResponse<MaterialRequisitionItemResponse[]>>(
+      `${this.baseURL}/${requisitionId}/items`
+    )
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to fetch requisition items')
+    }
+    return response.data.data || []
   }
 
   // Get by requisition number
