@@ -8,6 +8,7 @@ export enum RollerType {
 export enum MaterialGrade {
   EN8 = 'EN8',
   EN19 = 'EN19',
+  EN24 = 'EN24',
   SS304 = 'SS304',
   SS316 = 'SS316',
   ALLOY_STEEL = 'Alloy Steel'
@@ -17,6 +18,7 @@ export enum MaterialType {
   STEEL = 'Steel',
   STAINLESS_STEEL = 'Stainless Steel',
   ALUMINUM = 'Aluminum',
+  METAL = 'Metal',
   OTHER = 'Other'
 }
 

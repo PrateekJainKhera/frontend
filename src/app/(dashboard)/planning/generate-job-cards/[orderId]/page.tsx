@@ -17,6 +17,7 @@ import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/c
 import { processTemplateService, ProcessTemplateStepResponse } from '@/lib/api/process-templates'
 import { jobCardService, CreateJobCardPayload, JobCardMaterialRequirementRequest } from '@/lib/api/job-cards'
 import { materialService, MaterialResponse } from '@/lib/api/materials'
+import { inventoryService, InventoryResponse } from '@/lib/api/inventory'
 import { formatDate } from '@/lib/utils/formatters'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -53,6 +54,9 @@ export default function GenerateJobCardsPage() {
 
   // Available materials from Material Master
   const [availableMaterials, setAvailableMaterials] = useState<MaterialResponse[]>([])
+
+  // Inventory data - Map of materialId to InventoryResponse
+  const [inventoryData, setInventoryData] = useState<Map<number, InventoryResponse>>(new Map())
 
   // Track unsaved changes and saving state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -99,8 +103,8 @@ export default function GenerateJobCardsPage() {
             }
           }
 
-          // Simulate material availability check
-          const materialAvailable = Math.random() > 0.3
+          // Material availability will be checked after inventory loads
+          const materialAvailable = true // Will be updated after inventory loads
 
           return {
             bomItem,
@@ -170,10 +174,71 @@ export default function GenerateJobCardsPage() {
     try {
       const materials = await materialService.getAll()
       setAvailableMaterials(materials)
+
+      // Load inventory data for all materials
+      await loadInventoryData(materials)
     } catch (error) {
       console.error('Failed to load materials:', error)
       toast.error('Failed to load materials from master data')
     }
+  }
+
+  const loadInventoryData = async (materials: MaterialResponse[]) => {
+    try {
+      const inventoryMap = new Map<number, InventoryResponse>()
+
+      // Fetch inventory for each material
+      await Promise.all(
+        materials.map(async (material) => {
+          try {
+            const inventory = await inventoryService.getByMaterialId(material.id)
+            if (inventory) {
+              inventoryMap.set(material.id, inventory)
+            }
+          } catch (error) {
+            // Material not in inventory yet, skip
+            console.log(`No inventory data for material ${material.id}`)
+          }
+        })
+      )
+
+      setInventoryData(inventoryMap)
+    } catch (error) {
+      console.error('Failed to load inventory data:', error)
+      // Don't show error to user - just won't show stock levels
+    }
+  }
+
+  // Check material availability based on real inventory
+  const checkMaterialAvailability = (childPartTemplateId: number): boolean => {
+    if (!order) return true
+
+    const materials = getChildPartMaterials(childPartTemplateId, '')
+
+    // Check if all materials for this child part are available
+    for (const material of materials) {
+      const matchingMaterial = availableMaterials.find(
+        m => m.materialName === material.rawMaterialName &&
+             (m.grade === material.materialGrade || (!m.grade && !material.materialGrade))
+      )
+
+      if (!matchingMaterial) continue
+
+      const inventory = inventoryData.get(matchingMaterial.id)
+      if (!inventory) continue
+
+      const childPart = childPartItems.find(item => item.childPartTemplate?.id === childPartTemplateId)
+      if (!childPart) continue
+
+      const requiredQty = material.requiredQuantity * (order.quantity * childPart.bomItem.quantity)
+      const totalWithWastage = requiredQty * (1 + (material.wastagePercent || 0) / 100)
+
+      if (inventory.availableQuantity < totalWithWastage) {
+        return false
+      }
+    }
+
+    return true
   }
 
   const saveMaterialEdits = async () => {
@@ -389,6 +454,8 @@ export default function GenerateJobCardsPage() {
               }))
             : undefined
 
+          const isMaterialAvailable = checkMaterialAvailability(item.childPartTemplate.id)
+
           const payload: CreateJobCardPayload = {
             jobCardNo,
             creationType: 'auto',
@@ -409,7 +476,7 @@ export default function GenerateJobCardsPage() {
             priority: order.priority,
             manufacturingDimensions: null,
             createdBy: 'Admin',
-            specialNotes: !item.materialAvailable ? 'Pending Material - Material shortage detected' : null,
+            specialNotes: !isMaterialAvailable ? 'Pending Material - Material shortage detected' : null,
             materialRequirements
           }
 
@@ -462,7 +529,11 @@ export default function GenerateJobCardsPage() {
 
       toast.dismiss()
 
-      const materialIssuesCount = childPartItems.filter(item => !item.materialAvailable).length
+      const materialIssuesCount = childPartItems.filter(item =>
+        item.childPartTemplate &&
+        !item.childPartTemplate.isPurchased &&
+        !checkMaterialAvailability(item.childPartTemplate.id)
+      ).length
       toast.success('Job Cards Generated Successfully!', {
         description: `${jobCardCount} job cards created for order ${order.orderNo}.${materialIssuesCount > 0 ? ` ${materialIssuesCount} job card(s) flagged as "Pending Material".` : ''}`,
         duration: 5000,
@@ -505,7 +576,11 @@ export default function GenerateJobCardsPage() {
     )
   }
 
-  const allMaterialsAvailable = childPartItems.every(item => item.materialAvailable)
+  // Check material availability using real inventory data
+  const allMaterialsAvailable = childPartItems.every(item => {
+    if (!item.childPartTemplate || item.childPartTemplate.isPurchased) return true
+    return checkMaterialAvailability(item.childPartTemplate.id)
+  })
   // Count process steps for manufactured parts (exclude purchased) + assembly steps
   const manufacturingSteps = childPartItems
     .filter(item => !item.childPartTemplate?.isPurchased)
@@ -660,11 +735,14 @@ export default function GenerateJobCardsPage() {
                       No processes
                     </Badge>
                   )}
-                  {item.materialAvailable ? (
-                    <Badge className="bg-green-600 text-xs">Material OK</Badge>
-                  ) : (
-                    <Badge variant="destructive" className="text-xs">Material Short</Badge>
-                  )}
+                  {item.childPartTemplate && !isPurchased && (() => {
+                    const isAvailable = checkMaterialAvailability(item.childPartTemplate.id)
+                    return isAvailable ? (
+                      <Badge className="bg-green-600 text-xs">Material OK</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="text-xs">Material Short</Badge>
+                    )
+                  })()}
                 </div>
               </div>
 
@@ -920,9 +998,15 @@ export default function GenerateJobCardsPage() {
                   </thead>
                   <tbody>
                     {aggregatedMaterials.map((material, idx) => {
-                      // Note: For demo, showing mock inventory. In production, fetch from inventory API
-                      const mockInStock = material.totalRequired * 0.6 // Mock: 60% available
-                      const isShortage = mockInStock < material.totalRequired
+                      // Get actual inventory data - find by material name and grade
+                      const matchingMaterial = availableMaterials.find(
+                        m => m.materialName === material.materialName &&
+                             (m.grade === material.materialGrade || (!m.grade && !material.materialGrade))
+                      )
+                      const inventory = matchingMaterial ? inventoryData.get(matchingMaterial.id) : null
+                      const inStock = inventory?.availableQuantity || 0
+                      const isShortage = inStock < material.totalRequired
+                      const hasInventoryData = inventory !== null
 
                       return (
                         <React.Fragment key={idx}>
@@ -948,12 +1032,27 @@ export default function GenerateJobCardsPage() {
                               {cpIdx === 0 && (
                                 <>
                                   <td className="p-3 text-right font-semibold align-top" rowSpan={material.childParts.length + 1}>
-                                    {mockInStock.toFixed(2)} {material.unit}
+                                    {hasInventoryData ? (
+                                      <>
+                                        {inStock.toFixed(2)} {inventory?.uom || material.unit}
+                                        {inventory?.isLowStock && !isShortage && (
+                                          <div className="text-xs text-yellow-600 font-normal mt-1">
+                                            Low Stock
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="text-gray-400 text-sm">No data</span>
+                                    )}
                                   </td>
                                   <td className="p-3 text-center align-top" rowSpan={material.childParts.length + 1}>
-                                    {isShortage ? (
+                                    {!hasInventoryData ? (
+                                      <Badge variant="outline" className="text-xs border-gray-400 text-gray-600">
+                                        Not in inventory
+                                      </Badge>
+                                    ) : isShortage ? (
                                       <Badge variant="destructive" className="text-xs">
-                                        ⚠ Short: {(material.totalRequired - mockInStock).toFixed(2)} {material.unit}
+                                        ⚠ Short: {(material.totalRequired - inStock).toFixed(2)} {material.unit}
                                       </Badge>
                                     ) : (
                                       <Badge className="bg-green-600 text-xs">
@@ -985,7 +1084,8 @@ export default function GenerateJobCardsPage() {
               <Alert className="mt-4 border-amber-300 bg-amber-50">
                 <AlertCircle className="h-4 w-4 text-amber-600" />
                 <AlertDescription className="text-xs">
-                  <strong>Note:</strong> Inventory availability shown is indicative. Actual stock will be verified during material issue.
+                  <strong>Live Inventory Data:</strong> Stock quantities shown are from the current inventory system.
+                  Actual material availability will be verified during material issue.
                   Materials marked as "Short" will flag job cards as "Pending Material".
                 </AlertDescription>
               </Alert>
@@ -1090,7 +1190,11 @@ export default function GenerateJobCardsPage() {
                 <Badge className="bg-green-600">All Available</Badge>
               ) : (
                 <Badge variant="destructive">
-                  {childPartItems.filter(i => !i.materialAvailable).length} Shortage(s)
+                  {childPartItems.filter(item =>
+                    item.childPartTemplate &&
+                    !item.childPartTemplate.isPurchased &&
+                    !checkMaterialAvailability(item.childPartTemplate.id)
+                  ).length} Shortage(s)
                 </Badge>
               )}
             </div>
