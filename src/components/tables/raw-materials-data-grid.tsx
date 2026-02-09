@@ -109,21 +109,11 @@ export function RawMaterialsDataGrid({ materials, onUpdate }: RawMaterialsDataGr
                 },
             },
             {
-                accessorKey: 'lengthInMM',
-                header: 'Length',
+                accessorKey: 'density',
+                header: 'Density',
                 size: 100,
                 Cell: ({ cell }) => (
-                    <span className="text-sm">{cell.getValue<number>()}mm</span>
-                ),
-            },
-            {
-                accessorKey: 'weightKG',
-                header: 'Weight/Unit',
-                size: 120,
-                Cell: ({ cell }) => (
-                    <span className="font-mono text-sm">
-                        {cell.getValue<number>()?.toFixed(2)} kg
-                    </span>
+                    <span className="text-sm">{cell.getValue<number>()} g/cm³</span>
                 ),
             },
         ],

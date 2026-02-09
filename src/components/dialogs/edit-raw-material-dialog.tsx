@@ -41,9 +41,7 @@ const formSchema = z.object({
   diameter: z.number().optional(),
   innerDiameter: z.number().optional(),
   width: z.number().optional(),
-  lengthInMM: z.number().min(0.01, 'Length must be greater than 0'),
   density: z.number().min(0.01, 'Density must be greater than 0'),
-  weightKG: z.number().min(0, 'Weight must be positive'),
 }).superRefine((data, ctx) => {
   if (data.shape === 'Rod' || data.shape === 'Forged' || data.shape === 'Pipe') {
     if (!data.diameter || data.diameter < 0.01) {
@@ -91,9 +89,7 @@ export function EditRawMaterialDialog({
       diameter: material.diameter ?? 0,
       innerDiameter: material.innerDiameter ?? 0,
       width: material.width ?? 0,
-      lengthInMM: material.lengthInMM,
       density: material.density,
-      weightKG: material.weightKG,
     },
   })
 
@@ -110,9 +106,9 @@ export function EditRawMaterialDialog({
         diameter: data.shape === 'Sheet' ? 0 : (data.diameter ?? 0),
         innerDiameter: data.shape === 'Pipe' ? data.innerDiameter : undefined,
         width: data.shape === 'Sheet' ? data.width : undefined,
-        lengthInMM: data.lengthInMM,
+        lengthInMM: 0, // Not stored in master - actual length from inventory
         density: data.density,
-        weightKG: data.weightKG,
+        weightKG: 0, // Not stored in master - actual weight from inventory
         id: material.id,
         isActive: material.isActive,
       })
@@ -132,7 +128,7 @@ export function EditRawMaterialDialog({
         <DialogHeader>
           <DialogTitle>Edit Raw Material</DialogTitle>
           <DialogDescription>
-            Update raw material information. Fields marked with * are required.
+            Update material type specification. Actual weight and length are recorded during inventory receipt.
           </DialogDescription>
         </DialogHeader>
 
@@ -317,68 +313,32 @@ export function EditRawMaterialDialog({
                   )}
                 />
               )}
-
-              <FormField
-                control={form.control}
-                name="lengthInMM"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Length (mm) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="3000"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="density"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Density (g/cm³) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.001"
-                        placeholder="7.85"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Density field - required for weight to length conversion */}
+            <FormField
+              control={form.control}
+              name="density"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Density (g/cm³) *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.001"
+                      placeholder="7.85"
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="weightKG"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Weight (kg) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="46.2"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+              <strong>Note:</strong> Material Master defines the material specification only.
+              Actual weight and length are recorded when receiving stock into inventory.
             </div>
 
             <DialogFooter>

@@ -209,6 +209,40 @@ export default function GenerateJobCardsPage() {
     }
   }
 
+  // Convert weight (kg) to length (mm) based on material specifications
+  const convertWeightToLength = (weightKg: number, material: MaterialResponse): number => {
+    if (!material || weightKg <= 0) return 0
+
+    const { shape, diameter, innerDiameter, density } = material
+
+    // Calculate cross-sectional area in cm²
+    let areaCm2 = 0
+
+    if (shape === 'Rod' || shape === 'Forged') {
+      // Area = π × r²
+      // diameter is in mm, convert to cm by dividing by 10
+      const radiusCm = (diameter / 10) / 2
+      areaCm2 = Math.PI * Math.pow(radiusCm, 2)
+    } else if (shape === 'Pipe') {
+      // Area = π × (R² - r²)
+      const outerRadiusCm = (diameter / 10) / 2
+      const innerRadiusCm = ((innerDiameter || 0) / 10) / 2
+      areaCm2 = Math.PI * (Math.pow(outerRadiusCm, 2) - Math.pow(innerRadiusCm, 2))
+    } else if (shape === 'Sheet') {
+      // For sheets, we can't really convert weight to length without thickness
+      // Return 0 or handle differently
+      return 0
+    }
+
+    if (areaCm2 <= 0 || density <= 0) return 0
+
+    // Convert weight to length
+    // Formula: Length (mm) = Weight (kg) × 1,000,000 / (Density (g/cm³) × Area (cm²))
+    const lengthMm = (weightKg * 1000000) / (density * areaCm2)
+
+    return lengthMm
+  }
+
   // Check material availability based on real inventory
   const checkMaterialAvailability = (childPartTemplateId: number): boolean => {
     if (!order) return true
@@ -233,7 +267,13 @@ export default function GenerateJobCardsPage() {
       const requiredQty = material.requiredQuantity * (order.quantity * childPart.bomItem.quantity)
       const totalWithWastage = requiredQty * (1 + (material.wastagePercent || 0) / 100)
 
-      if (inventory.availableQuantity < totalWithWastage) {
+      // Convert inventory quantity to length if stored as weight
+      let availableQty = inventory.availableQuantity
+      if (inventory.uom === 'kg') {
+        availableQty = convertWeightToLength(inventory.availableQuantity, matchingMaterial)
+      }
+
+      if (availableQty < totalWithWastage) {
         return false
       }
     }
@@ -1004,7 +1044,19 @@ export default function GenerateJobCardsPage() {
                              (m.grade === material.materialGrade || (!m.grade && !material.materialGrade))
                       )
                       const inventory = matchingMaterial ? inventoryData.get(matchingMaterial.id) : null
-                      const inStock = inventory?.availableQuantity || 0
+
+                      // Convert weight (kg) from inventory to length (mm) for comparison
+                      let inStock = 0
+                      if (inventory && matchingMaterial) {
+                        if (inventory.uom === 'kg') {
+                          // Convert weight to length
+                          inStock = convertWeightToLength(inventory.availableQuantity, matchingMaterial)
+                        } else {
+                          // Already in mm or other unit
+                          inStock = inventory.availableQuantity
+                        }
+                      }
+
                       const isShortage = inStock < material.totalRequired
                       const hasInventoryData = inventory !== null
 
@@ -1034,7 +1086,12 @@ export default function GenerateJobCardsPage() {
                                   <td className="p-3 text-right font-semibold align-top" rowSpan={material.childParts.length + 1}>
                                     {hasInventoryData ? (
                                       <>
-                                        {inStock.toFixed(2)} {inventory?.uom || material.unit}
+                                        {inStock.toFixed(2)} {material.unit}
+                                        {inventory && inventory.uom === 'kg' && (
+                                          <div className="text-xs text-gray-500 font-normal mt-1">
+                                            ({inventory.availableQuantity.toFixed(2)} kg)
+                                          </div>
+                                        )}
                                         {inventory?.isLowStock && !isShortage && (
                                           <div className="text-xs text-yellow-600 font-normal mt-1">
                                             Low Stock

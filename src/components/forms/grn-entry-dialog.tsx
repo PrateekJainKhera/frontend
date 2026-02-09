@@ -1,16 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Check, ChevronsUpDown } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { mockRawMaterials } from "@/lib/mock-data"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { materialService, MaterialResponse } from "@/lib/api/materials"
 import { toast } from "sonner"
 import { grnService, CreateGRNRequest } from "@/lib/api/grn"
 
@@ -51,6 +53,26 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
     const [showWarningDialog, setShowWarningDialog] = useState(false)
     const [warningMessage, setWarningMessage] = useState<string[]>([])
     const [pendingSubmit, setPendingSubmit] = useState(false)
+    const [materials, setMaterials] = useState<MaterialResponse[]>([])
+    const [materialsLoading, setMaterialsLoading] = useState(false)
+    const [openCombobox, setOpenCombobox] = useState<string | null>(null)
+
+    // Load materials from API
+    useEffect(() => {
+        const loadMaterials = async () => {
+            try {
+                setMaterialsLoading(true)
+                const data = await materialService.getAll()
+                setMaterials(data)
+            } catch (error) {
+                console.error('Failed to load materials:', error)
+                toast.error('Failed to load materials')
+            } finally {
+                setMaterialsLoading(false)
+            }
+        }
+        loadMaterials()
+    }, [])
 
     // Reset form when dialog opens
     useEffect(() => {
@@ -122,19 +144,15 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
 
                 // If material selection changes, update material details
                 if (field === 'materialId') {
-                    const material = mockRawMaterials.find(m => m.id === value)
+                    const material = materials.find(m => m.id.toString() === value)
                     if (material) {
                         updatedLine.materialName = material.materialName
                         updatedLine.grade = material.grade
                         updatedLine.diameter = material.diameter || 0
                         updatedLine.outerDiameter = material.diameter || 0
 
-                        // Set default density based on material grade
-                        if (material.grade.includes('SS') || material.grade.includes('Stainless')) {
-                            updatedLine.materialDensity = 7.9
-                        } else {
-                            updatedLine.materialDensity = 7.85 // MS/EN8 default
-                        }
+                        // Set density from material master
+                        updatedLine.materialDensity = material.density
                     }
                 }
 
@@ -275,7 +293,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                     sequenceNo++
                     grnLines.push({
                         sequenceNo,
-                        materialId: parseInt(line.materialId.replace(/\D/g, '')) || 0, // Extract number from 'rm-1' -> 1
+                        materialId: parseInt(line.materialId) || 0,
                         materialName: line.materialName,
                         grade: line.grade,
                         materialType: line.materialType === 'rod' ? 'Rod' : 'Pipe',
@@ -298,7 +316,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
 
                         grnLines.push({
                             sequenceNo,
-                            materialId: parseInt(line.materialId.replace(/\D/g, '')) || 0, // Extract number from 'rm-1' -> 1
+                            materialId: parseInt(line.materialId) || 0,
                             materialName: line.materialName,
                             grade: line.grade,
                             materialType: line.materialType === 'rod' ? 'Rod' : 'Pipe',
@@ -431,22 +449,60 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label>Select Material *</Label>
-                                                <Select
-                                                    value={line.materialId}
-                                                    onValueChange={(value) => updateMaterialLine(line.id, 'materialId', value)}
+                                                <Popover
+                                                    open={openCombobox === line.id}
+                                                    onOpenChange={(isOpen) => setOpenCombobox(isOpen ? line.id : null)}
                                                 >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Choose material" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {mockRawMaterials.map((material) => (
-                                                            <SelectItem key={material.id} value={material.id}>
-                                                                {material.materialName} - {material.grade}
-                                                                {material.diameter && ` (Ø${material.diameter}mm)`}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            role="combobox"
+                                                            aria-expanded={openCombobox === line.id}
+                                                            className="w-full justify-between"
+                                                        >
+                                                            {line.materialId
+                                                                ? materials.find((m) => m.id.toString() === line.materialId)?.materialName
+                                                                : "Choose material..."}
+                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-[400px] p-0">
+                                                        <Command>
+                                                            <CommandInput placeholder="Search material..." />
+                                                            <CommandList>
+                                                                <CommandEmpty>No material found.</CommandEmpty>
+                                                                <CommandGroup>
+                                                                    {materials.map((material) => (
+                                                                        <CommandItem
+                                                                            key={material.id}
+                                                                            value={`${material.materialName} ${material.grade} ${material.diameter}`}
+                                                                            onSelect={() => {
+                                                                                updateMaterialLine(line.id, 'materialId', material.id.toString())
+                                                                                setOpenCombobox(null)
+                                                                            }}
+                                                                        >
+                                                                            <Check
+                                                                                className={cn(
+                                                                                    "mr-2 h-4 w-4",
+                                                                                    line.materialId === material.id.toString()
+                                                                                        ? "opacity-100"
+                                                                                        : "opacity-0"
+                                                                                )}
+                                                                            />
+                                                                            <div className="flex flex-col">
+                                                                                <span className="font-medium">{material.materialName}</span>
+                                                                                <span className="text-xs text-muted-foreground">
+                                                                                    {material.grade} | {material.shape}
+                                                                                    {material.diameter ? ` | Ø${material.diameter}mm` : ''}
+                                                                                </span>
+                                                                            </div>
+                                                                        </CommandItem>
+                                                                    ))}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Total Weight (kg) *</Label>

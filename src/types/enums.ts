@@ -11,7 +11,10 @@ export enum MaterialGrade {
   EN24 = 'EN24',
   SS304 = 'SS304',
   SS316 = 'SS316',
-  ALLOY_STEEL = 'Alloy Steel'
+  ALLOY_STEEL = 'Alloy Steel',
+  AL6061 = '6061',  // Aluminum grade
+  AL6063 = '6063',  // Aluminum grade
+  STANDARD = 'Standard'  // Generic grade for materials without specific grades
 }
 
 export enum MaterialType {
