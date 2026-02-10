@@ -354,6 +354,18 @@ class MaterialRequisitionService {
     return response.data.data || []
   }
 
+  // Update selected piece IDs for a requisition item (only if not set during planning)
+  async updateItemSelectedPieces(requisitionId: number, itemId: number, pieceIds: number[]): Promise<boolean> {
+    const response = await apiClient.patch<ApiResponse<boolean>>(
+      `${this.baseURL}/${requisitionId}/items/${itemId}/selected-pieces`,
+      { pieceIds }
+    )
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to update selected pieces')
+    }
+    return response.data.data || false
+  }
+
   // Get issuance history
   async getIssuanceHistory(id: number): Promise<any[]> {
     const response = await apiClient.get<ApiResponse<any[]>>(`${this.baseURL}/${id}/issuance-history`)

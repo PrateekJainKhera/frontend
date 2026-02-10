@@ -10,7 +10,7 @@ import {
   type MRT_PaginationState,
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Scissors } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { materialRequisitionService, MaterialRequisitionResponse, MaterialRequisitionItemResponse } from "@/lib/api/material-requisitions";
 import { materialPieceService, MaterialPieceResponse } from "@/lib/api/material-pieces";
+import { PieceSelectionDialog } from "@/components/planning/PieceSelectionDialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -67,6 +68,10 @@ export default function MaterialRequisitionDetailPage() {
     pageIndex: 0,
     pageSize: 10,
   });
+
+  // Piece selection dialog state
+  const [pieceDialogOpen, setPieceDialogOpen] = useState(false);
+  const [selectedItemForPieces, setSelectedItemForPieces] = useState<MaterialRequisitionItemResponse | null>(null);
 
   useEffect(() => {
     loadRequisition();
@@ -131,6 +136,18 @@ export default function MaterialRequisitionDetailPage() {
       toast.error(error instanceof Error ? error.message : "Failed to reject requisition");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handlePiecesConfirmed = async (selectedPieces: { piece: MaterialPieceResponse; quantityMM: number }[]) => {
+    if (!selectedItemForPieces) return;
+    try {
+      const pieceIds = selectedPieces.map(sp => sp.piece.id);
+      await materialRequisitionService.updateItemSelectedPieces(requisitionId, selectedItemForPieces.id, pieceIds);
+      toast.success("Pieces selected successfully");
+      loadRequisition();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save piece selection");
     }
   };
 
@@ -213,34 +230,66 @@ export default function MaterialRequisitionDetailPage() {
       {
         id: 'selectedPieces',
         header: 'Selected Pieces',
-        size: 200,
+        size: 220,
         Cell: ({ row }) => {
-          const pieces = piecesMap.get(row.original.id) || [];
-          return pieces.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {pieces.map((piece) => (
-                <TooltipProvider key={piece.id}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="outline" className="cursor-help">
-                        {piece.pieceNo}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="text-xs space-y-1">
-                        <div><strong>Piece:</strong> {piece.pieceNo}</div>
-                        <div><strong>Length:</strong> {piece.currentLengthMM} mm</div>
-                        <div><strong>Status:</strong> {piece.status}</div>
-                        <div><strong>Location:</strong> {piece.storageLocation || "-"}</div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ))}
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground">No pieces selected</span>
-          );
+          const item = row.original;
+          const pieces = piecesMap.get(item.id) || [];
+          const hasPreSelected = item.selectedPieceIds && item.selectedPieceIds.length > 0;
+
+          if (pieces.length > 0) {
+            return (
+              <div className="flex flex-wrap gap-1">
+                {pieces.map((piece) => (
+                  <TooltipProvider key={piece.id}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="cursor-help">
+                          {piece.pieceNo}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-xs space-y-1">
+                          <div><strong>Piece:</strong> {piece.pieceNo}</div>
+                          <div><strong>Length:</strong> {piece.currentLengthMM} mm</div>
+                          <div><strong>Status:</strong> {piece.status}</div>
+                          <div><strong>Location:</strong> {piece.storageLocation || "-"}</div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
+              </div>
+            );
+          }
+
+          // Only show select button if NOT pre-selected from planning
+          if (!hasPreSelected && item.materialId && requisition?.status !== "Issued" && requisition?.status !== "Rejected") {
+            return (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        setSelectedItemForPieces(item);
+                        setPieceDialogOpen(true);
+                      }}
+                    >
+                      <Scissors className="h-3 w-3" />
+                      Select Pieces
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Select material pieces for this item</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          }
+
+          return <span className="text-xs text-muted-foreground">No pieces selected</span>;
         },
       },
       {
@@ -475,6 +524,28 @@ export default function MaterialRequisitionDetailPage() {
             <p className="text-sm text-muted-foreground">{requisition.remarks}</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Piece Selection Dialog */}
+      {selectedItemForPieces && (
+        <PieceSelectionDialog
+          open={pieceDialogOpen}
+          onOpenChange={(open) => {
+            setPieceDialogOpen(open);
+            if (!open) setSelectedItemForPieces(null);
+          }}
+          materialId={selectedItemForPieces.materialId}
+          materialName={selectedItemForPieces.materialName || ""}
+          materialGrade={selectedItemForPieces.materialGrade}
+          requiredLengthMM={selectedItemForPieces.lengthRequiredMM ?? selectedItemForPieces.quantityRequired}
+          childParts={[{
+            childPartName: selectedItemForPieces.materialName || "Material",
+            pieceLengthMM: selectedItemForPieces.lengthRequiredMM ?? selectedItemForPieces.quantityRequired,
+            piecesCount: selectedItemForPieces.numberOfPieces ?? 1,
+            wastagePercent: 0,
+          }]}
+          onConfirm={handlePiecesConfirmed}
+        />
       )}
     </div>
   );

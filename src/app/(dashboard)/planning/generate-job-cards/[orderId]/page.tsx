@@ -82,6 +82,7 @@ export default function GenerateJobCardsPage() {
     materialGrade?: string
     requiredLengthMM: number
     aggregatedMaterialIndex: number
+    childParts: Array<{ childPartName: string; pieceLengthMM: number; piecesCount: number; wastagePercent: number }>
   } | null>(null)
 
   // Store selected pieces per material (key: materialId or aggregatedMaterialIndex)
@@ -297,11 +298,19 @@ export default function GenerateJobCardsPage() {
   }
 
   // Handle opening piece selection dialog
-  const handleSelectPieces = (materialId: number, materialName: string, materialGrade: string | undefined, requiredLengthMM: number, aggregatedMaterialIndex: number) => {
+  const handleSelectPieces = (
+    materialId: number,
+    materialName: string,
+    materialGrade: string | undefined,
+    requiredLengthMM: number,
+    aggregatedMaterialIndex: number,
+    childParts: Array<{ childPartName: string; pieceLengthMM: number; piecesCount: number; wastagePercent: number }>
+  ) => {
     setSelectedMaterialForPieces({
       materialId,
       materialName,
       materialGrade,
+      childParts,
       requiredLengthMM,
       aggregatedMaterialIndex
     })
@@ -489,6 +498,8 @@ export default function GenerateJobCardsPage() {
         requiredQty: number
         wastagePercent: number
         totalQty: number
+        pieceLengthMM: number   // per-piece length WITH wastage
+        piecesCount: number     // total number of pieces to cut
       }>
       totalRequired: number
     }> = {}
@@ -499,8 +510,10 @@ export default function GenerateJobCardsPage() {
       const materials = getChildPartMaterials(item.childPartTemplate.id, item.bomItem.childPartTemplateName)
 
       materials.forEach(material => {
-        const scaledQty = material.requiredQuantity * (order?.quantity || 1) * item.bomItem.quantity
+        const piecesCount = (order?.quantity || 1) * item.bomItem.quantity
+        const scaledQty = material.requiredQuantity * piecesCount
         const totalWithWastage = scaledQty * (1 + (material.wastagePercent || 0) / 100)
+        const pieceLengthMM = material.requiredQuantity * (1 + (material.wastagePercent || 0) / 100)
 
         const key = `${material.rawMaterialId || material.rawMaterialName}-${material.materialGrade || 'NoGrade'}`
 
@@ -519,7 +532,9 @@ export default function GenerateJobCardsPage() {
           childPartName: item.bomItem.childPartTemplateName,
           requiredQty: scaledQty,
           wastagePercent: material.wastagePercent || 0,
-          totalQty: totalWithWastage
+          totalQty: totalWithWastage,
+          pieceLengthMM,
+          piecesCount,
         })
 
         aggregated[key].totalRequired += totalWithWastage
@@ -844,7 +859,7 @@ export default function GenerateJobCardsPage() {
 
   if (loading) {
     return (
-      <div className="px-6 pb-6 space-y-4 max-w-5xl">
+      <div className="px-3 sm:px-6 pb-6 space-y-4 max-w-5xl w-full">
         <Skeleton className="h-12 w-64" />
         <Skeleton className="h-96" />
       </div>
@@ -853,7 +868,7 @@ export default function GenerateJobCardsPage() {
 
   if (!order) {
     return (
-      <div className="px-6 pb-6 space-y-4 max-w-5xl">
+      <div className="px-3 sm:px-6 pb-6 space-y-4 max-w-5xl w-full">
         <Link href="/planning">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
@@ -883,7 +898,7 @@ export default function GenerateJobCardsPage() {
   const purchasedParts = childPartItems.filter(item => item.childPartTemplate?.isPurchased)
 
   return (
-    <div className="px-6 pb-6 space-y-4 max-w-5xl">
+    <div className="px-3 sm:px-6 pb-6 space-y-4 max-w-5xl w-full">
       {/* Back Button */}
       <Link href="/planning">
         <Button variant="ghost" size="sm">
@@ -894,15 +909,15 @@ export default function GenerateJobCardsPage() {
       {/* Order Summary */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
             <div>
-              <CardTitle className="text-xl">Generate Job Cards</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Generate Job Cards</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 {order.customerName} • {order.productName}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-lg">{order.orderNo}</Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-sm sm:text-lg">{order.orderNo}</Badge>
               <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
                 {order.priority}
               </Badge>
@@ -910,7 +925,7 @@ export default function GenerateJobCardsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
             <div>
               <span className="text-muted-foreground">Quantity:</span>
               <span className="ml-2 font-medium">{order.quantity} pcs</span>
@@ -984,44 +999,42 @@ export default function GenerateJobCardsPage() {
             <div key={item.bomItem.id} className="space-y-2">
               {/* Child Part Header - Clickable to expand/collapse */}
               <div
-                className={`flex items-center justify-between p-3 rounded-lg border bg-card cursor-pointer hover:bg-accent/50 transition-colors ${
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg border bg-card cursor-pointer hover:bg-accent/50 transition-colors ${
                   isPurchased ? 'border-blue-200 bg-blue-50' : hasProcesses ? '' : 'border-red-200 bg-red-50'
                 }`}
                 onClick={toggleExpanded}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                   {hasProcesses && !isPurchased ? (
                     isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     )
                   ) : (
-                    <div className="w-4" /> // Spacer for alignment
+                    <div className="w-4 flex-shrink-0" />
                   )}
-                  <span className="font-medium">{item.bomItem.childPartTemplateName}</span>
-                  <Badge variant="outline" className="text-xs">
-                    Qty: {item.bomItem.quantity}
-                  </Badge>
+                  <span className="font-medium text-sm sm:text-base">{item.bomItem.childPartTemplateName}</span>
+                  <Badge variant="outline" className="text-xs">Qty: {item.bomItem.quantity}</Badge>
                   {item.childPartTemplate?.drawingNumber && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-xs hidden sm:inline-flex">
                       Dwg: {item.childPartTemplate.drawingNumber} Rev {item.childPartTemplate.drawingRevision || '-'}
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap ml-6 sm:ml-0">
                   {isPurchased ? (
-                    <Badge className="bg-blue-600">
+                    <Badge className="bg-blue-600 text-xs">
                       <CheckCircle2 className="mr-1 h-3 w-3" />
-                      Purchased (Direct to Assembly)
+                      Purchased
                     </Badge>
                   ) : hasProcesses ? (
-                    <Badge className="bg-green-600">
+                    <Badge className="bg-green-600 text-xs">
                       <CheckCircle2 className="mr-1 h-3 w-3" />
                       {processCount} process{processCount !== 1 ? 'es' : ''}
                     </Badge>
                   ) : (
-                    <Badge variant="destructive">
+                    <Badge variant="destructive" className="text-xs">
                       <AlertCircle className="mr-1 h-3 w-3" />
                       No processes
                     </Badge>
@@ -1045,24 +1058,20 @@ export default function GenerateJobCardsPage() {
                     {item.processSteps.map((step, stepIdx) => (
                       <div
                         key={step.id || stepIdx}
-                        className="flex items-center justify-between p-2.5 rounded-md border bg-white hover:bg-accent/50 transition-colors"
+                        className="flex items-center justify-between gap-2 p-2.5 rounded-md border bg-white hover:bg-accent/50 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-green-100 text-green-700 text-xs font-semibold flex-shrink-0">
                             {step.stepNo}
                           </div>
-                          <div className="font-medium text-sm">{step.processName || `Step ${step.stepNo}`}</div>
+                          <div className="font-medium text-sm truncate">{step.processName || `Step ${step.stepNo}`}</div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
                           {step.isMandatory && (
-                            <Badge variant="outline" className="text-xs">
-                              Mandatory
-                            </Badge>
+                            <Badge variant="outline" className="text-xs">Mandatory</Badge>
                           )}
                           {step.canBeParallel && (
-                            <Badge variant="secondary" className="text-xs">
-                              Parallel OK
-                            </Badge>
+                            <Badge variant="secondary" className="text-xs">Parallel</Badge>
                           )}
                         </div>
                       </div>
@@ -1076,22 +1085,18 @@ export default function GenerateJobCardsPage() {
 
                     return hasMaterials && (
                       <div className="p-3 rounded-md border border-blue-200 bg-blue-50/50">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-blue-600" />
-                            <span className="font-semibold text-sm text-blue-900">
-                              Material Requirements
-                            </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Package className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                            <span className="font-semibold text-sm text-blue-900">Material Requirements</span>
                             <Badge variant="secondary" className="text-xs">
                               {materials.length} material{materials.length !== 1 ? 's' : ''}
                             </Badge>
                             {hasUnsavedChanges && (
-                              <Badge variant="destructive" className="text-xs animate-pulse">
-                                Unsaved
-                              </Badge>
+                              <Badge variant="destructive" className="text-xs animate-pulse">Unsaved</Badge>
                             )}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-shrink-0">
                             <Button
                               size="sm"
                               variant="outline"
@@ -1108,7 +1113,7 @@ export default function GenerateJobCardsPage() {
                                 onClick={saveMaterialEdits}
                                 disabled={isSaving}
                               >
-                                {isSaving ? 'Saving...' : 'Save Changes'}
+                                {isSaving ? 'Saving...' : 'Save'}
                               </Button>
                             )}
                           </div>
@@ -1392,7 +1397,13 @@ export default function GenerateJobCardsPage() {
                                                   material.materialName,
                                                   material.materialGrade,
                                                   material.totalRequired,
-                                                  idx
+                                                  idx,
+                                                  material.childParts.map(cp => ({
+                                                    childPartName: cp.childPartName,
+                                                    pieceLengthMM: cp.pieceLengthMM,
+                                                    piecesCount: cp.piecesCount,
+                                                    wastagePercent: cp.wastagePercent,
+                                                  }))
                                                 )}
                                               >
                                                 <Package className="h-4 w-4" />
@@ -1685,7 +1696,7 @@ export default function GenerateJobCardsPage() {
             </div>
           </div>
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button
               onClick={handleGenerateJobCards}
               disabled={partsWithoutProcesses.length > 0}
@@ -1695,7 +1706,7 @@ export default function GenerateJobCardsPage() {
               <Package className="mr-2 h-4 w-4" />
               Generate {totalProcessSteps} Job Cards
             </Button>
-            <Button variant="outline" onClick={() => router.push('/planning')}>
+            <Button variant="outline" onClick={() => router.push('/planning')} className="sm:w-auto">
               Cancel
             </Button>
           </div>
@@ -1733,6 +1744,7 @@ export default function GenerateJobCardsPage() {
           materialName={selectedMaterialForPieces.materialName}
           materialGrade={selectedMaterialForPieces.materialGrade}
           requiredLengthMM={selectedMaterialForPieces.requiredLengthMM}
+          childParts={selectedMaterialForPieces.childParts}
           onConfirm={handlePieceSelectionConfirm}
         />
       )}
