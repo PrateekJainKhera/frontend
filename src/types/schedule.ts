@@ -135,6 +135,55 @@ export interface RescheduleRequest {
 }
 
 /**
+ * Process step item within the scheduling tree (each job card = one process step)
+ */
+export interface ProcessStepSchedulingItem {
+  jobCardId: number
+  jobCardNo: string
+  processId: number
+  processName?: string | null
+  processCode?: string | null
+  stepNo?: number | null
+  quantity: number
+  priority: string
+  jobCardStatus: string
+
+  // Machine assignment (null = not yet assigned)
+  scheduleId?: number | null
+  assignedMachineId?: number | null
+  assignedMachineCode?: string | null
+  assignedMachineName?: string | null
+  scheduledStartTime?: string | null
+  scheduledEndTime?: string | null
+  scheduleStatus?: string | null
+  estimatedDurationMinutes?: number | null
+}
+
+/**
+ * Group of process steps under one child part or assembly
+ */
+export interface ChildPartGroup {
+  groupName: string
+  creationType: string  // "ChildPart" | "Assembly"
+  totalSteps: number
+  scheduledSteps: number
+  steps: ProcessStepSchedulingItem[]
+}
+
+/**
+ * Full scheduling tree for an order
+ */
+export interface OrderSchedulingTree {
+  orderId: number
+  orderNo: string
+  priority: string
+  totalSteps: number
+  scheduledSteps: number
+  pendingSteps: number
+  groups: ChildPartGroup[]
+}
+
+/**
  * API Response wrapper
  */
 export interface ScheduleApiResponse<T> {

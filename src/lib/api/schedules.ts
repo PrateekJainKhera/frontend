@@ -6,7 +6,7 @@ import {
   CreateScheduleRequest,
   UpdateStatusRequest,
   RescheduleRequest,
-  ScheduleStatus
+  OrderSchedulingTree
 } from '@/types/schedule'
 
 class ScheduleService {
@@ -111,6 +111,24 @@ class ScheduleService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to fetch machine suggestions: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Get full scheduling tree for an order: Order → ChildPart groups → Process steps
+   */
+  async getOrderSchedulingTree(orderId: number): Promise<OrderSchedulingTree> {
+    try {
+      const response = await apiClient.get<ApiResponse<OrderSchedulingTree>>(
+        `${this.baseUrl}/order/${orderId}/tree`
+      )
+      if (!response.data.data) throw new Error('Scheduling tree not found')
+      return response.data.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch scheduling tree: ${error.message}`)
       }
       throw error
     }
