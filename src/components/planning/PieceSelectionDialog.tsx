@@ -34,6 +34,7 @@ interface PieceSelectionDialogProps {
   materialGrade?: string
   requiredLengthMM: number
   childParts: ChildPartInfo[]
+  preSelectedIds?: number[]
   onConfirm: (selectedPieces: SelectedPieceInfo[]) => void
 }
 
@@ -50,6 +51,7 @@ export function PieceSelectionDialog({
   materialGrade,
   requiredLengthMM,
   childParts,
+  preSelectedIds,
   onConfirm,
 }: PieceSelectionDialogProps) {
   const [loading, setLoading] = useState(true)
@@ -74,12 +76,42 @@ export function PieceSelectionDialog({
       setExpandedId(null)
       const pieces = await materialPieceService.getAvailableByMaterialId(materialId)
       setAvailablePieces(pieces)
-      autoSelect(pieces)
+      if (preSelectedIds && preSelectedIds.length > 0) {
+        restoreSelection(pieces, preSelectedIds)
+      } else {
+        autoSelect(pieces)
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load pieces")
     } finally {
       setLoading(false)
     }
+  }
+
+  const restoreSelection = (pieces: MaterialPieceResponse[], ids: number[]) => {
+    const newSelected = new Set<number>()
+    const newQuantities = new Map<number, number>()
+    let accumulatedPieces = 0
+    let accumulatedMM = 0
+    for (const id of ids) {
+      const piece = pieces.find(p => p.id === id)
+      if (!piece) continue
+      let useAmount: number
+      if (singlePart && singlePart.pieceLengthMM > 0) {
+        const piecesStillNeeded = Math.max(0, singlePart.piecesCount - accumulatedPieces)
+        const cutsAvail = calcCuts(piece.currentLengthMM, singlePart.pieceLengthMM)
+        const cutsToUse = Math.min(cutsAvail, piecesStillNeeded || cutsAvail)
+        useAmount = cutsToUse * singlePart.pieceLengthMM
+        accumulatedPieces += cutsToUse
+      } else {
+        useAmount = Math.min(piece.currentLengthMM, requiredLengthMM - accumulatedMM)
+        accumulatedMM += useAmount
+      }
+      newSelected.add(id)
+      newQuantities.set(id, useAmount)
+    }
+    setSelectedIds(newSelected)
+    setCustomQuantities(newQuantities)
   }
 
   const autoSelect = (pieces: MaterialPieceResponse[]) => {
@@ -100,13 +132,29 @@ export function PieceSelectionDialog({
 
     const newSelected = new Set<number>()
     const newQuantities = new Map<number, number>()
-    let accumulated = 0
+    let accumulatedPieces = 0  // track in pieces count when singlePart
+    let accumulatedMM = 0       // track in mm when no singlePart
     for (const piece of sorted) {
-      if (accumulated >= requiredLengthMM) break
-      const useAmount = Math.min(piece.currentLengthMM, requiredLengthMM - accumulated)
+      const done = singlePart
+        ? accumulatedPieces >= singlePart.piecesCount
+        : accumulatedMM >= requiredLengthMM
+      if (done) break
+
+      let useAmount: number
+      if (singlePart && singlePart.pieceLengthMM > 0) {
+        const piecesStillNeeded = singlePart.piecesCount - accumulatedPieces
+        const cutsAvail = calcCuts(piece.currentLengthMM, singlePart.pieceLengthMM)
+        if (cutsAvail <= 0) continue
+        const cutsToUse = Math.min(cutsAvail, piecesStillNeeded)
+        useAmount = cutsToUse * singlePart.pieceLengthMM
+        accumulatedPieces += cutsToUse
+      } else {
+        useAmount = Math.min(piece.currentLengthMM, requiredLengthMM - accumulatedMM)
+        accumulatedMM += useAmount
+      }
+
       newSelected.add(piece.id)
       newQuantities.set(piece.id, useAmount)
-      accumulated += useAmount
     }
     setSelectedIds(newSelected)
     setCustomQuantities(newQuantities)
@@ -120,11 +168,25 @@ export function PieceSelectionDialog({
       newQty.delete(piece.id)
     } else {
       newSelected.add(piece.id)
-      const covered = Array.from(newSelected).reduce(
-        (s, id) => s + (newQty.get(id) ?? (availablePieces.find(p => p.id === id)?.currentLengthMM ?? 0)), 0
-      )
-      const remaining = Math.max(0, requiredLengthMM - (covered - piece.currentLengthMM))
-      newQty.set(piece.id, Math.min(piece.currentLengthMM, remaining || piece.currentLengthMM))
+      if (singlePart && singlePart.pieceLengthMM > 0) {
+        // How many pieces already covered by other selected rods
+        const coveredPieces = Array.from(newSelected)
+          .filter(id => id !== piece.id)
+          .reduce((s, id) => {
+            const qty = newQty.get(id) ?? 0
+            return s + Math.floor(qty / singlePart.pieceLengthMM)
+          }, 0)
+        const piecesStillNeeded = Math.max(0, singlePart.piecesCount - coveredPieces)
+        const cutsAvail = calcCuts(piece.currentLengthMM, singlePart.pieceLengthMM)
+        const cutsToUse = Math.min(cutsAvail, piecesStillNeeded || cutsAvail)
+        newQty.set(piece.id, cutsToUse * singlePart.pieceLengthMM)
+      } else {
+        const covered = Array.from(newSelected).reduce(
+          (s, id) => s + (newQty.get(id) ?? (availablePieces.find(p => p.id === id)?.currentLengthMM ?? 0)), 0
+        )
+        const remaining = Math.max(0, requiredLengthMM - (covered - piece.currentLengthMM))
+        newQty.set(piece.id, Math.min(piece.currentLengthMM, remaining || piece.currentLengthMM))
+      }
     }
     setSelectedIds(newSelected)
     setCustomQuantities(newQty)
@@ -239,10 +301,13 @@ export function PieceSelectionDialog({
           ) : (
             sortedDisplayPieces.map((piece) => {
               const isSelected = selectedIds.has(piece.id)
-              const usedQty = customQuantities.get(piece.id) ?? piece.currentLengthMM
               const isExpanded = expandedId === piece.id
 
               const cutsAvailable = singlePart ? calcCuts(piece.currentLengthMM, singlePart.pieceLengthMM) : null
+              const defaultQty = cutsAvailable !== null && singlePart
+                ? cutsAvailable * singlePart.pieceLengthMM
+                : piece.currentLengthMM
+              const usedQty = customQuantities.get(piece.id) ?? defaultQty
               const leftoverMM = singlePart && cutsAvailable !== null
                 ? piece.currentLengthMM - cutsAvailable * singlePart.pieceLengthMM : null
               const wastePct = singlePart && cutsAvailable !== null && cutsAvailable > 0 && leftoverMM !== null

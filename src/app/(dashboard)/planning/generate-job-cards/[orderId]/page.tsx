@@ -1745,6 +1745,7 @@ export default function GenerateJobCardsPage() {
           materialGrade={selectedMaterialForPieces.materialGrade}
           requiredLengthMM={selectedMaterialForPieces.requiredLengthMM}
           childParts={selectedMaterialForPieces.childParts}
+          preSelectedIds={(selectedPiecesPerMaterial.get(selectedMaterialForPieces.aggregatedMaterialIndex) ?? []).map(sp => sp.piece.id)}
           onConfirm={handlePieceSelectionConfirm}
         />
       )}

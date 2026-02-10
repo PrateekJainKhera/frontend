@@ -69,6 +69,12 @@ export default function MaterialRequisitionDetailPage() {
     pageSize: 10,
   });
 
+  // Local piece selection state (in-memory, persists within session)
+  const [localPiecesMap, setLocalPiecesMap] = useState<Map<number, MaterialPieceResponse[]>>(new Map());
+
+  // Items that had selectedPieceIds set from planning — read-only on this page
+  const [planningLockedItems, setPlanningLockedItems] = useState<Set<number>>(new Set());
+
   // Piece selection dialog state
   const [pieceDialogOpen, setPieceDialogOpen] = useState(false);
   const [selectedItemForPieces, setSelectedItemForPieces] = useState<MaterialRequisitionItemResponse | null>(null);
@@ -102,6 +108,14 @@ export default function MaterialRequisitionDetailPage() {
         }
       }
       setPiecesMap(newPiecesMap);
+
+      // Track items whose pieces were already chosen during planning (read-only on this page)
+      const locked = new Set(
+        itemsData
+          .filter(i => i.selectedPieceIds && i.selectedPieceIds.length > 0)
+          .map(i => i.id)
+      );
+      setPlanningLockedItems(locked);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load requisition");
     } finally {
@@ -141,11 +155,17 @@ export default function MaterialRequisitionDetailPage() {
 
   const handlePiecesConfirmed = async (selectedPieces: { piece: MaterialPieceResponse; quantityMM: number }[]) => {
     if (!selectedItemForPieces) return;
+    const itemId = selectedItemForPieces.id;
+    const pieceIds = selectedPieces.map(sp => sp.piece.id);
+    const pieces = selectedPieces.map(sp => sp.piece);
+
+    // Save to local state immediately — reopen will restore this selection
+    setLocalPiecesMap(prev => new Map(prev).set(itemId, pieces));
+
+    // Also persist to backend
     try {
-      const pieceIds = selectedPieces.map(sp => sp.piece.id);
-      await materialRequisitionService.updateItemSelectedPieces(requisitionId, selectedItemForPieces.id, pieceIds);
+      await materialRequisitionService.updateItemSelectedPieces(requisitionId, itemId, pieceIds);
       toast.success("Pieces selected successfully");
-      loadRequisition();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save piece selection");
     }
@@ -233,12 +253,16 @@ export default function MaterialRequisitionDetailPage() {
         size: 220,
         Cell: ({ row }) => {
           const item = row.original;
-          const pieces = piecesMap.get(item.id) || [];
-          const hasPreSelected = item.selectedPieceIds && item.selectedPieceIds.length > 0;
+          // Local state takes priority (updated on confirm); fallback to server-loaded piecesMap
+          const pieces = localPiecesMap.get(item.id) || piecesMap.get(item.id) || [];
+
+          // Planning-locked items cannot be edited on inventory page
+          const isLocked = planningLockedItems.has(item.id);
+          const canEdit = !isLocked && item.materialId && requisition?.status !== "Issued" && requisition?.status !== "Rejected";
 
           if (pieces.length > 0) {
             return (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 {pieces.map((piece) => (
                   <TooltipProvider key={piece.id}>
                     <Tooltip>
@@ -258,12 +282,24 @@ export default function MaterialRequisitionDetailPage() {
                     </Tooltip>
                   </TooltipProvider>
                 ))}
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 ml-1 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setSelectedItemForPieces(item);
+                      setPieceDialogOpen(true);
+                    }}
+                  >
+                    <Scissors className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
             );
           }
 
-          // Only show select button if NOT pre-selected from planning
-          if (!hasPreSelected && item.materialId && requisition?.status !== "Issued" && requisition?.status !== "Rejected") {
+          if (canEdit) {
             return (
               <TooltipProvider>
                 <Tooltip>
@@ -334,7 +370,7 @@ export default function MaterialRequisitionDetailPage() {
         ),
       },
     ],
-    [piecesMap]
+    [piecesMap, localPiecesMap, planningLockedItems, requisition]
   );
 
   const table = useMaterialReactTable({
@@ -544,6 +580,12 @@ export default function MaterialRequisitionDetailPage() {
             piecesCount: selectedItemForPieces.numberOfPieces ?? 1,
             wastagePercent: 0,
           }]}
+          preSelectedIds={
+            // Local state (from this session's confirms) takes priority over server data
+            (localPiecesMap.get(selectedItemForPieces.id) ?? []).map(p => p.id).length > 0
+              ? (localPiecesMap.get(selectedItemForPieces.id) ?? []).map(p => p.id)
+              : (selectedItemForPieces.selectedPieceIds ?? [])
+          }
           onConfirm={handlePiecesConfirmed}
         />
       )}
