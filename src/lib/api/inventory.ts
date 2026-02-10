@@ -198,6 +198,23 @@ class InventoryService {
       throw error
     }
   }
+
+  async getComponentStock(componentId: number): Promise<{ componentId: number; currentStock: number; availableStock: number; uom: string; location: string }> {
+    try {
+      const response = await apiClient.get<ApiResponse<{ componentId: number; currentStock: number; availableStock: number; uom: string; location: string }>>(
+        `${this.baseUrl}/component-stock/${componentId}`
+      )
+      if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.message || 'Failed to fetch component stock')
+      }
+      return response.data.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch component stock: ${error.message}`)
+      }
+      throw error
+    }
+  }
 }
 
 export const inventoryService = new InventoryService()

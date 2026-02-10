@@ -41,9 +41,9 @@ export default function SchedulingDashboardPage() {
   const loadJobCards = async () => {
     try {
       setLoading(true)
-      // Fetch all job cards and filter for unscheduled ones with status PLANNED
+      // Fetch all job cards and filter for ones ready to be scheduled
       const allJobCards = await jobCardService.getAll()
-      const unscheduled = allJobCards.filter(jc => jc.status === 'PLANNED')
+      const unscheduled = allJobCards.filter(jc => jc.status === 'Scheduled' || jc.status === 'PLANNED')
       setJobCards(unscheduled)
     } catch (error) {
       toast.error('Failed to load job cards')
@@ -56,9 +56,9 @@ export default function SchedulingDashboardPage() {
   // Calculate statistics
   const stats = {
     total: jobCards.length,
-    ready: jobCards.filter(jc => jc.status === 'PLANNED').length,
-    highPriority: jobCards.filter(jc => jc.priority === 'HIGH').length,
-    mediumPriority: jobCards.filter(jc => jc.priority === 'MEDIUM').length,
+    ready: jobCards.filter(jc => jc.status === 'Scheduled').length,
+    highPriority: jobCards.filter(jc => jc.priority === 'HIGH' || jc.priority === 'High').length,
+    mediumPriority: jobCards.filter(jc => jc.priority === 'MEDIUM' || jc.priority === 'Medium').length,
   }
 
   // Filter job cards based on search

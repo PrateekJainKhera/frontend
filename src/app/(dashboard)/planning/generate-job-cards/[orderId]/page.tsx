@@ -23,6 +23,7 @@ import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/c
 import { processTemplateService, ProcessTemplateStepResponse } from '@/lib/api/process-templates'
 import { jobCardService, CreateJobCardPayload, JobCardMaterialRequirementRequest } from '@/lib/api/job-cards'
 import { materialService, MaterialResponse } from '@/lib/api/materials'
+import { componentService, ComponentResponse } from '@/lib/api/components'
 import { inventoryService, InventoryResponse } from '@/lib/api/inventory'
 import { materialRequisitionService, CreateMaterialRequisitionRequest } from '@/lib/api/material-requisitions'
 import { materialPieceService, MaterialPieceResponse } from '@/lib/api/material-pieces'
@@ -63,6 +64,9 @@ export default function GenerateJobCardsPage() {
 
   // Available materials from Material Master
   const [availableMaterials, setAvailableMaterials] = useState<MaterialResponse[]>([])
+
+  // Available components from Component Master (Masters_Components)
+  const [availableComponents, setAvailableComponents] = useState<ComponentResponse[]>([])
 
   // Inventory data - Map of materialId to InventoryResponse
   const [inventoryData, setInventoryData] = useState<Map<number, InventoryResponse>>(new Map())
@@ -200,8 +204,12 @@ export default function GenerateJobCardsPage() {
 
   const loadMaterials = async () => {
     try {
-      const materials = await materialService.getAll()
+      const [materials, components] = await Promise.all([
+        materialService.getAll(),
+        componentService.getAll(),
+      ])
       setAvailableMaterials(materials)
+      setAvailableComponents(components)
 
       // Load inventory data for all materials
       await loadInventoryData(materials)
@@ -797,14 +805,18 @@ export default function GenerateJobCardsPage() {
         // Add purchased components (these don't have job cards as they go to assembly)
         const aggregatedPurchasedParts = getAggregatedPurchasedParts()
         for (const part of aggregatedPurchasedParts) {
+          // Match to Masters_Components by name to get the correct componentId
+          // (child part template IDs differ from component master IDs)
+          const matchedComponent = availableComponents.find(
+            c => c.componentName.toLowerCase() === part.componentName.toLowerCase()
+          )
           requisitionItems.push({
             lineNo: lineNo++,
-            materialId: part.componentId || 0,
-            materialCode: part.partNumber,
-            materialName: part.componentName,
-            materialGrade: '',
+            componentId: matchedComponent?.id ?? part.componentId,
+            componentCode: matchedComponent?.partNumber ?? part.partNumber,
+            componentName: part.componentName,
             quantityRequired: part.totalRequired,
-            uom: part.unit,
+            uom: matchedComponent?.unit ?? part.unit,
             remarks: `Purchased component for: ${part.usedFor.join(', ')}`
           })
         }

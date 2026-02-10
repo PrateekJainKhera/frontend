@@ -25,10 +25,15 @@ export interface MaterialRequisitionItemResponse {
   id: number
   requisitionId: number
   lineNo: number
-  materialId: number
+  // Raw material fields (set when item is for a raw material rod/bar)
+  materialId?: number
   materialCode?: string
   materialName?: string
   materialGrade?: string
+  // Purchased component fields (mutually exclusive with materialId)
+  componentId?: number
+  componentCode?: string
+  componentName?: string
   quantityRequired: number
   uom?: string
   lengthRequiredMM?: number
@@ -73,10 +78,15 @@ export interface MaterialAllocationResponse {
 
 export interface CreateMaterialRequisitionItemRequest {
   lineNo: number
-  materialId: number
+  // Raw material (mutually exclusive with componentId)
+  materialId?: number
   materialCode?: string
   materialName?: string
   materialGrade?: string
+  // Purchased component (mutually exclusive with materialId)
+  componentId?: number
+  componentCode?: string
+  componentName?: string
   quantityRequired: number
   uom?: string
   lengthRequiredMM?: number
@@ -132,7 +142,7 @@ export interface AllocateMaterialRequest {
 
 export interface IssueMaterialRequest {
   requisitionId: number
-  jobCardId: number
+  jobCardId?: number
   issuedBy: string
   receivedBy: string
 }

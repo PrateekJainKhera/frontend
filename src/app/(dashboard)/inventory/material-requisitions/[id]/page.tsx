@@ -10,11 +10,20 @@ import {
   type MRT_PaginationState,
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { ArrowLeft, CheckCircle, XCircle, Scissors } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Scissors, PackageCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +33,7 @@ import {
 import { materialRequisitionService, MaterialRequisitionResponse, MaterialRequisitionItemResponse } from "@/lib/api/material-requisitions";
 import { materialPieceService, MaterialPieceResponse } from "@/lib/api/material-pieces";
 import { PieceSelectionDialog } from "@/components/planning/PieceSelectionDialog";
+import { ComponentSelectionDialog } from "@/components/inventory/ComponentSelectionDialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -75,9 +85,18 @@ export default function MaterialRequisitionDetailPage() {
   // Items that had selectedPieceIds set from planning — read-only on this page
   const [planningLockedItems, setPlanningLockedItems] = useState<Set<number>>(new Set());
 
-  // Piece selection dialog state
+  // Issue dialog state
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [issuedBy, setIssuedBy] = useState("");
+  const [receivedBy, setReceivedBy] = useState("");
+
+  // Piece selection dialog state (raw material items)
   const [pieceDialogOpen, setPieceDialogOpen] = useState(false);
   const [selectedItemForPieces, setSelectedItemForPieces] = useState<MaterialRequisitionItemResponse | null>(null);
+
+  // Component selection dialog state (purchased component items)
+  const [componentDialogOpen, setComponentDialogOpen] = useState(false);
+  const [selectedItemForComponent, setSelectedItemForComponent] = useState<MaterialRequisitionItemResponse | null>(null);
 
   useEffect(() => {
     loadRequisition();
@@ -153,6 +172,31 @@ export default function MaterialRequisitionDetailPage() {
     }
   };
 
+  const handleIssue = async () => {
+    if (!requisition) return;
+    try {
+      setActionLoading(true);
+      await materialRequisitionService.issueMaterials({
+        requisitionId: requisition.id,
+        ...(requisition.jobCardId ? { jobCardId: requisition.jobCardId } : {}),
+        issuedBy,
+        receivedBy,
+      });
+      toast.success("Materials issued successfully");
+      setIssueDialogOpen(false);
+      setIssuedBy("");
+      setReceivedBy("");
+      loadRequisition();
+    } catch (error: any) {
+      // Extract backend error message if available (axios throws on 4xx)
+      const msg = error?.response?.data?.message
+        || (error instanceof Error ? error.message : "Failed to issue materials");
+      toast.error(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handlePiecesConfirmed = async (selectedPieces: { piece: MaterialPieceResponse; quantityMM: number }[]) => {
     if (!selectedItemForPieces) return;
     const itemId = selectedItemForPieces.id;
@@ -207,15 +251,24 @@ export default function MaterialRequisitionDetailPage() {
         ),
       },
       {
-        accessorKey: 'materialName',
-        header: 'Material',
+        id: 'itemName',
+        header: 'Material / Component',
         size: 200,
-        Cell: ({ row }) => (
-          <div>
-            <div className="font-medium">{row.original.materialName || "-"}</div>
-            <div className="text-xs text-muted-foreground">{row.original.materialCode || ""}</div>
-          </div>
-        ),
+        Cell: ({ row }) => {
+          const item = row.original;
+          const isComp = !!item.componentId;
+          const name = isComp ? (item.componentName || item.componentCode || "-") : (item.materialName || "-");
+          const code = isComp ? item.componentCode : item.materialCode;
+          return (
+            <div>
+              <div className="font-medium flex items-center gap-1">
+                {isComp && <span className="text-xs font-normal text-blue-600 bg-blue-50 border border-blue-200 rounded px-1 py-0">Component</span>}
+                {name}
+              </div>
+              <div className="text-xs text-muted-foreground">{code || ""}</div>
+            </div>
+          );
+        },
       },
       {
         accessorKey: 'materialGrade',
@@ -258,7 +311,38 @@ export default function MaterialRequisitionDetailPage() {
 
           // Planning-locked items cannot be edited on inventory page
           const isLocked = planningLockedItems.has(item.id);
-          const canEdit = !isLocked && item.materialId && requisition?.status !== "Issued" && requisition?.status !== "Rejected";
+          const isRawMaterial = !!item.materialId;
+          const isComponent = !!item.componentId;
+          const canEditPieces = !isLocked && isRawMaterial && requisition?.status !== "Issued" && requisition?.status !== "Rejected";
+          const canEditComponent = isComponent && requisition?.status !== "Issued" && requisition?.status !== "Rejected";
+
+          // Component item — show "Select Component" button (stock check)
+          if (isComponent) {
+            return (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      disabled={!canEditComponent}
+                      onClick={() => {
+                        setSelectedItemForComponent(item);
+                        setComponentDialogOpen(true);
+                      }}
+                    >
+                      <PackageCheck className="h-3 w-3" />
+                      {item.componentName || item.componentCode || "Component"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Check component stock availability</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          }
 
           if (pieces.length > 0) {
             return (
@@ -282,7 +366,7 @@ export default function MaterialRequisitionDetailPage() {
                     </Tooltip>
                   </TooltipProvider>
                 ))}
-                {canEdit && (
+                {canEditPieces && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -299,7 +383,7 @@ export default function MaterialRequisitionDetailPage() {
             );
           }
 
-          if (canEdit) {
+          if (canEditPieces) {
             return (
               <TooltipProvider>
                 <Tooltip>
@@ -438,41 +522,62 @@ export default function MaterialRequisitionDetailPage() {
 
         {/* Action Buttons */}
         <div className="flex gap-2">
-          {requisition.status === "Pending" && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={handleApprove}
-                    disabled={actionLoading}
-                    size="icon"
-                    variant="default"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Approve Requisition</p>
-                </TooltipContent>
-              </Tooltip>
+          <TooltipProvider>
+            {requisition.status === "Pending" && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={handleApprove}
+                      disabled={actionLoading}
+                      size="icon"
+                      variant="default"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Approve Requisition</p>
+                  </TooltipContent>
+                </Tooltip>
 
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={handleReject}
+                      disabled={actionLoading}
+                      size="icon"
+                      variant="destructive"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Reject Requisition</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
+
+            {requisition.status === "Approved" && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    onClick={handleReject}
+                    onClick={() => setIssueDialogOpen(true)}
                     disabled={actionLoading}
-                    size="icon"
-                    variant="destructive"
+                    size="sm"
+                    className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <XCircle className="h-4 w-4" />
+                    <PackageCheck className="h-4 w-4" />
+                    Issue Materials
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Reject Requisition</p>
+                  <p>Issue selected pieces to the job card</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
-          )}
+            )}
+          </TooltipProvider>
         </div>
       </div>
 
@@ -562,7 +667,52 @@ export default function MaterialRequisitionDetailPage() {
         </Card>
       )}
 
-      {/* Piece Selection Dialog */}
+      {/* Issue Materials Dialog */}
+      <Dialog open={issueDialogOpen} onOpenChange={setIssueDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Issue Materials</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              This will mark all selected pieces as <strong>Issued</strong> and update the requisition status.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="issuedBy">Issued By</Label>
+              <Input
+                id="issuedBy"
+                placeholder="Store keeper name"
+                value={issuedBy}
+                onChange={e => setIssuedBy(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="receivedBy">Received By</Label>
+              <Input
+                id="receivedBy"
+                placeholder="Production operator / receiver name"
+                value={receivedBy}
+                onChange={e => setReceivedBy(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIssueDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleIssue}
+              disabled={actionLoading || !issuedBy.trim() || !receivedBy.trim()}
+              className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+            >
+              <PackageCheck className="h-4 w-4" />
+              Confirm Issue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Piece Selection Dialog (raw material items) */}
       {selectedItemForPieces && (
         <PieceSelectionDialog
           open={pieceDialogOpen}
@@ -570,7 +720,7 @@ export default function MaterialRequisitionDetailPage() {
             setPieceDialogOpen(open);
             if (!open) setSelectedItemForPieces(null);
           }}
-          materialId={selectedItemForPieces.materialId}
+          materialId={selectedItemForPieces.materialId!}
           materialName={selectedItemForPieces.materialName || ""}
           materialGrade={selectedItemForPieces.materialGrade}
           requiredLengthMM={selectedItemForPieces.lengthRequiredMM ?? selectedItemForPieces.quantityRequired}
@@ -587,6 +737,23 @@ export default function MaterialRequisitionDetailPage() {
               : (selectedItemForPieces.selectedPieceIds ?? [])
           }
           onConfirm={handlePiecesConfirmed}
+        />
+      )}
+
+      {/* Component Selection Dialog (purchased component items) */}
+      {selectedItemForComponent && (
+        <ComponentSelectionDialog
+          open={componentDialogOpen}
+          onOpenChange={(open) => {
+            setComponentDialogOpen(open);
+            if (!open) setSelectedItemForComponent(null);
+          }}
+          componentId={selectedItemForComponent.componentId!}
+          componentName={selectedItemForComponent.componentName || selectedItemForComponent.componentCode || "Component"}
+          componentCode={selectedItemForComponent.componentCode}
+          requiredQuantity={selectedItemForComponent.quantityRequired}
+          uom={selectedItemForComponent.uom}
+          onConfirm={() => toast.success("Component confirmed — it will be deducted when issuing.")}
         />
       )}
     </div>
