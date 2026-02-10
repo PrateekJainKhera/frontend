@@ -10,6 +10,12 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { orderService, OrderResponse } from '@/lib/api/orders'
 import { productTemplateService, ProductTemplateResponse, ProductTemplateBOMItemResponse } from '@/lib/api/product-templates'
@@ -1373,30 +1379,48 @@ export default function GenerateJobCardsPage() {
                                   </td>
                                   <td className="p-3 text-center align-top" rowSpan={material.childParts.length + 1}>
                                     {matchingMaterial && hasInventoryData && (
-                                      <div className="flex flex-col gap-2">
-                                        <Button
-                                          size="sm"
-                                          variant={selectedPiecesPerMaterial.has(idx) ? "default" : "outline"}
-                                          className="text-xs h-8"
-                                          onClick={() => handleSelectPieces(
-                                            matchingMaterial.id,
-                                            material.materialName,
-                                            material.materialGrade,
-                                            material.totalRequired,
-                                            idx
-                                          )}
-                                        >
-                                          <Package className="h-3 w-3 mr-1" />
-                                          {selectedPiecesPerMaterial.has(idx)
-                                            ? `${selectedPiecesPerMaterial.get(idx)?.length} Selected`
-                                            : 'Select Pieces'
-                                          }
-                                        </Button>
-                                        {selectedPiecesPerMaterial.has(idx) && (
-                                          <div className="text-xs text-muted-foreground">
-                                            {selectedPiecesPerMaterial.get(idx)?.reduce((sum, sp) => sum + sp.quantityMM, 0).toFixed(0)} mm
-                                          </div>
-                                        )}
+                                      <div className="flex flex-col gap-2 items-center">
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                size="icon"
+                                                variant={selectedPiecesPerMaterial.has(idx) ? "default" : "outline"}
+                                                className="h-8 w-8 relative"
+                                                onClick={() => handleSelectPieces(
+                                                  matchingMaterial.id,
+                                                  material.materialName,
+                                                  material.materialGrade,
+                                                  material.totalRequired,
+                                                  idx
+                                                )}
+                                              >
+                                                <Package className="h-4 w-4" />
+                                                {selectedPiecesPerMaterial.has(idx) && (
+                                                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-white text-[10px] flex items-center justify-center">
+                                                    {selectedPiecesPerMaterial.get(idx)?.length}
+                                                  </span>
+                                                )}
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <div className="text-xs">
+                                                {selectedPiecesPerMaterial.has(idx) ? (
+                                                  <>
+                                                    <div className="font-medium">
+                                                      {selectedPiecesPerMaterial.get(idx)?.length} piece(s) selected
+                                                    </div>
+                                                    <div className="text-muted-foreground">
+                                                      Total: {selectedPiecesPerMaterial.get(idx)?.reduce((sum, sp) => sum + sp.quantityMM, 0).toFixed(0)} mm
+                                                    </div>
+                                                  </>
+                                                ) : (
+                                                  <div>Select material pieces</div>
+                                                )}
+                                              </div>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
                                       </div>
                                     )}
                                   </td>

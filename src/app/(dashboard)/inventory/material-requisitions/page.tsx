@@ -1,59 +1,81 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import {
+  MaterialReactTable,
+  useMaterialReactTable,
+  type MRT_ColumnDef,
+  type MRT_PaginationState,
+} from 'material-react-table';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
   FileText,
   Clock,
   CheckCircle,
   Package,
-  Search,
-  Plus,
-  MoreVertical
+  Eye,
+  ThumbsUp,
+  XCircle,
+  Plus
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { materialRequisitionService, MaterialRequisitionResponse } from "@/lib/api/material-requisitions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { CreateRequisitionDialog } from "@/components/forms/create-requisition-dialog";
 
+// MUI Theme matching app styles
+const muiTheme = createTheme({
+  palette: { mode: 'light' },
+  typography: { fontFamily: 'inherit' },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          boxShadow: 'none',
+          border: '2px solid hsl(var(--border))',
+          borderRadius: '0.5rem',
+        },
+      },
+    },
+    MuiTableHead: {
+      styleOverrides: {
+        root: {
+          '& .MuiTableCell-head': {
+            backgroundColor: 'hsl(var(--muted))',
+            fontWeight: 600,
+          },
+        },
+      },
+    },
+  },
+});
+
 export default function MaterialRequisitionsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [requisitions, setRequisitions] = useState<MaterialRequisitionResponse[]>([]);
-  const [filteredRequisitions, setFilteredRequisitions] = useState<MaterialRequisitionResponse[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [pagination, setPagination] = useState<MRT_PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   useEffect(() => {
     loadRequisitions();
   }, []);
-
-  useEffect(() => {
-    filterRequisitions();
-  }, [requisitions, searchTerm, activeTab]);
 
   const loadRequisitions = async () => {
     try {
@@ -67,34 +89,13 @@ export default function MaterialRequisitionsPage() {
     }
   };
 
-  const filterRequisitions = () => {
-    let filtered = requisitions;
-
-    // Filter by tab
-    if (activeTab === "pending") {
-      filtered = filtered.filter(r => r.status === "Pending");
-    } else if (activeTab === "approved") {
-      filtered = filtered.filter(r => r.status === "Approved");
-    } else if (activeTab === "issued") {
-      filtered = filtered.filter(r => r.status === "Issued");
-    }
-
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(r =>
-        r.requisitionNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.jobCardNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.orderNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredRequisitions(filtered);
+  const handleView = (req: MaterialRequisitionResponse) => {
+    router.push(`/inventory/material-requisitions/${req.id}`);
   };
 
-  const handleApprove = async (id: number) => {
+  const handleApprove = async (req: MaterialRequisitionResponse) => {
     try {
-      await materialRequisitionService.approve(id, "Current User");
+      await materialRequisitionService.approve(req.id, "Current User");
       toast.success("Requisition approved successfully");
       loadRequisitions();
     } catch (error) {
@@ -102,9 +103,9 @@ export default function MaterialRequisitionsPage() {
     }
   };
 
-  const handleReject = async (id: number) => {
+  const handleReject = async (req: MaterialRequisitionResponse) => {
     try {
-      await materialRequisitionService.reject(id, "Current User", "Rejected by user");
+      await materialRequisitionService.reject(req.id, "Current User", "Rejected by user");
       toast.success("Requisition rejected successfully");
       loadRequisitions();
     } catch (error) {
@@ -150,18 +151,205 @@ export default function MaterialRequisitionsPage() {
     const pending = requisitions.filter(r => r.status === "Pending");
     const approved = requisitions.filter(r => r.status === "Approved");
     const issued = requisitions.filter(r => r.status === "Issued");
-    const urgent = requisitions.filter(r => r.priority === "Urgent" && r.status !== "Completed");
 
     return {
       total: requisitions.length,
       pending: pending.length,
       approved: approved.length,
       issued: issued.length,
-      urgent: urgent.length,
     };
   };
 
   const stats = calculateStats();
+
+  // Filter requisitions based on active tab
+  const filteredRequisitions = useMemo(() => {
+    if (activeTab === "pending") {
+      return requisitions.filter(r => r.status === "Pending");
+    } else if (activeTab === "approved") {
+      return requisitions.filter(r => r.status === "Approved");
+    } else if (activeTab === "issued") {
+      return requisitions.filter(r => r.status === "Issued");
+    }
+    return requisitions;
+  }, [requisitions, activeTab]);
+
+  // Define columns
+  const columns = useMemo<MRT_ColumnDef<MaterialRequisitionResponse>[]>(
+    () => [
+      {
+        accessorKey: 'requisitionNo',
+        header: 'Requisition No',
+        size: 150,
+        Cell: ({ cell }) => (
+          <span className="font-medium font-mono">
+            {cell.getValue<string>()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'requisitionDate',
+        header: 'Date',
+        size: 120,
+        Cell: ({ cell }) => (
+          <span className="text-sm">
+            {format(new Date(cell.getValue<string>()), "dd MMM yyyy")}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'jobCardNo',
+        header: 'Job Card',
+        size: 130,
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+          return value ? (
+            <span className="text-blue-600 font-medium">{value}</span>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          );
+        },
+      },
+      {
+        accessorKey: 'orderNo',
+        header: 'Order No',
+        size: 130,
+        Cell: ({ cell }) => (
+          <span className="font-medium">{cell.getValue<string>() || "-"}</span>
+        ),
+      },
+      {
+        accessorKey: 'customerName',
+        header: 'Customer',
+        size: 180,
+        Cell: ({ cell }) => (
+          <span className="text-sm">{cell.getValue<string>() || "-"}</span>
+        ),
+      },
+      {
+        accessorKey: 'priority',
+        header: 'Priority',
+        size: 100,
+        Cell: ({ row }) => getPriorityBadge(row.original.priority),
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        size: 110,
+        Cell: ({ row }) => getStatusBadge(row.original.status),
+      },
+      {
+        accessorKey: 'dueDate',
+        header: 'Due Date',
+        size: 120,
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+          return value ? (
+            <span className="text-sm">{format(new Date(value), "dd MMM yyyy")}</span>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          );
+        },
+      },
+      {
+        accessorKey: 'requestedBy',
+        header: 'Requested By',
+        size: 140,
+        Cell: ({ cell }) => (
+          <span className="text-sm text-muted-foreground">
+            {cell.getValue<string>() || "-"}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  const table = useMaterialReactTable({
+    columns,
+    data: filteredRequisitions,
+    enableColumnActions: true,
+    enableColumnFilters: true,
+    enableSorting: true,
+    enableGlobalFilter: true,
+    enableTopToolbar: true,
+    enableBottomToolbar: true,
+    enableRowActions: true,
+    positionActionsColumn: 'last',
+    enableColumnOrdering: true,
+
+    onPaginationChange: setPagination,
+    state: { pagination },
+    muiPaginationProps: {
+      rowsPerPageOptions: [10, 25, 50, 100],
+      showFirstButton: true,
+      showLastButton: true,
+    },
+    paginationDisplayMode: 'pages',
+
+    muiSearchTextFieldProps: {
+      placeholder: 'Search requisitions...',
+      sx: { minWidth: '300px' },
+      variant: 'outlined',
+    },
+
+    renderRowActions: ({ row }) => (
+      <TooltipProvider>
+        <div className="flex gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleView(row.original)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View Details</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {row.original.status === "Pending" && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleApprove(row.original)}
+                    className="text-green-600 hover:text-green-700"
+                  >
+                    <ThumbsUp className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Approve</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleReject(row.original)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Reject</p>
+                </TooltipContent>
+              </Tooltip>
+            </>
+          )}
+        </div>
+      </TooltipProvider>
+    ),
+  });
 
   if (loading) {
     return (
@@ -247,19 +435,6 @@ export default function MaterialRequisitionsPage() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by requisition no, job card, order, or customer..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-      </div>
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
@@ -270,102 +445,9 @@ export default function MaterialRequisitionsPage() {
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Requisitions</CardTitle>
-              <CardDescription>
-                Manage material requisitions and allocations
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Requisition No</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Job Card</TableHead>
-                    <TableHead>Order No</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Requested By</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRequisitions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground">
-                        No requisitions found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredRequisitions.map((req) => (
-                      <TableRow key={req.id}>
-                        <TableCell className="font-medium">{req.requisitionNo}</TableCell>
-                        <TableCell>{format(new Date(req.requisitionDate), "dd MMM yyyy")}</TableCell>
-                        <TableCell>
-                          {req.jobCardNo ? (
-                            <span className="text-blue-600">{req.jobCardNo}</span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{req.orderNo || "-"}</TableCell>
-                        <TableCell>{req.customerName || "-"}</TableCell>
-                        <TableCell>{getPriorityBadge(req.priority)}</TableCell>
-                        <TableCell>{getStatusBadge(req.status)}</TableCell>
-                        <TableCell>
-                          {req.dueDate ? format(new Date(req.dueDate), "dd MMM yyyy") : "-"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {req.requestedBy || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => router.push(`/inventory/material-requisitions/${req.id}`)}>
-                                View Details
-                              </DropdownMenuItem>
-                              {req.status === "Pending" && (
-                                <>
-                                  <DropdownMenuItem onClick={() => handleApprove(req.id)}>
-                                    Approve
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleReject(req.id)}>
-                                    Reject
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              {req.status === "Approved" && (
-                                <>
-                                  <DropdownMenuItem>Allocate Materials</DropdownMenuItem>
-                                  <DropdownMenuItem>View Allocated Pieces</DropdownMenuItem>
-                                </>
-                              )}
-                              {req.status === "Issued" && (
-                                <DropdownMenuItem>View Issuance History</DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <ThemeProvider theme={muiTheme}>
+            <MaterialReactTable table={table} />
+          </ThemeProvider>
         </TabsContent>
       </Tabs>
 

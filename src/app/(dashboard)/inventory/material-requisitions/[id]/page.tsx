@@ -1,24 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, FileText, Calendar, User, Package, CheckCircle, XCircle } from "lucide-react";
+import {
+  MaterialReactTable,
+  useMaterialReactTable,
+  type MRT_ColumnDef,
+  type MRT_PaginationState,
+} from 'material-react-table';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { materialRequisitionService, MaterialRequisitionResponse, MaterialRequisitionItemResponse } from "@/lib/api/material-requisitions";
+import { materialPieceService, MaterialPieceResponse } from "@/lib/api/material-pieces";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+// MUI Theme matching app styles
+const muiTheme = createTheme({
+  palette: { mode: 'light' },
+  typography: { fontFamily: 'inherit' },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          boxShadow: 'none',
+          border: '2px solid hsl(var(--border))',
+          borderRadius: '0.5rem',
+        },
+      },
+    },
+    MuiTableHead: {
+      styleOverrides: {
+        root: {
+          '& .MuiTableCell-head': {
+            backgroundColor: 'hsl(var(--muted))',
+            fontWeight: 600,
+          },
+        },
+      },
+    },
+  },
+});
 
 export default function MaterialRequisitionDetailPage() {
   const params = useParams();
@@ -29,6 +62,11 @@ export default function MaterialRequisitionDetailPage() {
   const [requisition, setRequisition] = useState<MaterialRequisitionResponse | null>(null);
   const [items, setItems] = useState<MaterialRequisitionItemResponse[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
+  const [piecesMap, setPiecesMap] = useState<Map<number, MaterialPieceResponse[]>>(new Map());
+  const [pagination, setPagination] = useState<MRT_PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   useEffect(() => {
     loadRequisition();
@@ -43,6 +81,22 @@ export default function MaterialRequisitionDetailPage() {
       // Load requisition items
       const itemsData = await materialRequisitionService.getItems(requisitionId);
       setItems(itemsData);
+
+      // Load selected pieces for each item
+      const newPiecesMap = new Map<number, MaterialPieceResponse[]>();
+      for (const item of itemsData) {
+        if (item.selectedPieceIds && item.selectedPieceIds.length > 0) {
+          try {
+            const pieces = await Promise.all(
+              item.selectedPieceIds.map(pieceId => materialPieceService.getById(pieceId))
+            );
+            newPiecesMap.set(item.id, pieces);
+          } catch (error) {
+            console.error(`Failed to load pieces for item ${item.id}:`, error);
+          }
+        }
+      }
+      setPiecesMap(newPiecesMap);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load requisition");
     } finally {
@@ -104,6 +158,164 @@ export default function MaterialRequisitionDetailPage() {
     return <Badge variant={config.variant}>{priority}</Badge>;
   };
 
+  // Define columns for MaterialReactTable
+  const columns = useMemo<MRT_ColumnDef<MaterialRequisitionItemResponse>[]>(
+    () => [
+      {
+        accessorKey: 'lineNo',
+        header: 'Line',
+        size: 70,
+        Cell: ({ cell }) => (
+          <span className="font-medium">{cell.getValue<number>()}</span>
+        ),
+      },
+      {
+        accessorKey: 'materialName',
+        header: 'Material',
+        size: 200,
+        Cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{row.original.materialName || "-"}</div>
+            <div className="text-xs text-muted-foreground">{row.original.materialCode || ""}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'materialGrade',
+        header: 'Grade',
+        size: 100,
+        Cell: ({ cell }) => (
+          <span className="text-sm">{cell.getValue<string>() || "-"}</span>
+        ),
+      },
+      {
+        accessorKey: 'quantityRequired',
+        header: 'Required Qty',
+        size: 120,
+        Cell: ({ cell }) => (
+          <span className="font-medium">{cell.getValue<number>()}</span>
+        ),
+        muiTableBodyCellProps: {
+          align: 'right',
+        },
+        muiTableHeadCellProps: {
+          align: 'right',
+        },
+      },
+      {
+        accessorKey: 'uom',
+        header: 'UOM',
+        size: 80,
+        Cell: ({ cell }) => (
+          <span className="text-sm">{cell.getValue<string>() || "-"}</span>
+        ),
+      },
+      {
+        id: 'selectedPieces',
+        header: 'Selected Pieces',
+        size: 200,
+        Cell: ({ row }) => {
+          const pieces = piecesMap.get(row.original.id) || [];
+          return pieces.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {pieces.map((piece) => (
+                <TooltipProvider key={piece.id}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="cursor-help">
+                        {piece.pieceNo}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="text-xs space-y-1">
+                        <div><strong>Piece:</strong> {piece.pieceNo}</div>
+                        <div><strong>Length:</strong> {piece.currentLengthMM} mm</div>
+                        <div><strong>Status:</strong> {piece.status}</div>
+                        <div><strong>Location:</strong> {piece.storageLocation || "-"}</div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground">No pieces selected</span>
+          );
+        },
+      },
+      {
+        accessorKey: 'jobCardNo',
+        header: 'Job Card',
+        size: 130,
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+          return value ? (
+            <span className="text-sm font-medium text-blue-600">{value}</span>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          );
+        },
+      },
+      {
+        accessorKey: 'processName',
+        header: 'Process',
+        size: 150,
+        Cell: ({ cell }) => (
+          <span className="text-sm">{cell.getValue<string>() || "-"}</span>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        size: 100,
+        Cell: ({ row }) => (
+          <Badge variant={row.original.status === "Pending" ? "secondary" : "default"}>
+            {row.original.status}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: 'remarks',
+        header: 'Remarks',
+        size: 180,
+        Cell: ({ cell }) => (
+          <span className="text-xs text-muted-foreground">
+            {cell.getValue<string>() || "-"}
+          </span>
+        ),
+      },
+    ],
+    [piecesMap]
+  );
+
+  const table = useMaterialReactTable({
+    columns,
+    data: items,
+    enableColumnActions: true,
+    enableColumnFilters: true,
+    enableSorting: true,
+    enableGlobalFilter: true,
+    enableTopToolbar: true,
+    enableBottomToolbar: true,
+    enableRowActions: false,
+    enableColumnOrdering: true,
+
+    onPaginationChange: setPagination,
+    state: { pagination },
+    muiPaginationProps: {
+      rowsPerPageOptions: [10, 25, 50],
+      showFirstButton: true,
+      showLastButton: true,
+    },
+    paginationDisplayMode: 'pages',
+
+    muiSearchTextFieldProps: {
+      placeholder: 'Search materials...',
+      sx: { minWidth: '300px' },
+      variant: 'outlined',
+    },
+  });
+
   if (loading) {
     return (
       <div className="p-8 space-y-6">
@@ -142,25 +354,39 @@ export default function MaterialRequisitionDetailPage() {
         {/* Action Buttons */}
         <div className="flex gap-2">
           {requisition.status === "Pending" && (
-            <>
-              <Button
-                onClick={handleApprove}
-                disabled={actionLoading}
-                className="gap-2"
-              >
-                <CheckCircle className="h-4 w-4" />
-                Approve
-              </Button>
-              <Button
-                onClick={handleReject}
-                disabled={actionLoading}
-                variant="destructive"
-                className="gap-2"
-              >
-                <XCircle className="h-4 w-4" />
-                Reject
-              </Button>
-            </>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleApprove}
+                    disabled={actionLoading}
+                    size="icon"
+                    variant="default"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Approve Requisition</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleReject}
+                    disabled={actionLoading}
+                    size="icon"
+                    variant="destructive"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Reject Requisition</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
       </div>
@@ -229,63 +455,13 @@ export default function MaterialRequisitionDetailPage() {
         <CardHeader>
           <CardTitle>Material Requirements</CardTitle>
           <CardDescription>
-            List of materials required with job card and child part details
+            List of materials required with selected pieces, job card and process details
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Line</TableHead>
-                <TableHead>Material</TableHead>
-                <TableHead>Grade</TableHead>
-                <TableHead>Required Qty</TableHead>
-                <TableHead>UOM</TableHead>
-                <TableHead>Job Card</TableHead>
-                <TableHead>Process</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Remarks</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground">
-                    No items found. Items will be loaded once API endpoint is available.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.lineNo}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{item.materialName || "-"}</div>
-                      <div className="text-xs text-muted-foreground">{item.materialCode || ""}</div>
-                    </TableCell>
-                    <TableCell className="text-sm">{item.materialGrade || "-"}</TableCell>
-                    <TableCell className="font-medium">{item.quantityRequired}</TableCell>
-                    <TableCell>{item.uom || "-"}</TableCell>
-                    <TableCell>
-                      {item.jobCardNo ? (
-                        <span className="text-sm font-medium text-blue-600">{item.jobCardNo}</span>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">{item.processName || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant={item.status === "Pending" ? "secondary" : "default"}>
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
-                      {item.remarks || "-"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <ThemeProvider theme={muiTheme}>
+            <MaterialReactTable table={table} />
+          </ThemeProvider>
         </CardContent>
       </Card>
 
