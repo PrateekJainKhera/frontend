@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation'
 import { Info } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -14,36 +13,65 @@ import {
 // Map of routes to page titles
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
-  '/masters/customers': 'Customer Master',
-  '/masters/products': 'Product / Part Master',
+  // Masters
+  '/masters/customers': 'Customers',
+  '/masters/customers/create': 'New Customer',
+  '/masters/products': 'Products & Parts',
+  '/masters/products/create': 'New Product',
   '/masters/product-templates': 'Product Templates',
-  '/masters/product-templates/create': 'Create Product Template',
-  '/masters/raw-materials': 'Raw Material Master',
+  '/masters/product-templates/create': 'New Product Template',
+  '/masters/raw-materials': 'Raw Materials',
+  '/masters/materials': 'Materials',
   '/masters/components': 'Components & Parts',
-  '/masters/processes': 'Process Master',
+  '/masters/processes': 'Processes',
+  '/masters/processes/create': 'New Process',
   '/masters/process-templates': 'Process Templates',
-  '/masters/process-templates/create': 'Create Process Template',
-  '/masters/machines': 'Machines Master',
-  '/drawing-review': 'Drawing Review',
-  '/scheduling': 'Scheduling Dashboard',
-  '/stores': 'Stores',
+  '/masters/process-templates/create': 'New Process Template',
+  '/masters/machines': 'Machines',
+  '/masters/machines/create': 'New Machine',
+  '/masters/drawings': 'Drawings',
+  '/masters/suppliers': 'Suppliers',
+  '/masters/operators': 'Operators',
+  // Orders
   '/orders': 'Orders',
-  '/orders/create': 'Create New Order',
+  '/orders/create': 'New Order',
   '/orders/live-tracking': 'Live Order Tracking',
+  // Drawing Review
+  '/drawing-review': 'Drawing Review',
+  // Planning
+  '/planning': 'Planning',
+  '/planning/generate': 'Generate Job Cards',
+  // Scheduling
+  '/scheduling': 'Scheduling',
+  // Production
+  '/production': 'Production',
   '/production/job-cards': 'Job Cards',
-  '/production/job-cards/create': 'Create Job Card',
-  '/production/child-parts': 'Child Part Production Dashboard',
-  '/production/machines': 'Machine Load Overview',
-  '/production/osp': 'Outsource (OSP) Tracking',
+  '/production/job-cards/create': 'New Job Card',
+  '/production/child-parts': 'Child Parts',
+  '/production/machines': 'Machine Load',
+  '/production/osp': 'OSP Tracking',
   '/production/entry': 'Production Entry',
   '/production/rejection': 'Rejection Entry',
+  // Inventory
+  '/inventory': 'Inventory',
   '/inventory/raw-materials': 'Raw Material Inventory',
-  '/quality/rejections': 'Rejection Records',
+  '/inventory/material-pieces': 'Material Pieces',
+  '/inventory/material-requisitions': 'Material Requisitions',
+  '/inventory/receive-components': 'Receive Components',
+  // Stores
+  '/stores': 'Stores',
+  // Dispatch
+  '/dispatch': 'Dispatch',
+  // Quality
+  '/quality': 'Quality',
+  '/quality/rejections': 'Rejections',
   '/quality/rework': 'Rework Orders',
+  // MIS
+  '/mis': 'MIS Reports',
   '/mis/executive': 'Executive Dashboard',
   '/mis/production': 'Production Dashboard',
   '/mis/sales': 'Sales Dashboard',
-  '/mis/agents': 'Agent Performance Dashboard',
+  '/mis/agents': 'Agent Performance',
 }
 
 // Map of routes to page descriptions (for info tooltip)
@@ -64,7 +92,7 @@ interface TopHeaderProps {
   sidebarExpanded: boolean
 }
 
-export function TopHeader({ sidebarOpen, sidebarExpanded }: TopHeaderProps) {
+export function TopHeader(_props: TopHeaderProps) {
   const pathname = usePathname()
 
   // Get the page title from the mapping, or extract from path
@@ -74,16 +102,27 @@ export function TopHeader({ sidebarOpen, sidebarExpanded }: TopHeaderProps) {
       return pageTitles[pathname]
     }
 
-    // Check for dynamic routes (e.g., /orders/123, /masters/products/456)
-    if (pathname.match(/\/orders\/\d+/)) return 'Order Details'
-    if (pathname.match(/\/production\/job-cards\/\d+/)) return 'Job Card Details'
-    if (pathname.match(/\/production\/child-parts\/\d+/)) return 'Child Part Details'
-    if (pathname.match(/\/masters\/products\/\d+/)) return 'Product Details'
-    if (pathname.match(/\/masters\/process-templates\/[^/]+$/)) return 'Process Template Details'
+    // For dynamic routes with IDs — strip the ID and look up parent module
+    // e.g. /orders/123 → look up /orders → "Orders"
+    const withoutTrailingId = pathname.replace(/\/\d+$/, '')
+    if (withoutTrailingId !== pathname && pageTitles[withoutTrailingId]) {
+      return pageTitles[withoutTrailingId]
+    }
 
-    // Default: capitalize path segments
+    // Check for slug/string dynamic segments (e.g., /masters/process-templates/some-slug)
+    const withoutLastSegment = pathname.replace(/\/[^/]+$/, '')
+    if (withoutLastSegment !== pathname && pageTitles[withoutLastSegment]) {
+      return pageTitles[withoutLastSegment]
+    }
+
+    // Default: capitalize path segments (never show raw numbers)
     const segments = pathname.split('/').filter(Boolean)
-    return segments[segments.length - 1]
+    const lastSegment = segments[segments.length - 1]
+    // If last segment is a number, use the second-to-last segment
+    const displaySegment = /^\d+$/.test(lastSegment) && segments.length > 1
+      ? segments[segments.length - 2]
+      : lastSegment
+    return displaySegment
       ?.split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ') || 'Dashboard'
@@ -92,9 +131,9 @@ export function TopHeader({ sidebarOpen, sidebarExpanded }: TopHeaderProps) {
   const pageDescription = pageDescriptions[pathname]
 
   return (
-    <header className="sticky top-0 z-40 h-16 bg-white border-b border-gray-200 shadow-sm">
-      <div className="flex h-full items-center px-6 gap-2">
-        <h1 className="text-2xl font-bold text-primary">{getPageTitle()}</h1>
+    <header className="sticky top-0 z-40 h-12 bg-white border-b border-gray-200 shadow-sm">
+      <div className="flex h-full items-center px-4 gap-2">
+        <h1 className="text-lg font-bold text-primary">{getPageTitle()}</h1>
         {pageDescription && (
           <TooltipProvider>
             <Tooltip>

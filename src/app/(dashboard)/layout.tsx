@@ -51,7 +51,7 @@ export default function DashboardLayout({
       {/* Main content */}
       <div
         className={`flex flex-1 flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-          sidebarOpen ? (sidebarExpanded ? 'ml-72' : 'ml-16') : 'ml-0'
+          sidebarOpen ? (sidebarExpanded ? 'ml-60' : 'ml-14') : 'ml-0'
         }`}
       >
         {/* Top Header */}
@@ -69,7 +69,7 @@ export default function DashboardLayout({
         )}
 
         <main className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide">
-          <div className="p-4 md:p-6 lg:p-8">
+          <div className="p-3 md:p-4 lg:p-5">
             {children}
           </div>
         </main>

@@ -182,13 +182,13 @@
 
   @media (min-width: 1024px) {
     html {
-      font-size: 16px;
+      font-size: 13px; /* reduced 20% from 16px — desktop only */
     }
   }
 
   @media (min-width: 1280px) {
     html {
-      font-size: 16px;
+      font-size: 13px; /* reduced 20% from 16px — desktop only */
     }
   }
 
@@ -197,24 +197,18 @@
     font-family: var(--font-sans);
   }
 
-  h1 {
-    @apply text-2xl sm:text-3xl lg:text-4xl font-bold;
+  /* Hide all scrollbars globally while keeping scroll functionality */
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE / Edge legacy */
   }
 
-  h2 {
-    @apply text-xl sm:text-2xl lg:text-3xl font-semibold;
-  }
-
-  h3 {
-    @apply text-lg sm:text-xl lg:text-2xl font-semibold;
-  }
-
-  h4 {
-    @apply text-base sm:text-lg lg:text-xl font-medium;
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
   }
 
   p {
-    @apply text-sm sm:text-base;
+    @apply text-sm;
   }
 }
 

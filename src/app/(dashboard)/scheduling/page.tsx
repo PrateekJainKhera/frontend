@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
 import {
   CheckCircle2,
   Clock,
@@ -18,6 +19,7 @@ import {
   Wrench,
   AlertCircle,
   RefreshCw,
+  Cpu,
 } from 'lucide-react'
 import { jobCardService } from '@/lib/api/job-cards'
 import { scheduleService } from '@/lib/api/schedules'
@@ -41,25 +43,19 @@ export default function SchedulingDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
-  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedJobCardId, setSelectedJobCardId] = useState<number | null>(null)
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
 
-  useEffect(() => {
-    loadOrders()
-  }, [])
+  useEffect(() => { loadOrders() }, [])
 
   const loadOrders = async () => {
     try {
       setLoading(true)
-      // Get all job cards with "Scheduled" status — these need machine assignment
       const allJobCards = await jobCardService.getAll()
-      const scheduled = allJobCards.filter(jc =>
-        jc.status === 'Scheduled' || jc.status === 'PLANNED'
+      const scheduled = allJobCards.filter(
+        jc => jc.status === 'Scheduled' || jc.status === 'PLANNED'
       )
-
-      // Deduplicate by orderId
       const orderMap = new Map<number, { orderNo: string; priority: string }>()
       for (const jc of scheduled) {
         if (!orderMap.has(jc.orderId)) {
@@ -69,20 +65,18 @@ export default function SchedulingDashboardPage() {
           })
         }
       }
-
-      const entries: OrderEntry[] = Array.from(orderMap.entries()).map(([orderId, info]) => ({
-        orderId,
-        orderNo: info.orderNo,
-        priority: info.priority,
-        tree: null,
-        loading: false,
-        expanded: false,
-      }))
-
-      setOrders(entries)
-    } catch (error) {
+      setOrders(
+        Array.from(orderMap.entries()).map(([orderId, info]) => ({
+          orderId,
+          orderNo: info.orderNo,
+          priority: info.priority,
+          tree: null,
+          loading: false,
+          expanded: false,
+        }))
+      )
+    } catch (err) {
       toast.error('Failed to load scheduled orders')
-      console.error(error)
     } finally {
       setLoading(false)
     }
@@ -97,10 +91,10 @@ export default function SchedulingDashboardPage() {
       setOrders(prev =>
         prev.map(o => o.orderId === orderId ? { ...o, tree, loading: false } : o)
       )
-      // Auto-expand all groups for this order
-      const groupKeys = tree.groups.map(g => `${orderId}-${g.groupName}`)
-      setExpandedGroups(prev => new Set([...prev, ...groupKeys]))
-    } catch (error) {
+      setExpandedGroups(prev =>
+        new Set([...prev, ...tree.groups.map(g => `${orderId}-${g.groupName}`)])
+      )
+    } catch {
       toast.error('Failed to load order details')
       setOrders(prev =>
         prev.map(o => o.orderId === orderId ? { ...o, loading: false, expanded: false } : o)
@@ -111,21 +105,11 @@ export default function SchedulingDashboardPage() {
   const toggleOrder = (orderId: number) => {
     const order = orders.find(o => o.orderId === orderId)
     if (!order) return
-
     if (!order.expanded) {
-      // Expand: load tree if not loaded
-      if (!order.tree) {
-        loadOrderTree(orderId)
-      } else {
-        setOrders(prev =>
-          prev.map(o => o.orderId === orderId ? { ...o, expanded: true } : o)
-        )
-      }
+      order.tree ? setOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, expanded: true } : o))
+                 : loadOrderTree(orderId)
     } else {
-      // Collapse
-      setOrders(prev =>
-        prev.map(o => o.orderId === orderId ? { ...o, expanded: false } : o)
-      )
+      setOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, expanded: false } : o))
     }
   }
 
@@ -146,132 +130,139 @@ export default function SchedulingDashboardPage() {
   const handleScheduleSuccess = async () => {
     setDialogOpen(false)
     if (selectedOrderId) {
-      // Reload that order's tree to show the new assignment
-      setOrders(prev =>
-        prev.map(o => o.orderId === selectedOrderId ? { ...o, tree: null } : o)
-      )
+      setOrders(prev => prev.map(o => o.orderId === selectedOrderId ? { ...o, tree: null } : o))
       await loadOrderTree(selectedOrderId)
     }
     toast.success('Machine assigned successfully!')
     setSelectedJobCardId(null)
     setSelectedOrderId(null)
-    // Also reload the order list (in case everything is now scheduled)
     await loadOrders()
   }
 
   const filteredOrders = orders.filter(o =>
     o.orderNo.toLowerCase().includes(searchQuery.toLowerCase())
   )
-
-  const totalPendingSteps = orders.reduce((sum, o) => sum + (o.tree?.pendingSteps ?? 0), 0)
-  const totalScheduledSteps = orders.reduce((sum, o) => sum + (o.tree?.scheduledSteps ?? 0), 0)
-
-  const getPriorityBadge = (priority: string) => {
-    const p = priority?.toUpperCase()
-    if (p === 'HIGH') return <Badge className="bg-red-100 text-red-700 border-red-300">High</Badge>
-    if (p === 'MEDIUM') return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">Medium</Badge>
-    return <Badge className="bg-green-100 text-green-700 border-green-300">Low</Badge>
-  }
+  const totalPendingSteps  = orders.reduce((s, o) => s + (o.tree?.pendingSteps  ?? 0), 0)
+  const totalScheduledSteps = orders.reduce((s, o) => s + (o.tree?.scheduledSteps ?? 0), 0)
+  const totalSteps = totalPendingSteps + totalScheduledSteps
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-col items-center justify-center h-64 gap-2">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+        <p className="text-xs text-muted-foreground">Loading scheduling queue...</p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-4">
+
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold">Machine Scheduling</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-lg font-bold tracking-tight flex items-center gap-1.5">
+            <Cpu className="h-5 w-5 text-primary hidden sm:block" />
+            Machine Scheduling
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
             Assign machines to each process step for orders with issued materials
           </p>
         </div>
-        <Button variant="outline" onClick={loadOrders} size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
+        <Button variant="outline" onClick={loadOrders} size="sm" className="self-start sm:self-auto gap-1.5 h-8 text-xs">
+          <RefreshCw className="h-3.5 w-3.5" />
           Refresh
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Orders Awaiting Scheduling</CardTitle>
-            <Package className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{orders.length}</div>
-            <p className="text-xs text-muted-foreground">Materials issued, machines not assigned</p>
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="p-3 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Orders Awaiting</p>
+              <p className="text-2xl font-bold mt-0.5">{orders.length}</p>
+              <p className="text-[10px] text-muted-foreground">Materials issued</p>
+            </div>
+            <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <Package className="h-4 w-4 text-blue-600" />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Steps Needing Machine</CardTitle>
-            <AlertCircle className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{totalPendingSteps}</div>
-            <p className="text-xs text-muted-foreground">Process steps without machine assignment</p>
+        <Card className="border-l-4 border-l-orange-500">
+          <CardContent className="p-3 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Steps Pending</p>
+              <p className="text-2xl font-bold text-orange-600 mt-0.5">{totalPendingSteps}</p>
+              <p className="text-[10px] text-muted-foreground">Need assignment</p>
+            </div>
+            <div className="h-9 w-9 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Steps Assigned</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{totalScheduledSteps}</div>
-            <p className="text-xs text-muted-foreground">Process steps with machine assigned</p>
+        <Card className="border-l-4 border-l-green-500">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Steps Assigned</p>
+                <p className="text-2xl font-bold text-green-600 mt-0.5">{totalScheduledSteps}</p>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </div>
+            </div>
+            {totalSteps > 0 && (
+              <>
+                <Progress value={(totalScheduledSteps / totalSteps) * 100} className="h-1" />
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {Math.round((totalScheduledSteps / totalSteps) * 100)}% complete
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      {/* ── Search ── */}
+      <div className="relative max-w-xs">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
-          placeholder="Search orders..."
+          placeholder="Search order no..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-8 max-w-sm"
+          className="pl-8 h-8 text-sm"
         />
       </div>
 
-      {/* Orders List */}
+      {/* ── Orders List ── */}
       {filteredOrders.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-            <p className="text-lg font-semibold">All caught up!</p>
-            <p className="text-sm text-muted-foreground">
-              No orders are waiting for machine scheduling.
-            </p>
+          <CardContent className="flex flex-col items-center justify-center py-12 gap-2">
+            <div className="h-12 w-12 rounded-full bg-green-50 flex items-center justify-center">
+              <CheckCircle2 className="h-6 w-6 text-green-500" />
+            </div>
+            <p className="text-sm font-semibold">All caught up!</p>
+            <p className="text-xs text-muted-foreground">No orders waiting for machine scheduling.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {filteredOrders.map((order) => (
+        <div className="space-y-2">
+          {filteredOrders.map(order => (
             <OrderCard
               key={order.orderId}
               order={order}
               expandedGroups={expandedGroups}
               onToggleOrder={() => toggleOrder(order.orderId)}
               onToggleGroup={toggleGroup}
-              onAssignMachine={(jobCardId) => openScheduleDialog(jobCardId, order.orderId)}
-              getPriorityBadge={getPriorityBadge}
+              onAssignMachine={(jcId) => openScheduleDialog(jcId, order.orderId)}
             />
           ))}
         </div>
       )}
 
-      {/* Machine Assignment Dialog */}
       {selectedJobCardId && (
         <ScheduleMachineDialog
           jobCardId={selectedJobCardId}
@@ -284,7 +275,18 @@ export default function SchedulingDashboardPage() {
   )
 }
 
-// ─── Order Card ──────────────────────────────────────────────────────────────
+// ─── Priority Badge ───────────────────────────────────────────────────────────
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const p = priority?.toUpperCase()
+  if (p === 'HIGH')
+    return <Badge className="bg-red-100 text-red-700 border border-red-200 font-medium text-[10px] h-4 px-1.5">High</Badge>
+  if (p === 'MEDIUM')
+    return <Badge className="bg-amber-100 text-amber-700 border border-amber-200 font-medium text-[10px] h-4 px-1.5">Medium</Badge>
+  return <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium text-[10px] h-4 px-1.5">Low</Badge>
+}
+
+// ─── Order Card ───────────────────────────────────────────────────────────────
 
 interface OrderCardProps {
   order: OrderEntry
@@ -292,111 +294,120 @@ interface OrderCardProps {
   onToggleOrder: () => void
   onToggleGroup: (key: string) => void
   onAssignMachine: (jobCardId: number) => void
-  getPriorityBadge: (priority: string) => React.ReactNode
 }
 
-function OrderCard({
-  order,
-  expandedGroups,
-  onToggleOrder,
-  onToggleGroup,
-  onAssignMachine,
-  getPriorityBadge,
-}: OrderCardProps) {
-  const pending = order.tree?.pendingSteps ?? null
-  const total = order.tree?.totalSteps ?? null
+function OrderCard({ order, expandedGroups, onToggleOrder, onToggleGroup, onAssignMachine }: OrderCardProps) {
+  const pending   = order.tree?.pendingSteps   ?? null
+  const total     = order.tree?.totalSteps     ?? null
   const scheduled = order.tree?.scheduledSteps ?? null
+  const pct = total ? Math.round(((scheduled ?? 0) / total) * 100) : 0
+  const done = pending === 0 && total !== null && total > 0
 
   return (
-    <Card className="overflow-hidden">
-      {/* Order Header — click to expand */}
+    <Card className={`overflow-hidden ${done ? 'border-green-200' : ''}`}>
+
+      {/* Order header */}
       <div
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+        className="flex items-center justify-between px-3 py-2.5 cursor-pointer select-none hover:bg-muted/30 active:bg-muted/50 transition-colors gap-2"
         onClick={onToggleOrder}
       >
-        <div className="flex items-center gap-3">
-          {order.loading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          ) : order.expanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )}
-          <Package className="h-5 w-5 text-blue-600" />
-          <div>
-            <span className="font-semibold text-base">{order.orderNo}</span>
-            <span className="ml-3 text-sm text-muted-foreground">Order ID: {order.orderId}</span>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="shrink-0">
+            {order.loading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            ) : order.expanded ? (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
           </div>
-          {getPriorityBadge(order.priority)}
+          <div className="h-7 w-7 rounded bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+            <Package className="h-3.5 w-3.5 text-blue-600" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-semibold text-sm leading-tight truncate">{order.orderNo}</span>
+              <PriorityBadge priority={order.priority} />
+            </div>
+            <p className="text-[10px] text-muted-foreground">ID: {order.orderId}</p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 shrink-0">
           {total !== null && (
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-green-600">{scheduled}</span>
-              <span>/{total} steps assigned</span>
+            <div className="hidden sm:block w-20">
+              <Progress value={pct} className="h-1" />
+              <p className="text-[10px] text-muted-foreground text-right mt-0.5">{scheduled}/{total}</p>
             </div>
           )}
-          {pending !== null && pending > 0 && (
-            <Badge variant="outline" className="border-orange-400 text-orange-600 bg-orange-50">
+          {done ? (
+            <Badge className="bg-green-100 text-green-700 border border-green-200 text-[10px] h-4 px-1.5 gap-0.5">
+              <CheckCircle2 className="h-2.5 w-2.5" /> Done
+            </Badge>
+          ) : pending !== null && pending > 0 ? (
+            <Badge variant="outline" className="border-orange-300 text-orange-600 bg-orange-50 text-[10px] h-4 px-1.5">
               {pending} pending
             </Badge>
-          )}
-          {pending === 0 && total !== null && (
-            <Badge className="bg-green-100 text-green-700 border-green-300">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              Fully Scheduled
-            </Badge>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* Expanded Tree */}
+      {/* Mobile progress */}
+      {total !== null && (
+        <div className="sm:hidden px-3 pb-2 -mt-1">
+          <Progress value={pct} className="h-1" />
+          <p className="text-[10px] text-muted-foreground mt-0.5">{scheduled}/{total} steps assigned</p>
+        </div>
+      )}
+
+      {/* Expanded tree */}
       {order.expanded && order.tree && (
-        <div className="border-t">
+        <div className="border-t bg-muted/5">
           {order.tree.groups.map((group) => {
-            const groupKey = `${order.orderId}-${group.groupName}`
-            const isGroupExpanded = expandedGroups.has(groupKey)
+            const key   = `${order.orderId}-${group.groupName}`
+            const open  = expandedGroups.has(key)
+            const isAsm = group.creationType === 'Assembly'
+            const grpDone = group.scheduledSteps === group.totalSteps
 
             return (
-              <div key={groupKey} className="border-b last:border-b-0">
-                {/* Group Header */}
+              <div key={key} className="border-b last:border-b-0">
+                {/* Group header */}
                 <div
-                  className="flex items-center justify-between px-6 py-3 bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors"
-                  onClick={() => onToggleGroup(groupKey)}
+                  className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-muted/30 select-none transition-colors"
+                  onClick={() => onToggleGroup(key)}
                 >
-                  <div className="flex items-center gap-2">
-                    {isGroupExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    {group.creationType === 'Assembly' ? (
-                      <Wrench className="h-4 w-4 text-purple-600" />
-                    ) : (
-                      <Factory className="h-4 w-4 text-blue-600" />
-                    )}
-                    <span className="font-medium text-sm">
-                      {group.groupName}
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {group.creationType === 'Assembly' ? 'Assembly' : 'Child Part'}
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {open
+                      ? <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                      : <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                    }
+                    <div className={`h-5 w-5 rounded flex items-center justify-center shrink-0 ${isAsm ? 'bg-purple-50' : 'bg-sky-50'}`}>
+                      {isAsm
+                        ? <Wrench className="h-3 w-3 text-purple-600" />
+                        : <Factory className="h-3 w-3 text-sky-600" />
+                      }
+                    </div>
+                    <span className="font-medium text-xs truncate">{group.groupName}</span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] h-4 px-1 shrink-0 ${isAsm ? 'border-purple-200 text-purple-600' : 'border-sky-200 text-sky-600'}`}
+                    >
+                      {isAsm ? 'Assembly' : 'Part'}
                     </Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {group.scheduledSteps}/{group.totalSteps} steps scheduled
+                  <div className="shrink-0 ml-2">
+                    {grpDone
+                      ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                      : <span className="text-[10px] text-muted-foreground">{group.scheduledSteps}/{group.totalSteps}</span>
+                    }
                   </div>
                 </div>
 
-                {/* Process Steps */}
-                {isGroupExpanded && (
-                  <div className="divide-y">
-                    {group.steps.map((step) => (
-                      <ProcessStepRow
-                        key={step.jobCardId}
-                        step={step}
-                        onAssignMachine={onAssignMachine}
-                      />
+                {/* Steps */}
+                {open && (
+                  <div className="divide-y divide-border/60">
+                    {group.steps.map(step => (
+                      <ProcessStepRow key={step.jobCardId} step={step} onAssignMachine={onAssignMachine} />
                     ))}
                   </div>
                 )}
@@ -406,10 +417,11 @@ function OrderCard({
         </div>
       )}
 
-      {/* Loading state when expanding */}
+      {/* Loading */}
       {order.expanded && order.loading && (
-        <div className="border-t p-8 flex justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="border-t p-6 flex items-center justify-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-xs">Loading process steps...</span>
         </div>
       )}
     </Card>
@@ -424,65 +436,65 @@ interface ProcessStepRowProps {
 }
 
 function ProcessStepRow({ step, onAssignMachine }: ProcessStepRowProps) {
-  const isAssigned = !!step.assignedMachineId
+  const assigned = !!step.assignedMachineId
 
   return (
-    <div className={`flex items-center justify-between px-8 py-3 ${isAssigned ? 'bg-green-50/40' : 'bg-white hover:bg-muted/10'} transition-colors`}>
-      <div className="flex items-center gap-4 flex-1">
-        {/* Step Number */}
-        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
-          {step.stepNo ?? '?'}
+    <div className={`px-5 sm:px-7 py-2 transition-colors ${assigned ? 'bg-green-50/50' : 'hover:bg-muted/10'}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+
+        {/* Left: step circle + info */}
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+            assigned ? 'bg-green-100 text-green-700 ring-1 ring-green-200' : 'bg-muted text-muted-foreground'
+          }`}>
+            {step.stepNo ?? '?'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="font-medium text-xs leading-tight">{step.processName || 'Unknown Process'}</span>
+              {step.processCode && (
+                <Badge variant="outline" className="text-[10px] font-mono h-4 px-1">{step.processCode}</Badge>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {step.jobCardNo} · Qty: <span className="font-medium">{step.quantity}</span>
+            </p>
+          </div>
         </div>
 
-        {/* Process Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">{step.processName || 'Unknown Process'}</span>
-            {step.processCode && (
-              <Badge variant="outline" className="text-xs font-mono">{step.processCode}</Badge>
-            )}
-          </div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            {step.jobCardNo} · Qty: {step.quantity}
-          </div>
-        </div>
-
-        {/* Machine Assignment */}
-        <div className="flex items-center gap-3 shrink-0">
-          {isAssigned ? (
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-              <div className="text-right">
-                <div className="text-sm font-medium text-green-700">{step.assignedMachineName}</div>
-                <div className="text-xs text-muted-foreground font-mono">{step.assignedMachineCode}</div>
+        {/* Right: machine + button */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 pl-8 sm:pl-0">
+          {assigned ? (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-green-700 leading-tight truncate">{step.assignedMachineName}</p>
+                <p className="text-[10px] font-mono text-muted-foreground">{step.assignedMachineCode}</p>
                 {step.scheduledStartTime && (
-                  <div className="text-xs text-muted-foreground">
-                    {format(new Date(step.scheduledStartTime), 'MMM dd, HH:mm')}
-                    {step.scheduledEndTime && ` → ${format(new Date(step.scheduledEndTime), 'HH:mm')}`}
-                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {format(new Date(step.scheduledStartTime), 'dd MMM HH:mm')}
+                    {step.scheduledEndTime && <> → {format(new Date(step.scheduledEndTime), 'HH:mm')}</>}
+                  </p>
                 )}
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-orange-500">
-              <Clock className="h-4 w-4 shrink-0" />
-              <span className="text-sm">No machine assigned</span>
+            <div className="flex items-center gap-1 text-orange-500">
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-[10px] font-medium">Unassigned</span>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Action Button */}
-      <div className="ml-4 shrink-0">
-        <Button
-          size="sm"
-          variant={isAssigned ? 'outline' : 'default'}
-          onClick={() => onAssignMachine(step.jobCardId)}
-          className="gap-2"
-        >
-          <Calendar className="h-3 w-3" />
-          {isAssigned ? 'Change' : 'Assign Machine'}
-        </Button>
+          <Button
+            size="sm"
+            variant={assigned ? 'outline' : 'default'}
+            onClick={(e) => { e.stopPropagation(); onAssignMachine(step.jobCardId) }}
+            className="shrink-0 h-7 px-2.5 text-[11px] gap-1"
+          >
+            <Calendar className="h-3 w-3" />
+            {assigned ? 'Change' : 'Assign'}
+          </Button>
+        </div>
       </div>
     </div>
   )

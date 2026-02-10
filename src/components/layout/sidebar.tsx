@@ -155,18 +155,18 @@ export function Sidebar({ isOpen, isExpanded, onClose, onToggle, isMobile = fals
     <aside
       className={cn(
         "fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar shadow-xl transition-all duration-300 ease-in-out",
-        isExpanded ? "w-72" : "w-16",
+        isExpanded ? "w-60" : "w-14",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}
     >
       <div className="flex h-full flex-col">
         {/* Header with toggle button */}
         <div className={cn(
-          "flex h-16 shrink-0 items-center border-b border-sidebar-border transition-all duration-300",
-          isExpanded ? "justify-between px-6" : "justify-center px-2"
+          "flex h-12 shrink-0 items-center border-b border-sidebar-border transition-all duration-300",
+          isExpanded ? "justify-between px-4" : "justify-center px-2"
         )}>
           {isExpanded && (
-            <h1 className="text-xl lg:text-2xl font-bold text-sidebar-foreground">MultiHitech ERP</h1>
+            <h1 className="text-base font-bold text-sidebar-foreground">MultiHitech ERP</h1>
           )}
           {/* Toggle button - expands/collapses sidebar */}
           <button
@@ -185,7 +185,7 @@ export function Sidebar({ isOpen, isExpanded, onClose, onToggle, isMobile = fals
         {/* Navigation - Scrollable area */}
         <nav className={cn(
           "flex-1 overflow-y-auto scrollbar-hide py-4 transition-all duration-300",
-          isExpanded ? "px-6" : "px-2"
+          isExpanded ? "px-3" : "px-2"
         )}>
           <ul role="list" className="space-y-1">
               {navItems.map((item) => (
