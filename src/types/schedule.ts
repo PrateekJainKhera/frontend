@@ -119,6 +119,7 @@ export interface CreateScheduleRequest {
   schedulingMethod?: SchedulingMethod;
   suggestedBySystem?: boolean;
   isOsp?: boolean;
+  isManual?: boolean;
   confirmedBy?: string;
   notes?: string;
   createdBy?: string;
@@ -147,6 +148,7 @@ export interface ProcessStepSchedulingItem {
   processCode?: string | null
   stepNo?: number | null
   isOsp?: boolean
+  isManual?: boolean
   quantity: number
   priority: string
   jobCardStatus: string

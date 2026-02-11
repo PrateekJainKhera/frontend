@@ -46,6 +46,7 @@ export default function SchedulingDashboardPage() {
   const [selectedJobCardId, setSelectedJobCardId] = useState<number | null>(null)
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [selectedIsOsp, setSelectedIsOsp] = useState(false)
+  const [selectedIsManual, setSelectedIsManual] = useState(false)
   const [selectedPrevEndTime, setSelectedPrevEndTime] = useState<string | null>(null)
 
   useEffect(() => { loadOrders() }, [])
@@ -123,24 +124,24 @@ export default function SchedulingDashboardPage() {
     })
   }
 
-  const openScheduleDialog = (jobCardId: number, orderId: number, isOsp: boolean, prevEndTime: string | null) => {
+  const openScheduleDialog = (jobCardId: number, orderId: number, isOsp: boolean, isManual: boolean, prevEndTime: string | null) => {
     setSelectedJobCardId(jobCardId)
     setSelectedOrderId(orderId)
     setSelectedIsOsp(isOsp)
+    setSelectedIsManual(isManual)
     setSelectedPrevEndTime(prevEndTime)
     setDialogOpen(true)
   }
 
   const handleScheduleSuccess = async () => {
     setDialogOpen(false)
-    if (selectedOrderId) {
-      setOrders(prev => prev.map(o => o.orderId === selectedOrderId ? { ...o, tree: null } : o))
-      await loadOrderTree(selectedOrderId)
-    }
-    toast.success('Machine assigned successfully!')
+    const orderId = selectedOrderId
     setSelectedJobCardId(null)
     setSelectedOrderId(null)
-    await loadOrders()
+    if (orderId) {
+      await loadOrderTree(orderId)  // silent per-order refresh — small row spinner only
+    }
+    toast.success('Machine assigned successfully!')
   }
 
   const filteredOrders = orders.filter(o =>
@@ -226,7 +227,7 @@ export default function SchedulingDashboardPage() {
               expandedGroups={expandedGroups}
               onToggleOrder={() => toggleOrder(order.orderId)}
               onToggleGroup={toggleGroup}
-              onAssignMachine={(jcId, isOsp, prevEndTime) => openScheduleDialog(jcId, order.orderId, isOsp, prevEndTime)}
+              onAssignMachine={(jcId, isOsp, isManual, prevEndTime) => openScheduleDialog(jcId, order.orderId, isOsp, isManual, prevEndTime)}
             />
           ))}
         </div>
@@ -236,6 +237,7 @@ export default function SchedulingDashboardPage() {
         <ScheduleMachineDialog
           jobCardId={selectedJobCardId}
           isOsp={selectedIsOsp}
+          isManual={selectedIsManual}
           minStartTime={selectedPrevEndTime}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
@@ -264,7 +266,7 @@ interface OrderCardProps {
   expandedGroups: Set<string>
   onToggleOrder: () => void
   onToggleGroup: (key: string) => void
-  onAssignMachine: (jobCardId: number, isOsp: boolean, prevEndTime: string | null) => void
+  onAssignMachine: (jobCardId: number, isOsp: boolean, isManual: boolean, prevEndTime: string | null) => void
 }
 
 
@@ -426,7 +428,7 @@ function OrderCard({ order, expandedGroups, onToggleOrder, onToggleGroup, onAssi
 function ProcessStepRow({ step, prevEndTime, onAssignMachine }: {
   step: ProcessStepSchedulingItem
   prevEndTime: string | null
-  onAssignMachine: (id: number, isOsp: boolean, prevEndTime: string | null) => void
+  onAssignMachine: (id: number, isOsp: boolean, isManual: boolean, prevEndTime: string | null) => void
 }) {
   const assigned = !!step.scheduleId
 
@@ -444,6 +446,9 @@ function ProcessStepRow({ step, prevEndTime, onAssignMachine }: {
       {step.isOsp && (
         <Badge className="bg-orange-100 text-orange-700 border border-orange-200 text-[10px] h-4 px-1.5 shrink-0">OSP</Badge>
       )}
+      {step.isManual && (
+        <Badge className="bg-blue-100 text-blue-700 border border-blue-200 text-[10px] h-4 px-1.5 shrink-0">Manual</Badge>
+      )}
       {step.processCode && (
         <Badge variant="outline" className="text-[10px] font-mono h-4 px-1 shrink-0">{step.processCode}</Badge>
       )}
@@ -454,7 +459,7 @@ function ProcessStepRow({ step, prevEndTime, onAssignMachine }: {
         <div className="flex items-center gap-1 text-green-700 shrink-0">
           <CheckCircle2 className="h-3.5 w-3.5" />
           <span className="font-medium truncate max-w-[120px]">
-            {step.isOsp ? 'OSP Scheduled' : step.assignedMachineName}
+            {step.isOsp ? 'OSP Scheduled' : step.isManual ? 'Manual Scheduled' : step.assignedMachineName}
           </span>
           {step.scheduledStartTime && (
             <span className="text-muted-foreground text-[10px]">
@@ -465,14 +470,14 @@ function ProcessStepRow({ step, prevEndTime, onAssignMachine }: {
       ) : (
         <div className="flex items-center gap-1 text-orange-500 shrink-0">
           <Clock className="h-3.5 w-3.5" />
-          <span className="text-[10px]">{step.isOsp ? 'Set Lead Time' : 'Unassigned'}</span>
+          <span className="text-[10px]">{step.isOsp ? 'Set Lead Time' : step.isManual ? 'Set Time' : 'Unassigned'}</span>
         </div>
       )}
 
       <Button
         size="sm"
         variant={assigned ? 'outline' : 'default'}
-        onClick={(e) => { e.stopPropagation(); onAssignMachine(step.jobCardId, !!step.isOsp, prevEndTime) }}
+        onClick={(e) => { e.stopPropagation(); onAssignMachine(step.jobCardId, !!step.isOsp, !!step.isManual, prevEndTime) }}
         className="shrink-0 h-6 px-2 text-[11px] gap-1"
       >
         <Calendar className="h-3 w-3" />

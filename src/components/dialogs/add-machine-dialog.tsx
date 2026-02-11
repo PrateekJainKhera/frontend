@@ -142,11 +142,14 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
                       <SelectItem value="CNC_Lathe">CNC Lathe</SelectItem>
                       <SelectItem value="Milling">Milling</SelectItem>
                       <SelectItem value="CNC_Mill">CNC Mill</SelectItem>
+                      <SelectItem value="CNC Machining">CNC Machining</SelectItem>
                       <SelectItem value="Drilling">Drilling</SelectItem>
                       <SelectItem value="Grinding">Grinding</SelectItem>
                       <SelectItem value="Boring">Boring</SelectItem>
                       <SelectItem value="Welding">Welding</SelectItem>
                       <SelectItem value="Cutting">Cutting</SelectItem>
+                      <SelectItem value="Heat Treatment">Heat Treatment</SelectItem>
+                      <SelectItem value="Finishing">Finishing</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>

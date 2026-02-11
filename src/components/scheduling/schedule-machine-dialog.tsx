@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   TrendingUp,
   AlertCircle,
+  XCircle,
 } from 'lucide-react'
 import { scheduleService } from '@/lib/api/schedules'
 import { jobCardService } from '@/lib/api/job-cards'
@@ -33,6 +34,7 @@ import { format } from 'date-fns'
 interface ScheduleMachineDialogProps {
   jobCardId: number
   isOsp?: boolean
+  isManual?: boolean
   minStartTime?: string | null  // end time of previous step — this step cannot start before it
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -42,6 +44,7 @@ interface ScheduleMachineDialogProps {
 export function ScheduleMachineDialog({
   jobCardId,
   isOsp = false,
+  isManual = false,
   minStartTime = null,
   open,
   onOpenChange,
@@ -49,6 +52,7 @@ export function ScheduleMachineDialog({
 }: ScheduleMachineDialogProps) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [suggestions, setSuggestions] = useState<MachineSuggestion[]>([])
   const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null)
   const [scheduledStart, setScheduledStart] = useState('')
@@ -60,6 +64,7 @@ export function ScheduleMachineDialog({
 
   useEffect(() => {
     if (open) {
+      setSubmitError(null)
       loadSuggestions()
     }
   }, [open, jobCardId])
@@ -72,8 +77,8 @@ export function ScheduleMachineDialog({
       const jobCard = await jobCardService.getById(jobCardId)
       setJobCardNo(jobCard.jobCardNo)
 
-      if (isOsp) {
-        // OSP: no machine needed — start = max(now, minStartTime)
+      if (isOsp || isManual) {
+        // OSP / Manual: no machine needed — start = max(now, minStartTime)
         const nowStr = format(new Date(), "yyyy-MM-dd'T'HH:mm")
         const start = effectiveStart(nowStr)
         setScheduledStart(start)
@@ -123,6 +128,7 @@ export function ScheduleMachineDialog({
   }
 
   const handleMachineSelect = (suggestion: MachineSuggestion) => {
+    setSubmitError(null)
     setSelectedMachineId(suggestion.machineId)
     // start = max(machine's next available, previous step's end time)
     const rawStart = suggestion.suggestedStart
@@ -135,8 +141,9 @@ export function ScheduleMachineDialog({
 
   // When start time is changed manually — no clamping, user can override freely
   const handleStartChange = (value: string) => {
+    setSubmitError(null)
     setScheduledStart(value)
-    if (isOsp) {
+    if (isOsp || isManual) {
       const mins = (parseInt(ospDays) * 24 * 60) + (parseInt(ospHours) * 60)
       setScheduledEnd(calcEnd(value, mins || 1440))
     } else {
@@ -154,20 +161,48 @@ export function ScheduleMachineDialog({
     setScheduledEnd(calcEnd(scheduledStart, mins || 1440))
   }
 
+  // Map backend error messages to friendly titles + descriptions
+  const parseScheduleError = (message: string): { title: string; detail: string } => {
+    const lower = message.toLowerCase()
+    if (lower.includes('conflict') || lower.includes('overlap') || lower.includes('busy')) {
+      return {
+        title: 'Machine Already Booked',
+        detail: 'This machine has an overlapping job at the selected time. Please choose a different start time or select another available machine.',
+      }
+    }
+    if (lower.includes('not found') && lower.includes('machine')) {
+      return {
+        title: 'Machine Not Found',
+        detail: 'The selected machine could not be found. Please refresh and try again.',
+      }
+    }
+    if (lower.includes('not found') && lower.includes('job')) {
+      return {
+        title: 'Job Card Not Found',
+        detail: 'This job card no longer exists. Please refresh the page.',
+      }
+    }
+    return {
+      title: 'Scheduling Failed',
+      detail: message,
+    }
+  }
+
   const handleSchedule = async () => {
+    setSubmitError(null)
     if (!scheduledStart || !scheduledEnd) {
-      toast.error('Please set schedule times')
+      setSubmitError('Please set the schedule start and end times before confirming.')
       return
     }
-    if (!isOsp && !selectedMachineId) {
-      toast.error('Please select a machine')
+    if (!isOsp && !isManual && !selectedMachineId) {
+      setSubmitError('Please select a machine before confirming.')
       return
     }
 
     try {
       setSubmitting(true)
 
-      if (isOsp) {
+      if (isOsp || isManual) {
         const totalMins = (parseInt(ospDays) * 24 * 60) + (parseInt(ospHours) * 60)
         await scheduleService.create({
           jobCardId,
@@ -175,8 +210,9 @@ export function ScheduleMachineDialog({
           scheduledStartTime: new Date(scheduledStart),
           scheduledEndTime: new Date(scheduledEnd),
           estimatedDurationMinutes: totalMins || 1440,
-          schedulingMethod: 'OSP',
-          isOsp: true,
+          schedulingMethod: isOsp ? 'OSP' : 'Manual',
+          isOsp: isOsp,
+          isManual: isManual,
           suggestedBySystem: false,
           createdBy: 'User',
         })
@@ -198,8 +234,9 @@ export function ScheduleMachineDialog({
 
       onSuccess()
     } catch (error) {
-      toast.error('Failed to create schedule')
-      console.error(error)
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+      const parsed = parseScheduleError(message)
+      setSubmitError(`${parsed.title}||${parsed.detail}`)
     } finally {
       setSubmitting(false)
     }
@@ -209,10 +246,14 @@ export function ScheduleMachineDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isOsp ? 'OSP Lead Time' : 'Schedule Machine'} — {jobCardNo}</DialogTitle>
+          <DialogTitle>
+            {isOsp ? 'OSP Lead Time' : isManual ? 'Manual Process — Set Time' : 'Schedule Machine'} — {jobCardNo}
+          </DialogTitle>
           <DialogDescription>
             {isOsp
               ? 'Set the vendor lead time for this outside service process. No machine is required.'
+              : isManual
+              ? 'This is a manual process — no machine is required. Set the estimated time for the operator.'
               : 'Select the best machine for this job card. Machines are sorted by preference and availability.'}
           </DialogDescription>
         </DialogHeader>
@@ -221,20 +262,26 @@ export function ScheduleMachineDialog({
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : isOsp ? (
-          /* ── OSP Mode: no machine, just set lead time ── */
+        ) : (isOsp || isManual) ? (
+          /* ── OSP / Manual Mode: no machine, just set time ── */
           <div className="space-y-5">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-200">
-              <AlertCircle className="h-5 w-5 text-orange-500 shrink-0" />
+            <div className={`flex items-center gap-3 p-3 rounded-lg border ${isManual ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
+              <AlertCircle className={`h-5 w-5 shrink-0 ${isManual ? 'text-blue-500' : 'text-orange-500'}`} />
               <div>
-                <p className="text-sm font-semibold text-orange-800">Outside Service Process (OSP)</p>
-                <p className="text-xs text-orange-600">No machine is assigned — set the vendor lead time below.</p>
+                <p className={`text-sm font-semibold ${isManual ? 'text-blue-800' : 'text-orange-800'}`}>
+                  {isManual ? 'Manual Process' : 'Outside Service Process (OSP)'}
+                </p>
+                <p className={`text-xs ${isManual ? 'text-blue-600' : 'text-orange-600'}`}>
+                  {isManual
+                    ? 'No machine is assigned — set the estimated duration for the operator.'
+                    : 'No machine is assigned — set the vendor lead time below.'}
+                </p>
               </div>
             </div>
 
-            {/* OSP Lead Time */}
+            {/* Duration */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">OSP Lead Time</Label>
+              <Label className="text-sm font-semibold">{isManual ? 'Estimated Duration' : 'OSP Lead Time'}</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="osp-days" className="text-xs">Days</Label>
@@ -495,6 +542,22 @@ export function ScheduleMachineDialog({
             })()}
           </div>
         )}
+
+        {/* ── Inline error banner ── */}
+        {submitError && (() => {
+          const [title, detail] = submitError.includes('||')
+            ? submitError.split('||')
+            : ['Error', submitError]
+          return (
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-red-300 bg-red-50">
+              <XCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">{title}</p>
+                <p className="text-xs text-red-700 mt-0.5">{detail}</p>
+              </div>
+            </div>
+          )
+        })()}
 
         <DialogFooter>
           <Button

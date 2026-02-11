@@ -119,10 +119,16 @@ function StepRow({ step, onAction }: {
             <StatusBadge status={step.productionStatus} />
           </div>
           <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
-            {step.machineName && (
+            {step.machineName && step.machineName !== 'Manual Process' && (
               <span className="flex items-center gap-1">
                 <Wrench className="h-3 w-3" />
                 {step.machineName}
+              </span>
+            )}
+            {step.machineName === 'Manual Process' && (
+              <span className="flex items-center gap-1 text-blue-600">
+                <Wrench className="h-3 w-3" />
+                Manual
               </span>
             )}
             {step.estimatedDurationMinutes && (
@@ -186,23 +192,25 @@ export default function OrderProductionPage() {
   const [expandedParts, setExpandedParts] = useState<Set<string>>(new Set())
   const [assemblyExpanded, setAssemblyExpanded] = useState(false)
 
-  const loadOrder = useCallback(() => {
-    setLoading(true)
+  const loadOrder = useCallback((silent = false) => {
+    if (!silent) setLoading(true)
     fetch(`http://localhost:5217/api/production/orders/${orderId}`)
       .then(r => r.json())
       .then(data => {
         if (data.success) {
           const detail: ProductionOrderDetail = data.data
           setOrder(detail)
-          // Auto-expand all child parts on first load
-          setExpandedParts(new Set(detail.childParts.map(cp =>
-            String(cp.childPartId ?? cp.childPartName)
-          )))
-          setAssemblyExpanded(true)
+          // Only reset expanded state on initial load
+          if (!silent) {
+            setExpandedParts(new Set(detail.childParts.map(cp =>
+              String(cp.childPartId ?? cp.childPartName)
+            )))
+            setAssemblyExpanded(true)
+          }
         }
       })
       .catch(console.error)
-      .finally(() => setLoading(false))
+      .finally(() => { if (!silent) setLoading(false) })
   }, [orderId])
 
   useEffect(() => { loadOrder() }, [loadOrder])
@@ -217,7 +225,7 @@ export default function OrderProductionPage() {
       const data = await res.json()
       if (data.success) {
         toast.success(data.message ?? `Action '${action}' successful`)
-        loadOrder()   // refresh the entire order after any action
+        loadOrder(true)   // silent refresh — no spinner, expanded state preserved
       } else {
         toast.error(data.message ?? 'Action failed')
       }
