@@ -191,7 +191,15 @@ export default function OrderProductionPage() {
     fetch(`http://localhost:5217/api/production/orders/${orderId}`)
       .then(r => r.json())
       .then(data => {
-        if (data.success) setOrder(data.data)
+        if (data.success) {
+          const detail: ProductionOrderDetail = data.data
+          setOrder(detail)
+          // Auto-expand all child parts on first load
+          setExpandedParts(new Set(detail.childParts.map(cp =>
+            String(cp.childPartId ?? cp.childPartName)
+          )))
+          setAssemblyExpanded(true)
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -289,7 +297,16 @@ export default function OrderProductionPage() {
       <div className="space-y-2">
         <h2 className="font-medium text-sm text-muted-foreground px-1">Child Parts</h2>
 
-        {order.childParts.map((cp) => {
+        {[...order.childParts]
+          .sort((a, b) => {
+            // Push any group whose name contains "assembly" to the end
+            const aAsm = a.childPartName.toLowerCase().includes('assembly')
+            const bAsm = b.childPartName.toLowerCase().includes('assembly')
+            if (aAsm && !bAsm) return 1
+            if (!aAsm && bAsm) return -1
+            return a.childPartName.localeCompare(b.childPartName)
+          })
+          .map((cp) => {
           const key = String(cp.childPartId ?? cp.childPartName)
           const isExpanded = expandedParts.has(key)
           const cpProgress = cp.totalSteps > 0 ? Math.round((cp.completedSteps / cp.totalSteps) * 100) : 0

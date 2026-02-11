@@ -17,6 +17,7 @@ import {
   Wrench,
   RefreshCw,
   Mic,
+  ArrowRight,
 } from 'lucide-react'
 import { jobCardService } from '@/lib/api/job-cards'
 import { scheduleService } from '@/lib/api/schedules'
@@ -24,6 +25,7 @@ import { ScheduleMachineDialog } from '@/components/scheduling/schedule-machine-
 import { OrderSchedulingTree, ProcessStepSchedulingItem } from '@/types/schedule'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import Link from 'next/link'
 
 interface OrderEntry {
   orderId: number
@@ -312,15 +314,31 @@ function OrderCard({ order, expandedGroups, onToggleOrder, onToggleGroup, onAssi
         {total !== null && (
           <span className="text-xs text-muted-foreground tabular-nums shrink-0">{scheduled}/{total}</span>
         )}
+        {/* Status badge — shows scheduling progress */}
         {done ? (
           <Badge className="bg-green-100 text-green-700 border border-green-200 text-[10px] h-4 px-1.5 gap-0.5 shrink-0">
-            <CheckCircle2 className="h-2.5 w-2.5" /> Done
+            <CheckCircle2 className="h-2.5 w-2.5" /> All Scheduled
           </Badge>
         ) : pending !== null && pending > 0 ? (
           <Badge variant="outline" className="border-orange-300 text-orange-600 bg-orange-50 text-[10px] h-4 px-1.5 shrink-0">
             {pending} pending
           </Badge>
         ) : null}
+
+        {/* Always-visible Send to Production button */}
+        <Link
+          href={`/production/orders/${order.orderId}`}
+          onClick={e => e.stopPropagation()}
+        >
+          <Button
+            size="sm"
+            variant={done ? 'default' : 'outline'}
+            className={`h-6 px-2 text-[11px] gap-1 shrink-0 ${done ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-blue-300 text-blue-600 hover:bg-blue-50'}`}
+          >
+            <ArrowRight className="h-3 w-3" />
+            Production
+          </Button>
+        </Link>
       </div>
 
       {/* Expanded: child part groups */}
