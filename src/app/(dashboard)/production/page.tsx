@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,38 +23,56 @@ import {
   ArrowRight,
   User,
   Package,
+  Loader2,
 } from 'lucide-react'
-import { mockJobCards } from '@/lib/mock-data/job-cards-complete'
-import { groupJobCardsByOrder, calculateOrderProgress } from '@/lib/utils/production-grouping'
-import { ScheduleStatus } from '@/types/job-card'
 import Link from 'next/link'
 
+interface ProductionOrderSummary {
+  orderId: number
+  orderNo: string
+  customerName: string | null
+  productName: string | null
+  priority: string
+  dueDate: string | null
+  totalSteps: number
+  completedSteps: number
+  inProgressSteps: number
+  readySteps: number
+  totalChildParts: number
+  completedChildParts: number
+  productionStatus: string  // Pending | InProgress | Completed
+}
+
 export default function ProductionDashboardPage() {
+  const [orders, setOrders] = useState<ProductionOrderSummary[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Filter only SCHEDULED job cards (gate from Scheduling)
-  const scheduledJobCards = mockJobCards.filter(jc => jc.scheduleStatus === ScheduleStatus.SCHEDULED)
+  useEffect(() => {
+    fetch('http://localhost:5217/api/production/orders')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setOrders(data.data)
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
 
-  // Group job cards by order
-  const orderViews = groupJobCardsByOrder(scheduledJobCards)
-
-  // Calculate statistics
   const stats = {
-    totalOrders: orderViews.length,
-    inProgress: orderViews.filter(ov => ov.inProgressSteps > 0).length,
-    completed: orderViews.filter(ov => ov.completedSteps === ov.totalSteps).length,
-    totalSteps: orderViews.reduce((sum, ov) => sum + ov.totalSteps, 0),
-    completedSteps: orderViews.reduce((sum, ov) => sum + ov.completedSteps, 0),
+    totalOrders: orders.length,
+    inProgress: orders.filter(o => o.productionStatus === 'InProgress').length,
+    completed: orders.filter(o => o.productionStatus === 'Completed').length,
+    totalSteps: orders.reduce((sum, o) => sum + o.totalSteps, 0),
+    completedSteps: orders.reduce((sum, o) => sum + o.completedSteps, 0),
   }
 
-  // Filter orders
-  const filteredOrders = orderViews.filter(order => {
-    const matchesSearch =
-      order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.productName.toLowerCase().includes(searchQuery.toLowerCase())
-
-    return matchesSearch
+  const filteredOrders = orders.filter(o => {
+    const q = searchQuery.toLowerCase()
+    return (
+      o.orderNo.toLowerCase().includes(q) ||
+      (o.customerName ?? '').toLowerCase().includes(q) ||
+      (o.productName ?? '').toLowerCase().includes(q)
+    )
   })
 
   return (
@@ -155,7 +173,13 @@ export default function ProductionDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground">
                       No orders found
@@ -163,9 +187,11 @@ export default function ProductionDashboardPage() {
                   </TableRow>
                 ) : (
                   filteredOrders.map((order) => {
-                    const progress = calculateOrderProgress(order)
-                    const isComplete = progress === 100
-                    const hasInProgress = order.inProgressSteps > 0
+                    const progress = order.totalSteps > 0
+                      ? Math.round((order.completedSteps / order.totalSteps) * 100)
+                      : 0
+                    const isComplete = order.productionStatus === 'Completed'
+                    const hasInProgress = order.productionStatus === 'InProgress'
 
                     return (
                       <TableRow key={order.orderId}>
@@ -180,26 +206,20 @@ export default function ProductionDashboardPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{order.customerName}</p>
-                              <p className="text-xs text-muted-foreground">{order.customerCode}</p>
-                            </div>
+                            <p className="font-medium">{order.customerName ?? '—'}</p>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Package className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{order.productName}</p>
-                              <p className="text-xs text-muted-foreground">{order.productCode}</p>
-                            </div>
+                            <p className="font-medium">{order.productName ?? '—'}</p>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{order.childParts.length} Parts</p>
+                            <p className="font-medium">{order.totalChildParts} Parts</p>
                             <p className="text-xs text-muted-foreground">
-                              {order.totalSteps} total steps
+                              {order.completedChildParts}/{order.totalChildParts} ready for assembly
                             </p>
                           </div>
                         </TableCell>
