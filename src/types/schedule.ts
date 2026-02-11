@@ -13,7 +13,8 @@ export type ScheduleStatus =
 export type SchedulingMethod =
   | 'Manual'
   | 'Semi-Automatic'
-  | 'Fully-Automatic';
+  | 'Fully-Automatic'
+  | 'OSP';
 
 /**
  * Machine Schedule
@@ -117,6 +118,7 @@ export interface CreateScheduleRequest {
   estimatedDurationMinutes: number;
   schedulingMethod?: SchedulingMethod;
   suggestedBySystem?: boolean;
+  isOsp?: boolean;
   confirmedBy?: string;
   notes?: string;
   createdBy?: string;
@@ -144,6 +146,7 @@ export interface ProcessStepSchedulingItem {
   processName?: string | null
   processCode?: string | null
   stepNo?: number | null
+  isOsp?: boolean
   quantity: number
   priority: string
   jobCardStatus: string

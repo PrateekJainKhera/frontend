@@ -32,6 +32,8 @@ import { format } from 'date-fns'
 
 interface ScheduleMachineDialogProps {
   jobCardId: number
+  isOsp?: boolean
+  minStartTime?: string | null  // end time of previous step — this step cannot start before it
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
@@ -39,6 +41,8 @@ interface ScheduleMachineDialogProps {
 
 export function ScheduleMachineDialog({
   jobCardId,
+  isOsp = false,
+  minStartTime = null,
   open,
   onOpenChange,
   onSuccess,
@@ -50,6 +54,9 @@ export function ScheduleMachineDialog({
   const [scheduledStart, setScheduledStart] = useState('')
   const [scheduledEnd, setScheduledEnd] = useState('')
   const [jobCardNo, setJobCardNo] = useState('')
+  // OSP duration fields
+  const [ospDays, setOspDays] = useState('1')
+  const [ospHours, setOspHours] = useState('0')
 
   useEffect(() => {
     if (open) {
@@ -65,6 +72,16 @@ export function ScheduleMachineDialog({
       const jobCard = await jobCardService.getById(jobCardId)
       setJobCardNo(jobCard.jobCardNo)
 
+      if (isOsp) {
+        // OSP: no machine needed — start = max(now, minStartTime)
+        const nowStr = format(new Date(), "yyyy-MM-dd'T'HH:mm")
+        const start = effectiveStart(nowStr)
+        setScheduledStart(start)
+        const mins = (parseInt(ospDays) * 24 * 60) + (parseInt(ospHours) * 60)
+        setScheduledEnd(calcEnd(start, mins))
+        return
+      }
+
       // Fetch machine suggestions
       const machineSuggestions = await scheduleService.getMachineSuggestions(jobCardId)
       setSuggestions(machineSuggestions)
@@ -74,13 +91,13 @@ export function ScheduleMachineDialog({
         const bestMachine = machineSuggestions[0]
         setSelectedMachineId(bestMachine.machineId)
 
-        // Set suggested times
-        if (bestMachine.suggestedStart) {
-          setScheduledStart(format(new Date(bestMachine.suggestedStart), "yyyy-MM-dd'T'HH:mm"))
-        }
-        if (bestMachine.suggestedEnd) {
-          setScheduledEnd(format(new Date(bestMachine.suggestedEnd), "yyyy-MM-dd'T'HH:mm"))
-        }
+        // Start = max(machine's suggested start, previous step's end time)
+        const rawStart = bestMachine.suggestedStart
+          ? format(new Date(bestMachine.suggestedStart), "yyyy-MM-dd'T'HH:mm")
+          : format(new Date(), "yyyy-MM-dd'T'HH:mm")
+        const start = effectiveStart(rawStart)
+        setScheduledStart(start)
+        setScheduledEnd(calcEnd(start, bestMachine.totalEstimatedMinutes))
       }
     } catch (error) {
       toast.error('Failed to load machine suggestions')
@@ -90,42 +107,94 @@ export function ScheduleMachineDialog({
     }
   }
 
+  // Auto-calculate end time from start + duration minutes
+  const calcEnd = (startValue: string, durationMinutes: number) => {
+    if (!startValue || !durationMinutes) return ''
+    const end = new Date(new Date(startValue).getTime() + durationMinutes * 60 * 1000)
+    return format(end, "yyyy-MM-dd'T'HH:mm")
+  }
+
+  // Return the effective start time: max(proposed, minStartTime)
+  const effectiveStart = (proposed: string) => {
+    if (!minStartTime) return proposed
+    const propDate = new Date(proposed)
+    const minDate = new Date(minStartTime)
+    return propDate >= minDate ? proposed : format(minDate, "yyyy-MM-dd'T'HH:mm")
+  }
+
   const handleMachineSelect = (suggestion: MachineSuggestion) => {
     setSelectedMachineId(suggestion.machineId)
+    // start = max(machine's next available, previous step's end time)
+    const rawStart = suggestion.suggestedStart
+      ? format(new Date(suggestion.suggestedStart), "yyyy-MM-dd'T'HH:mm")
+      : scheduledStart
+    const start = effectiveStart(rawStart)
+    setScheduledStart(start)
+    setScheduledEnd(calcEnd(start, suggestion.totalEstimatedMinutes))
+  }
 
-    // Update suggested times when selecting a different machine
-    if (suggestion.suggestedStart) {
-      setScheduledStart(format(new Date(suggestion.suggestedStart), "yyyy-MM-dd'T'HH:mm"))
-    }
-    if (suggestion.suggestedEnd) {
-      setScheduledEnd(format(new Date(suggestion.suggestedEnd), "yyyy-MM-dd'T'HH:mm"))
+  // When start time is changed manually — no clamping, user can override freely
+  const handleStartChange = (value: string) => {
+    setScheduledStart(value)
+    if (isOsp) {
+      const mins = (parseInt(ospDays) * 24 * 60) + (parseInt(ospHours) * 60)
+      setScheduledEnd(calcEnd(value, mins || 1440))
+    } else {
+      const sel = suggestions.find(s => s.machineId === selectedMachineId)
+      if (sel) setScheduledEnd(calcEnd(value, sel.totalEstimatedMinutes))
     }
   }
 
+  // True when user has set a start time earlier than the previous step's end
+  const startBeforePrev = !!(minStartTime && scheduledStart && new Date(scheduledStart) < new Date(minStartTime))
+
+  // Recalculate OSP end time when days/hours change
+  const handleOspDurationChange = (days: string, hours: string) => {
+    const mins = (parseInt(days || '0') * 24 * 60) + (parseInt(hours || '0') * 60)
+    setScheduledEnd(calcEnd(scheduledStart, mins || 1440))
+  }
+
   const handleSchedule = async () => {
-    if (!selectedMachineId || !scheduledStart || !scheduledEnd) {
-      toast.error('Please select a machine and schedule times')
+    if (!scheduledStart || !scheduledEnd) {
+      toast.error('Please set schedule times')
       return
     }
-
-    const selectedSuggestion = suggestions.find(s => s.machineId === selectedMachineId)
-    if (!selectedSuggestion) return
+    if (!isOsp && !selectedMachineId) {
+      toast.error('Please select a machine')
+      return
+    }
 
     try {
       setSubmitting(true)
 
-      // Create schedule
-      await scheduleService.create({
-        jobCardId,
-        machineId: selectedMachineId,
-        scheduledStartTime: new Date(scheduledStart),
-        scheduledEndTime: new Date(scheduledEnd),
-        estimatedDurationMinutes: selectedSuggestion.totalEstimatedMinutes,
-        schedulingMethod: 'Semi-Automatic',
-        suggestedBySystem: true,
-        confirmedBy: 'User', // In a real app, get from auth context
-        createdBy: 'User',
-      })
+      if (isOsp) {
+        const totalMins = (parseInt(ospDays) * 24 * 60) + (parseInt(ospHours) * 60)
+        await scheduleService.create({
+          jobCardId,
+          machineId: 0,
+          scheduledStartTime: new Date(scheduledStart),
+          scheduledEndTime: new Date(scheduledEnd),
+          estimatedDurationMinutes: totalMins || 1440,
+          schedulingMethod: 'OSP',
+          isOsp: true,
+          suggestedBySystem: false,
+          createdBy: 'User',
+        })
+      } else {
+        const selectedSuggestion = suggestions.find(s => s.machineId === selectedMachineId)
+        if (!selectedSuggestion) return
+        await scheduleService.create({
+          jobCardId,
+          machineId: selectedMachineId!,
+          scheduledStartTime: new Date(scheduledStart),
+          scheduledEndTime: new Date(scheduledEnd),
+          estimatedDurationMinutes: selectedSuggestion.totalEstimatedMinutes,
+          schedulingMethod: 'Semi-Automatic',
+          suggestedBySystem: true,
+          confirmedBy: 'User',
+          createdBy: 'User',
+        })
+      }
 
       onSuccess()
     } catch (error) {
@@ -140,15 +209,104 @@ export function ScheduleMachineDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Schedule Machine - {jobCardNo}</DialogTitle>
+          <DialogTitle>{isOsp ? 'OSP Lead Time' : 'Schedule Machine'} — {jobCardNo}</DialogTitle>
           <DialogDescription>
-            Select the best machine for this job card. Machines are sorted by preference and availability.
+            {isOsp
+              ? 'Set the vendor lead time for this outside service process. No machine is required.'
+              : 'Select the best machine for this job card. Machines are sorted by preference and availability.'}
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : isOsp ? (
+          /* ── OSP Mode: no machine, just set lead time ── */
+          <div className="space-y-5">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-200">
+              <AlertCircle className="h-5 w-5 text-orange-500 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-orange-800">Outside Service Process (OSP)</p>
+                <p className="text-xs text-orange-600">No machine is assigned — set the vendor lead time below.</p>
+              </div>
+            </div>
+
+            {/* OSP Lead Time */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">OSP Lead Time</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="osp-days" className="text-xs">Days</Label>
+                  <Input
+                    id="osp-days"
+                    type="number"
+                    min="0"
+                    value={ospDays}
+                    onChange={(e) => {
+                      setOspDays(e.target.value)
+                      handleOspDurationChange(e.target.value, ospHours)
+                    }}
+                    className="mt-1 h-9 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="osp-hours" className="text-xs">Additional Hours</Label>
+                  <Input
+                    id="osp-hours"
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={ospHours}
+                    onChange={(e) => {
+                      setOspHours(e.target.value)
+                      handleOspDurationChange(ospDays, e.target.value)
+                    }}
+                    className="mt-1 h-9 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* OSP Start / End Times */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Schedule</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="osp-start" className="text-xs">Send to Vendor</Label>
+                  <Input
+                    id="osp-start"
+                    type="datetime-local"
+                    value={scheduledStart}
+                    onChange={(e) => handleStartChange(e.target.value)}
+                    className="mt-1 h-9 text-sm"
+                  />
+                  {minStartTime && !startBeforePrev && (
+                    <p className="text-[11px] text-blue-600 mt-1">
+                      Prev step ends: {format(new Date(minStartTime), 'dd MMM HH:mm')}
+                    </p>
+                  )}
+                  {startBeforePrev && (
+                    <p className="text-[11px] text-amber-600 mt-1">
+                      ⚠ Before prev step end — confirm this is intentional
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="osp-end" className="text-xs">Expected Return <span className="text-muted-foreground font-normal">(auto)</span></Label>
+                  <Input
+                    id="osp-end"
+                    type="datetime-local"
+                    value={scheduledEnd}
+                    readOnly
+                    className="mt-1 h-9 text-sm bg-muted/40"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    = Send date + {ospDays}d {ospHours}h
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         ) : suggestions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -278,35 +436,63 @@ export function ScheduleMachineDialog({
             </div>
 
             {/* Schedule Times */}
-            {selectedMachineId && (
-              <div className="border-t pt-4">
-                <Label className="text-base font-semibold mb-3 block">
-                  Confirm Schedule Times
-                </Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="start-time">Start Time</Label>
-                    <Input
-                      id="start-time"
-                      type="datetime-local"
-                      value={scheduledStart}
-                      onChange={(e) => setScheduledStart(e.target.value)}
-                      className="mt-1"
-                    />
+            {selectedMachineId && (() => {
+              const sel = suggestions.find(s => s.machineId === selectedMachineId)
+              const durationMins = sel?.totalEstimatedMinutes ?? 0
+              const hours = Math.floor(durationMins / 60)
+              const mins  = durationMins % 60
+              const durationLabel = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+              return (
+                <div className="border-t pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Confirm Schedule Times</Label>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      Duration: <span className="font-semibold text-primary">{durationLabel}</span>
+                    </span>
                   </div>
-                  <div>
-                    <Label htmlFor="end-time">End Time</Label>
-                    <Input
-                      id="end-time"
-                      type="datetime-local"
-                      value={scheduledEnd}
-                      onChange={(e) => setScheduledEnd(e.target.value)}
-                      className="mt-1"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="start-time" className="text-xs">Start Time</Label>
+                      <Input
+                        id="start-time"
+                        type="datetime-local"
+                        value={scheduledStart}
+                        onChange={(e) => handleStartChange(e.target.value)}
+                        className="mt-1 h-9 text-sm"
+                      />
+                      {minStartTime && !startBeforePrev && (
+                        <p className="text-[11px] text-blue-600 mt-1">
+                          Prev step ends: {format(new Date(minStartTime), 'dd MMM HH:mm')}
+                        </p>
+                      )}
+                      {startBeforePrev && (
+                        <p className="text-[11px] text-amber-600 mt-1">
+                          ⚠ Before prev step end — confirm this is intentional
+                        </p>
+                      )}
+                      {!minStartTime && sel && !sel.isCurrentlyAvailable && (
+                        <p className="text-[11px] text-amber-600 mt-1">
+                          Machine busy — starts after current jobs
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="end-time" className="text-xs">End Time <span className="text-muted-foreground font-normal">(auto)</span></Label>
+                      <Input
+                        id="end-time"
+                        type="datetime-local"
+                        value={scheduledEnd}
+                        onChange={(e) => setScheduledEnd(e.target.value)}
+                        className="mt-1 h-9 text-sm"
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        = Start + {durationLabel} total
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
           </div>
         )}
 
@@ -320,10 +506,10 @@ export function ScheduleMachineDialog({
           </Button>
           <Button
             onClick={handleSchedule}
-            disabled={!selectedMachineId || !scheduledStart || !scheduledEnd || submitting}
+            disabled={(!isOsp && !selectedMachineId) || !scheduledStart || !scheduledEnd || submitting}
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Confirm Schedule
+            {isOsp ? 'Confirm OSP Lead Time' : 'Confirm Schedule'}
           </Button>
         </DialogFooter>
       </DialogContent>

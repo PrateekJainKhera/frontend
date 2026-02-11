@@ -43,6 +43,8 @@ export default function SchedulingDashboardPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedJobCardId, setSelectedJobCardId] = useState<number | null>(null)
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
+  const [selectedIsOsp, setSelectedIsOsp] = useState(false)
+  const [selectedPrevEndTime, setSelectedPrevEndTime] = useState<string | null>(null)
 
   useEffect(() => { loadOrders() }, [])
 
@@ -119,9 +121,11 @@ export default function SchedulingDashboardPage() {
     })
   }
 
-  const openScheduleDialog = (jobCardId: number, orderId: number) => {
+  const openScheduleDialog = (jobCardId: number, orderId: number, isOsp: boolean, prevEndTime: string | null) => {
     setSelectedJobCardId(jobCardId)
     setSelectedOrderId(orderId)
+    setSelectedIsOsp(isOsp)
+    setSelectedPrevEndTime(prevEndTime)
     setDialogOpen(true)
   }
 
@@ -220,7 +224,7 @@ export default function SchedulingDashboardPage() {
               expandedGroups={expandedGroups}
               onToggleOrder={() => toggleOrder(order.orderId)}
               onToggleGroup={toggleGroup}
-              onAssignMachine={(jcId) => openScheduleDialog(jcId, order.orderId)}
+              onAssignMachine={(jcId, isOsp, prevEndTime) => openScheduleDialog(jcId, order.orderId, isOsp, prevEndTime)}
             />
           ))}
         </div>
@@ -229,6 +233,8 @@ export default function SchedulingDashboardPage() {
       {selectedJobCardId && (
         <ScheduleMachineDialog
           jobCardId={selectedJobCardId}
+          isOsp={selectedIsOsp}
+          minStartTime={selectedPrevEndTime}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           onSuccess={handleScheduleSuccess}
@@ -256,8 +262,9 @@ interface OrderCardProps {
   expandedGroups: Set<string>
   onToggleOrder: () => void
   onToggleGroup: (key: string) => void
-  onAssignMachine: (jobCardId: number) => void
+  onAssignMachine: (jobCardId: number, isOsp: boolean, prevEndTime: string | null) => void
 }
+
 
 function OrderCard({ order, expandedGroups, onToggleOrder, onToggleGroup, onAssignMachine }: OrderCardProps) {
   const pending   = order.tree?.pendingSteps   ?? null
@@ -357,16 +364,26 @@ function OrderCard({ order, expandedGroups, onToggleOrder, onToggleGroup, onAssi
                 {/* Steps */}
                 {open && (
                   <div className="divide-y">
-                    {[...group.steps]
-                      .sort((a, b) => {
+                    {(() => {
+                      const sorted = [...group.steps].sort((a, b) => {
                         const aStep = a.stepNo ?? 999
                         const bStep = b.stepNo ?? 999
                         if (aStep !== bStep) return aStep - bStep
-                        return a.jobCardId - b.jobCardId  // ascending jobCardId as tiebreaker
+                        return a.jobCardId - b.jobCardId
                       })
-                      .map(step => (
-                        <ProcessStepRow key={step.jobCardId} step={step} onAssignMachine={onAssignMachine} />
-                      ))}
+                      return sorted.map((step, idx) => {
+                        const prev = idx > 0 ? sorted[idx - 1] : null
+                        const prevEndTime = prev?.scheduledEndTime ?? null
+                        return (
+                          <ProcessStepRow
+                            key={step.jobCardId}
+                            step={step}
+                            prevEndTime={prevEndTime}
+                            onAssignMachine={onAssignMachine}
+                          />
+                        )
+                      })
+                    })()}
                   </div>
                 )}
               </div>
@@ -388,8 +405,12 @@ function OrderCard({ order, expandedGroups, onToggleOrder, onToggleGroup, onAssi
 
 // ─── Process Step Row ──────────────────────────────────────────────────────────
 
-function ProcessStepRow({ step, onAssignMachine }: { step: ProcessStepSchedulingItem; onAssignMachine: (id: number) => void }) {
-  const assigned = !!step.assignedMachineId
+function ProcessStepRow({ step, prevEndTime, onAssignMachine }: {
+  step: ProcessStepSchedulingItem
+  prevEndTime: string | null
+  onAssignMachine: (id: number, isOsp: boolean, prevEndTime: string | null) => void
+}) {
+  const assigned = !!step.scheduleId
 
   return (
     <div className={`flex items-center gap-3 px-8 py-1.5 text-xs ${assigned ? 'bg-green-50/50' : 'hover:bg-muted/10'}`}>
@@ -402,16 +423,21 @@ function ProcessStepRow({ step, onAssignMachine }: { step: ProcessStepScheduling
 
       {/* Process name */}
       <span className="font-medium flex-1 truncate">{step.processName || 'Unknown Process'}</span>
+      {step.isOsp && (
+        <Badge className="bg-orange-100 text-orange-700 border border-orange-200 text-[10px] h-4 px-1.5 shrink-0">OSP</Badge>
+      )}
       {step.processCode && (
         <Badge variant="outline" className="text-[10px] font-mono h-4 px-1 shrink-0">{step.processCode}</Badge>
       )}
       <span className="text-muted-foreground shrink-0">Qty: {step.quantity}</span>
 
-      {/* Machine assignment */}
+      {/* Assignment status */}
       {assigned ? (
         <div className="flex items-center gap-1 text-green-700 shrink-0">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          <span className="font-medium truncate max-w-[120px]">{step.assignedMachineName}</span>
+          <span className="font-medium truncate max-w-[120px]">
+            {step.isOsp ? 'OSP Scheduled' : step.assignedMachineName}
+          </span>
           {step.scheduledStartTime && (
             <span className="text-muted-foreground text-[10px]">
               {format(new Date(step.scheduledStartTime), 'dd MMM HH:mm')}
@@ -421,14 +447,14 @@ function ProcessStepRow({ step, onAssignMachine }: { step: ProcessStepScheduling
       ) : (
         <div className="flex items-center gap-1 text-orange-500 shrink-0">
           <Clock className="h-3.5 w-3.5" />
-          <span className="text-[10px]">Unassigned</span>
+          <span className="text-[10px]">{step.isOsp ? 'Set Lead Time' : 'Unassigned'}</span>
         </div>
       )}
 
       <Button
         size="sm"
         variant={assigned ? 'outline' : 'default'}
-        onClick={(e) => { e.stopPropagation(); onAssignMachine(step.jobCardId) }}
+        onClick={(e) => { e.stopPropagation(); onAssignMachine(step.jobCardId, !!step.isOsp, prevEndTime) }}
         className="shrink-0 h-6 px-2 text-[11px] gap-1"
       >
         <Calendar className="h-3 w-3" />
