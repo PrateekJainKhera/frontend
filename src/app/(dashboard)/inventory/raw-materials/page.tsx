@@ -31,6 +31,7 @@ interface AggregatedMaterial {
   totalPieces: number;
   availablePieces: number;
   inUsePieces: number;
+  consumedPieces: number;
   scrapPieces: number;
   totalLength: number;
   availableLength: number;
@@ -143,7 +144,11 @@ export default function RawMaterialInventoryPage() {
     return Object.entries(grouped).map(([materialId, materialPieces]) => {
       const firstPiece = materialPieces[0];
       const availablePieces = materialPieces.filter(p => p.status === "Available" && !p.isWastage);
-      const inUsePieces = materialPieces.filter(p => p.status === "In Use" || p.issuedToJobCardId);
+      const inUsePieces = materialPieces.filter(p =>
+        p.status === "Issued" || p.status === "In Use" || p.status === "Allocated" ||
+        (p.issuedToJobCardId && p.status !== "Consumed")
+      );
+      const consumedPieces = materialPieces.filter(p => p.status === "Consumed");
       const scrapPieces = materialPieces.filter(p => p.isWastage);
 
       const totalLength = materialPieces.reduce((sum, p) => sum + p.currentLengthMM, 0);
@@ -169,6 +174,7 @@ export default function RawMaterialInventoryPage() {
         totalPieces: materialPieces.length,
         availablePieces: availablePieces.length,
         inUsePieces: inUsePieces.length,
+        consumedPieces: consumedPieces.length,
         scrapPieces: scrapPieces.length,
         totalLength,
         availableLength,
@@ -198,6 +204,10 @@ export default function RawMaterialInventoryPage() {
   // Get overall stats
   const totalPieces = pieces.length;
   const availablePieces = pieces.filter(p => p.status === "Available" && !p.isWastage).length;
+  const issuedPieces = pieces.filter(p =>
+    p.status === "Issued" || p.status === "In Use" || p.status === "Allocated"
+  ).length;
+  const consumedPieces = pieces.filter(p => p.status === "Consumed").length;
   const scrapPieces = pieces.filter(p => p.isWastage).length;
   const totalLength = pieces.reduce((sum, p) => sum + p.currentLengthMM, 0);
   const totalWastageLength = pieces.filter(p => p.isWastage).reduce((sum, p) => sum + p.currentLengthMM, 0);
@@ -391,7 +401,10 @@ export default function RawMaterialInventoryPage() {
                               <div className="flex gap-2">
                                 <Badge className="bg-green-600 text-xs">{material.availablePieces}</Badge>
                                 {material.inUsePieces > 0 && (
-                                  <Badge className="bg-blue-600 text-xs">{material.inUsePieces}</Badge>
+                                  <Badge className="bg-blue-600 text-xs">{material.inUsePieces} issued</Badge>
+                                )}
+                                {material.consumedPieces > 0 && (
+                                  <Badge className="bg-gray-500 text-xs">{material.consumedPieces} consumed</Badge>
                                 )}
                                 {material.scrapPieces > 0 && (
                                   <Badge variant="destructive" className="text-xs">{material.scrapPieces}</Badge>
@@ -440,7 +453,10 @@ export default function RawMaterialInventoryPage() {
                                 </div>
                                 <div className="flex gap-2 mt-2">
                                   <Badge className="bg-green-600 text-xs">{material.availablePieces} Available</Badge>
-                                  <Badge className="bg-blue-600 text-xs">{material.inUsePieces} In Use</Badge>
+                                  <Badge className="bg-blue-600 text-xs">{material.inUsePieces} Issued</Badge>
+                                  {material.consumedPieces > 0 && (
+                                    <Badge className="bg-gray-500 text-xs">{material.consumedPieces} Consumed</Badge>
+                                  )}
                                   <Badge variant="destructive" className="text-xs">{material.scrapPieces} Scrap</Badge>
                                 </div>
                               </div>
@@ -501,6 +517,14 @@ export default function RawMaterialInventoryPage() {
                   <div className="flex justify-between">
                     <span>Available:</span>
                     <span className="text-green-600 font-medium">{availablePieces}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Issued:</span>
+                    <span className="text-blue-600 font-medium">{issuedPieces}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Consumed:</span>
+                    <span className="text-gray-500 font-medium">{consumedPieces}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Scrap:</span>

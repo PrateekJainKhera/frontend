@@ -51,9 +51,14 @@ export default function MaterialPiecesPage() {
 
     // Filter by tab
     if (activeTab === "available") {
-      filtered = filtered.filter(p => p.status === "Available");
+      filtered = filtered.filter(p => p.status === "Available" && !p.isWastage);
     } else if (activeTab === "in-use") {
-      filtered = filtered.filter(p => p.status === "In Use" || p.issuedToJobCardId);
+      filtered = filtered.filter(p =>
+        p.status === "Issued" || p.status === "In Use" || p.status === "Allocated" ||
+        (p.issuedToJobCardId && p.status !== "Consumed")
+      );
+    } else if (activeTab === "consumed") {
+      filtered = filtered.filter(p => p.status === "Consumed");
     } else if (activeTab === "wastage") {
       filtered = filtered.filter(p => p.isWastage);
     }
@@ -79,9 +84,15 @@ export default function MaterialPiecesPage() {
       case "Available":
         return <Badge className="bg-green-600">Available</Badge>;
       case "In Use":
-        return <Badge className="bg-blue-600">In Use</Badge>;
+      case "Issued":
+        return <Badge className="bg-blue-600">Issued</Badge>;
+      case "Consumed":
+        return <Badge className="bg-gray-500">Consumed</Badge>;
       case "Reserved":
-        return <Badge className="bg-yellow-600">Reserved</Badge>;
+      case "Allocated":
+        return <Badge className="bg-yellow-600">Allocated</Badge>;
+      case "Scrap":
+        return <Badge variant="destructive">Scrap</Badge>;
       default:
         return <Badge variant="outline">{piece.status}</Badge>;
     }
@@ -89,7 +100,11 @@ export default function MaterialPiecesPage() {
 
   const calculateStats = () => {
     const available = pieces.filter(p => p.status === "Available" && !p.isWastage);
-    const inUse = pieces.filter(p => p.status === "In Use" || p.issuedToJobCardId);
+    const inUse = pieces.filter(p =>
+      p.status === "Issued" || p.status === "In Use" || p.status === "Allocated" ||
+      (p.issuedToJobCardId && p.status !== "Consumed")
+    );
+    const consumed = pieces.filter(p => p.status === "Consumed");
     const wastage = pieces.filter(p => p.isWastage);
 
     const totalLength = pieces.reduce((sum, p) => sum + p.currentLengthMeters, 0);
@@ -104,6 +119,7 @@ export default function MaterialPiecesPage() {
       totalPieces: pieces.length,
       availablePieces: available.length,
       inUsePieces: inUse.length,
+      consumedPieces: consumed.length,
       wastagePieces: wastage.length,
       totalLength,
       availableLength,
@@ -140,7 +156,7 @@ export default function MaterialPiecesPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Pieces</CardTitle>
@@ -169,13 +185,26 @@ export default function MaterialPiecesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Use</CardTitle>
+            <CardTitle className="text-sm font-medium">Issued</CardTitle>
             <Package className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{stats.inUsePieces}</div>
             <p className="text-xs text-muted-foreground">
               Issued to job cards
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Consumed</CardTitle>
+            <Package className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-500">{stats.consumedPieces}</div>
+            <p className="text-xs text-muted-foreground">
+              Production completed
             </p>
           </CardContent>
         </Card>
@@ -210,9 +239,10 @@ export default function MaterialPiecesPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="all">All Pieces ({pieces.length})</TabsTrigger>
+          <TabsTrigger value="all">All ({pieces.length})</TabsTrigger>
           <TabsTrigger value="available">Available ({stats.availablePieces})</TabsTrigger>
-          <TabsTrigger value="in-use">In Use ({stats.inUsePieces})</TabsTrigger>
+          <TabsTrigger value="in-use">Issued ({stats.inUsePieces})</TabsTrigger>
+          <TabsTrigger value="consumed">Consumed ({stats.consumedPieces})</TabsTrigger>
           <TabsTrigger value="wastage">Wastage ({stats.wastagePieces})</TabsTrigger>
         </TabsList>
 

@@ -50,6 +50,7 @@ export interface MaterialRequisitionItemResponse {
   processId?: number
   processName?: string
   selectedPieceIds?: number[] // Pre-selected material piece IDs
+  selectedPieceQuantities?: number[] // Cut quantities (MM) for each selected piece
   remarks?: string
   createdAt: string
 }
@@ -97,6 +98,7 @@ export interface CreateMaterialRequisitionItemRequest {
   processId?: number
   processName?: string
   selectedPieceIds?: number[] // Pre-selected material piece IDs for allocation
+  selectedPieceQuantities?: number[] // Cut quantities (MM) for each selected piece
   remarks?: string
 }
 
@@ -263,7 +265,21 @@ class MaterialRequisitionService {
 
   // Create new requisition
   async create(request: CreateMaterialRequisitionRequest): Promise<number> {
-    const response = await apiClient.post<ApiResponse<number>>(this.baseURL, request)
+    // Convert arrays to comma-separated strings for backend
+    const payload = {
+      ...request,
+      items: request.items?.map(item => ({
+        ...item,
+        selectedPieceIds: item.selectedPieceIds
+          ? (Array.isArray(item.selectedPieceIds) ? item.selectedPieceIds.join(',') : item.selectedPieceIds)
+          : undefined,
+        selectedPieceQuantities: item.selectedPieceQuantities
+          ? (Array.isArray(item.selectedPieceQuantities) ? item.selectedPieceQuantities.join(',') : item.selectedPieceQuantities)
+          : undefined,
+      }))
+    }
+
+    const response = await apiClient.post<ApiResponse<number>>(this.baseURL, payload)
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to create requisition')
     }

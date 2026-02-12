@@ -753,12 +753,14 @@ export default function GenerateJobCardsPage() {
 
         // Build a map of materialId to selected piece IDs from the aggregated materials
         const materialIdToPieceIds = new Map<number, number[]>()
+        const materialIdToPieceQuantities = new Map<number, number[]>() // NEW: Store quantities
         const aggregatedMaterials = getAggregatedMaterials()
 
         aggregatedMaterials.forEach((material, idx) => {
           const selectedPieces = selectedPiecesPerMaterial.get(idx)
           if (selectedPieces && selectedPieces.length > 0) {
             const pieceIds = selectedPieces.map(sp => sp.piece.id)
+            const quantities = selectedPieces.map(sp => sp.quantityMM) // NEW: Extract quantities
 
             // Find the actual material ID from availableMaterials
             const matchingMaterial = material.rawMaterialId
@@ -770,6 +772,7 @@ export default function GenerateJobCardsPage() {
 
             if (matchingMaterial) {
               materialIdToPieceIds.set(matchingMaterial.id, pieceIds)
+              materialIdToPieceQuantities.set(matchingMaterial.id, quantities) // NEW: Store quantities
             }
           }
         })
@@ -783,6 +786,7 @@ export default function GenerateJobCardsPage() {
           for (const material of jobCard.materials) {
             const materialId = material.rawMaterialId || 0
             const selectedPieceIds = materialIdToPieceIds.get(materialId)
+            const selectedPieceQuantities = materialIdToPieceQuantities.get(materialId) // NEW: Get quantities
 
             requisitionItems.push({
               lineNo: lineNo++,
@@ -797,6 +801,7 @@ export default function GenerateJobCardsPage() {
               processId: jobCard.processId,
               processName: jobCard.processName,
               selectedPieceIds: selectedPieceIds, // Include pre-selected pieces
+              selectedPieceQuantities: selectedPieceQuantities, // NEW: Include cut quantities
               remarks: `For ${jobCard.childPartName} - ${jobCard.processName}${selectedPieceIds ? ` (${selectedPieceIds.length} piece(s) pre-selected)` : ''}`
             })
           }
