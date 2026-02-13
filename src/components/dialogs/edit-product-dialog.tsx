@@ -28,8 +28,8 @@ import { productService } from '@/lib/api/products'
 
 const formSchema = z.object({
   partCode: z.string().min(2, 'Part code is required'),
-  customerName: z.string().min(2, 'Customer name is required'),
-  modelName: z.string().min(2, 'Model name is required'),
+  customerName: z.string().optional(),
+  modelId: z.number().min(1, 'Model is required'),
   rollerType: z.string().min(2, 'Roller type is required'),
   diameter: z.number().positive('Diameter must be positive'),
   length: z.number().positive('Length must be positive'),
@@ -37,7 +37,7 @@ const formSchema = z.object({
   drawingNo: z.string().optional(),
   revisionNo: z.string().optional(),
   revisionDate: z.string().optional(),
-  numberOfTeeth: z.number().optional().nullable(),
+  numberOfTeeth: z.number().min(1, 'Number of teeth is required'),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
   processTemplateId: z.number(),
@@ -65,7 +65,7 @@ export function EditProductDialog({
     defaultValues: {
       partCode: product.partCode,
       customerName: product.customerName,
-      modelName: product.modelName,
+      modelId: product.modelId,
       rollerType: product.rollerType,
       diameter: product.diameter,
       length: product.length,
@@ -89,7 +89,7 @@ export function EditProductDialog({
         id: product.id,
         partCode: product.partCode,
         customerName: data.customerName,
-        modelName: data.modelName,
+        modelId: data.modelId,
         rollerType: data.rollerType,
         diameter: data.diameter,
         length: data.length,
@@ -167,13 +167,18 @@ export function EditProductDialog({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="modelName"
+                name="modelId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Model Name *</FormLabel>
+                    <FormLabel>Model *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter model name" {...field} />
+                      <Input
+                        value={product.modelName}
+                        disabled
+                        className="bg-muted cursor-not-allowed"
+                      />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Model cannot be changed after creation</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -298,13 +303,13 @@ export function EditProductDialog({
                 name="numberOfTeeth"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Number of Teeth</FormLabel>
+                    <FormLabel>Number of Teeth *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Optional"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                        placeholder="Enter number of teeth"
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
                       />
                     </FormControl>
                     <FormMessage />

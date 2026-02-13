@@ -37,15 +37,17 @@ import { toast } from 'sonner'
 import { generatePartCode } from '@/lib/utils/part-code-generator'
 import { RollerType, ChildPartType } from '@/types'
 import { Customer } from '@/types/customer'
-import { Upload, FileImage, Check, ChevronsUpDown } from 'lucide-react'
+import { Upload, FileImage, Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { productService } from '@/lib/api/products'
 import { customerService } from '@/lib/api/customer'
 import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
+import { machineModelService } from '@/lib/api/machine-models'
+import { MachineModel } from '@/types/machine-model'
 import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
-  customerName: z.string().min(1, 'Customer is required'),
-  modelName: z.string().min(2, 'Model name is required'),
+  customerName: z.string().optional(),
+  modelId: z.number().min(1, 'Machine model is required'),
   rollerType: z.nativeEnum(RollerType, { message: 'Roller type is required' }),
   productTemplateId: z.number().min(1, 'Product template is required'),
   diameter: z.number().min(1, 'Diameter must be greater than 0'),
@@ -54,7 +56,7 @@ const formSchema = z.object({
   drawingNo: z.string().optional(),
   revisionNo: z.string().optional(),
   revisionDate: z.string().optional(),
-  numberOfTeeth: z.number().optional().nullable(),
+  numberOfTeeth: z.number().min(1, 'Number of teeth is required'),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
   processTemplateId: z.number(),
@@ -77,7 +79,6 @@ interface ChildPartEntry {
 }
 
 const materialGrades = ['EN8', 'EN19', 'SS304', 'SS316', 'Alloy Steel', 'NBR (Nitrile Rubber)']
-const modelNames = ['Flexo 8-Color Press', 'Offset Press 4-Color', 'Flexo CI Press', 'Rotogravure Press', 'Web Handling System']
 
 export function CreateProductDialog({
   open,
@@ -89,14 +90,19 @@ export function CreateProductDialog({
   const [childParts, setChildParts] = useState<ChildPartEntry[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false)
+  const [machineModels, setMachineModels] = useState<MachineModel[]>([])
+  const [modelSearchOpen, setModelSearchOpen] = useState(false)
   const [templates, setTemplates] = useState<ProductTemplateResponse[]>([])
   const [loadingTemplates, setLoadingTemplates] = useState(false)
+  const [isAddModelDialogOpen, setIsAddModelDialogOpen] = useState(false)
+  const [newModelName, setNewModelName] = useState('')
+  const [isCreatingModel, setIsCreatingModel] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerName: '',
-      modelName: '',
+      modelId: 0,
       rollerType: undefined,
       productTemplateId: 0,
       diameter: 0,
@@ -105,7 +111,7 @@ export function CreateProductDialog({
       drawingNo: '',
       revisionNo: '',
       revisionDate: '',
-      numberOfTeeth: null,
+      numberOfTeeth: 0,
       surfaceFinish: '',
       hardness: '',
       processTemplateId: 1, // Default template ID
@@ -115,7 +121,7 @@ export function CreateProductDialog({
   const watchedRollerType = form.watch('rollerType')
   const watchedTemplateId = form.watch('productTemplateId')
 
-  // Fetch customers when dialog opens
+  // Fetch customers and machine models when dialog opens
   useEffect(() => {
     if (open) {
       const loadCustomers = async () => {
@@ -127,7 +133,19 @@ export function CreateProductDialog({
           toast.error('Failed to load customers')
         }
       }
+
+      const loadMachineModels = async () => {
+        try {
+          const data = await machineModelService.getAll()
+          setMachineModels(data)
+        } catch (error) {
+          console.error('Failed to load machine models:', error)
+          toast.error('Failed to load machine models')
+        }
+      }
+
       loadCustomers()
+      loadMachineModels()
     }
   }, [open])
 
@@ -210,6 +228,35 @@ export function CreateProductDialog({
     )
   }
 
+  const handleCreateMachineModel = async () => {
+    if (!newModelName.trim()) {
+      toast.error('Model name is required')
+      return
+    }
+
+    setIsCreatingModel(true)
+    try {
+      const newModelId = await machineModelService.create({ modelName: newModelName })
+      toast.success(`Machine model "${newModelName}" created successfully`)
+
+      // Refresh the machine models list
+      const updatedModels = await machineModelService.getAll()
+      setMachineModels(updatedModels)
+
+      // Auto-select the newly created model
+      form.setValue('modelId', newModelId)
+
+      // Close dialog and reset
+      setIsAddModelDialogOpen(false)
+      setNewModelName('')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create machine model'
+      toast.error(message)
+    } finally {
+      setIsCreatingModel(false)
+    }
+  }
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     const loadingToast = toast.loading('Creating product...')
@@ -218,7 +265,7 @@ export function CreateProductDialog({
       // Create product using API service
       const product = await productService.create({
         customerName: data.customerName,
-        modelName: data.modelName,
+        modelId: data.modelId,
         rollerType: data.rollerType,
         diameter: data.diameter,
         length: data.length,
@@ -249,6 +296,7 @@ export function CreateProductDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -274,7 +322,7 @@ export function CreateProductDialog({
                 name="customerName"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Customer Name *</FormLabel>
+                    <FormLabel>Customer Name (Optional)</FormLabel>
                     <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -332,16 +380,74 @@ export function CreateProductDialog({
                 )}
               />
 
-              {/* Model Name - TEXT INPUT */}
+              {/* Machine Model - COMBOBOX WITH SEARCH */}
               <FormField
                 control={form.control}
-                name="modelName"
+                name="modelId"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Model Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter model name" {...field} />
-                    </FormControl>
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Machine Model *</FormLabel>
+                    <div className="flex gap-2">
+                      <Popover open={modelSearchOpen} onOpenChange={setModelSearchOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "flex-1 justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? machineModels.find((model) => model.id === field.value)?.modelName
+                                : "Select model"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search models..." />
+                            <CommandList>
+                              <CommandEmpty>No model found.</CommandEmpty>
+                              <CommandGroup>
+                                {machineModels.map((model) => (
+                                  <CommandItem
+                                    value={model.modelName}
+                                    key={model.id}
+                                    onSelect={() => {
+                                      form.setValue("modelId", model.id)
+                                      setModelSearchOpen(false)
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        model.id === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    <span className="truncate">{model.modelName}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setIsAddModelDialogOpen(true)}
+                        title="Add new machine model"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -522,25 +628,21 @@ export function CreateProductDialog({
                 )}
               />
 
-              {/* Number of Teeth - OPTIONAL */}
+              {/* Number of Teeth - REQUIRED */}
               <FormField
                 control={form.control}
                 name="numberOfTeeth"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Number of Teeth</FormLabel>
+                    <FormLabel>Number of Teeth *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Optional"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                        placeholder="Enter number of teeth"
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
                       />
                     </FormControl>
-                    <FormDescription className="text-xs">
-                      Leave empty if not applicable
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -665,5 +767,57 @@ export function CreateProductDialog({
         </Form>
       </DialogContent>
     </Dialog>
+
+    {/* Quick Add Machine Model Dialog */}
+    <Dialog open={isAddModelDialogOpen} onOpenChange={setIsAddModelDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Machine Model</DialogTitle>
+          <DialogDescription>
+            Create a new machine model. It will be automatically selected for your product.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label htmlFor="modelName" className="text-sm font-medium">
+              Model Name *
+            </label>
+            <Input
+              id="modelName"
+              placeholder="e.g., Flexo 8-Color Press"
+              value={newModelName}
+              onChange={(e) => setNewModelName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleCreateMachineModel()
+                }
+              }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setIsAddModelDialogOpen(false)
+              setNewModelName('')
+            }}
+            disabled={isCreatingModel}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleCreateMachineModel}
+            disabled={isCreatingModel || !newModelName.trim()}
+          >
+            {isCreatingModel ? 'Creating...' : 'Create Model'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   )
 }

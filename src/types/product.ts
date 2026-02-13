@@ -4,7 +4,8 @@ export interface Product {
   id: number
   partCode: string
   customerName: string
-  modelName: string
+  modelId: number
+  modelName: string // Kept for backward compatibility
   rollerType: RollerType
   diameter: number
   length: number
@@ -12,7 +13,7 @@ export interface Product {
   drawingNo?: string
   revisionNo?: string
   revisionDate?: string
-  numberOfTeeth?: number | null
+  numberOfTeeth: number
   surfaceFinish?: string
   hardness?: string
   processTemplateId: number

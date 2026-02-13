@@ -4,7 +4,7 @@ import { Product } from '@/types/product'
 
 export interface CreateProductRequest {
   customerName?: string
-  modelName: string
+  modelId: number
   rollerType: string
   diameter: number
   length: number
