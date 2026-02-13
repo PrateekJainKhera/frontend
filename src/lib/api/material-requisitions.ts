@@ -265,21 +265,8 @@ class MaterialRequisitionService {
 
   // Create new requisition
   async create(request: CreateMaterialRequisitionRequest): Promise<number> {
-    // Convert arrays to comma-separated strings for backend
-    const payload = {
-      ...request,
-      items: request.items?.map(item => ({
-        ...item,
-        selectedPieceIds: item.selectedPieceIds
-          ? (Array.isArray(item.selectedPieceIds) ? item.selectedPieceIds.join(',') : item.selectedPieceIds)
-          : undefined,
-        selectedPieceQuantities: item.selectedPieceQuantities
-          ? (Array.isArray(item.selectedPieceQuantities) ? item.selectedPieceQuantities.join(',') : item.selectedPieceQuantities)
-          : undefined,
-      }))
-    }
-
-    const response = await apiClient.post<ApiResponse<number>>(this.baseURL, payload)
+    // Send arrays directly - backend controller will convert to CSV for database storage
+    const response = await apiClient.post<ApiResponse<number>>(this.baseURL, request)
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to create requisition')
     }
