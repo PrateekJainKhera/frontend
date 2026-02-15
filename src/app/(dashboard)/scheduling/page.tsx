@@ -27,9 +27,11 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import Link from 'next/link'
 
-interface OrderEntry {
+interface OrderItemEntry {
+  orderItemId: number | null  // null for legacy single-product orders
   orderId: number
   orderNo: string
+  itemSequence: string | null  // null for legacy single-product orders
   priority: string
   tree: OrderSchedulingTree | null
   loading: boolean
@@ -38,7 +40,7 @@ interface OrderEntry {
 
 export default function SchedulingDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [orders, setOrders] = useState<OrderEntry[]>([])
+  const [orders, setOrders] = useState<OrderItemEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
@@ -58,19 +60,38 @@ export default function SchedulingDashboardPage() {
       const scheduled = allJobCards.filter(
         jc => jc.status === 'Scheduled' || jc.status === 'PLANNED'
       )
-      const orderMap = new Map<number, { orderNo: string; priority: string }>()
+
+      // Group by order item (orderItemId + itemSequence) or fallback to orderId for legacy orders
+      const orderItemMap = new Map<string, {
+        orderItemId: number | null
+        orderId: number
+        orderNo: string
+        itemSequence: string | null
+        priority: string
+      }>()
+
       for (const jc of scheduled) {
-        if (!orderMap.has(jc.orderId)) {
-          orderMap.set(jc.orderId, {
-            orderNo: jc.orderNo || `Order-${jc.orderId}`,
+        // Create unique key: use orderItemId if available, otherwise orderId
+        const key = jc.orderItemId ? `item-${jc.orderItemId}` : `order-${jc.orderId}`
+
+        if (!orderItemMap.has(key)) {
+          const fullOrderRef = jc.orderNo + (jc.itemSequence ? `-${jc.itemSequence}` : '')
+          orderItemMap.set(key, {
+            orderItemId: jc.orderItemId || null,
+            orderId: jc.orderId,
+            orderNo: fullOrderRef,
+            itemSequence: jc.itemSequence || null,
             priority: jc.priority,
           })
         }
       }
+
       setOrders(
-        Array.from(orderMap.entries()).map(([orderId, info]) => ({
-          orderId,
+        Array.from(orderItemMap.values()).map((info) => ({
+          orderItemId: info.orderItemId,
+          orderId: info.orderId,
           orderNo: info.orderNo,
+          itemSequence: info.itemSequence,
           priority: info.priority,
           tree: null,
           loading: false,
@@ -78,20 +99,32 @@ export default function SchedulingDashboardPage() {
         }))
       )
     } catch {
-      toast.error('Failed to load scheduled orders')
+      toast.error('Failed to load scheduled order items')
     } finally {
       setLoading(false)
     }
   }
 
-  const loadOrderTree = async (orderId: number) => {
+  const loadOrderTree = async (orderItemId: number | null, orderId: number) => {
     setOrders(prev =>
-      prev.map(o => o.orderId === orderId ? { ...o, loading: true, expanded: true } : o)
+      prev.map(o =>
+        (o.orderItemId === orderItemId && o.orderId === orderId)
+          ? { ...o, loading: true, expanded: true }
+          : o
+      )
     )
     try {
-      const tree = await scheduleService.getOrderSchedulingTree(orderId)
+      // Use order item scheduling tree if orderItemId is available, otherwise use order scheduling tree (legacy)
+      const tree = orderItemId
+        ? await scheduleService.getOrderItemSchedulingTree(orderItemId)
+        : await scheduleService.getOrderSchedulingTree(orderId)
+
       setOrders(prev =>
-        prev.map(o => o.orderId === orderId ? { ...o, tree, loading: false } : o)
+        prev.map(o =>
+          (o.orderItemId === orderItemId && o.orderId === orderId)
+            ? { ...o, tree, loading: false }
+            : o
+        )
       )
       setExpandedGroups(prev =>
         new Set([...prev, ...tree.groups.map(g => `${orderId}-${g.groupName}`)])
@@ -99,20 +132,36 @@ export default function SchedulingDashboardPage() {
     } catch {
       toast.error('Failed to load order details')
       setOrders(prev =>
-        prev.map(o => o.orderId === orderId ? { ...o, loading: false, expanded: false } : o)
+        prev.map(o =>
+          (o.orderItemId === orderItemId && o.orderId === orderId)
+            ? { ...o, loading: false, expanded: false }
+            : o
+        )
       )
     }
   }
 
-  const toggleOrder = (orderId: number) => {
-    const order = orders.find(o => o.orderId === orderId)
+  const toggleOrder = (orderItemId: number | null, orderId: number) => {
+    const order = orders.find(o => o.orderItemId === orderItemId && o.orderId === orderId)
     if (!order) return
     if (!order.expanded) {
       order.tree
-        ? setOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, expanded: true } : o))
-        : loadOrderTree(orderId)
+        ? setOrders(prev =>
+            prev.map(o =>
+              (o.orderItemId === orderItemId && o.orderId === orderId)
+                ? { ...o, expanded: true }
+                : o
+            )
+          )
+        : loadOrderTree(orderItemId, orderId)
     } else {
-      setOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, expanded: false } : o))
+      setOrders(prev =>
+        prev.map(o =>
+          (o.orderItemId === orderItemId && o.orderId === orderId)
+            ? { ...o, expanded: false }
+            : o
+        )
+      )
     }
   }
 
@@ -136,10 +185,12 @@ export default function SchedulingDashboardPage() {
   const handleScheduleSuccess = async () => {
     setDialogOpen(false)
     const orderId = selectedOrderId
+    // Find the order item that was just scheduled
+    const scheduledOrder = orders.find(o => o.orderId === orderId)
     setSelectedJobCardId(null)
     setSelectedOrderId(null)
-    if (orderId) {
-      await loadOrderTree(orderId)  // silent per-order refresh — small row spinner only
+    if (orderId && scheduledOrder) {
+      await loadOrderTree(scheduledOrder.orderItemId, orderId)  // silent per-order-item refresh
     }
     toast.success('Machine assigned successfully!')
   }
@@ -222,10 +273,10 @@ export default function SchedulingDashboardPage() {
         <div className="space-y-1">
           {filteredOrders.map(order => (
             <OrderCard
-              key={order.orderId}
+              key={`${order.orderId}-${order.orderItemId || 'legacy'}`}
               order={order}
               expandedGroups={expandedGroups}
-              onToggleOrder={() => toggleOrder(order.orderId)}
+              onToggleOrder={() => toggleOrder(order.orderItemId, order.orderId)}
               onToggleGroup={toggleGroup}
               onAssignMachine={(jcId, isOsp, isManual, prevEndTime) => openScheduleDialog(jcId, order.orderId, isOsp, isManual, prevEndTime)}
             />
@@ -262,7 +313,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 // ─── Order Card ────────────────────────────────────────────────────────────────
 
 interface OrderCardProps {
-  order: OrderEntry
+  order: OrderItemEntry
   expandedGroups: Set<string>
   onToggleOrder: () => void
   onToggleGroup: (key: string) => void

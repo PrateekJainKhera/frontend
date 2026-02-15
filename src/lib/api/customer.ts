@@ -75,10 +75,24 @@ class CustomerService {
 
   async create(data: CreateCustomerRequest): Promise<Customer> {
     try {
-      const response = await apiClient.post<ApiResponse<Customer>>(this.baseUrl, {
+      // Convert empty strings to null for optional fields
+      const sanitizedData = {
         ...data,
+        contactPerson: data.contactPerson?.trim() || undefined,
+        email: data.email?.trim() || undefined,
+        phone: data.phone?.trim() || undefined,
+        address: data.address?.trim() || undefined,
+        city: data.city?.trim() || undefined,
+        state: data.state?.trim() || undefined,
+        country: data.country?.trim() || undefined,
+        pinCode: data.pinCode?.trim() || undefined,
+        gstNo: data.gstNo?.trim() || undefined,
+        panNo: data.panNo?.trim() || undefined,
+        paymentTerms: data.paymentTerms?.trim() || undefined,
         createdBy: data.createdBy || 'Admin',
-      })
+      }
+
+      const response = await apiClient.post<ApiResponse<Customer>>(this.baseUrl, sanitizedData)
       if (!response.data.data) {
         throw new Error('Failed to create customer')
       }
@@ -93,11 +107,25 @@ class CustomerService {
 
   async update(id: number, data: UpdateCustomerRequest): Promise<Customer> {
     try {
-      const response = await apiClient.put<ApiResponse<Customer>>(`${this.baseUrl}/${id}`, {
+      // Convert empty strings to null for optional fields
+      const sanitizedData = {
         ...data,
+        contactPerson: data.contactPerson?.trim() || undefined,
+        email: data.email?.trim() || undefined,
+        phone: data.phone?.trim() || undefined,
+        address: data.address?.trim() || undefined,
+        city: data.city?.trim() || undefined,
+        state: data.state?.trim() || undefined,
+        country: data.country?.trim() || undefined,
+        pinCode: data.pinCode?.trim() || undefined,
+        gstNo: data.gstNo?.trim() || undefined,
+        panNo: data.panNo?.trim() || undefined,
+        paymentTerms: data.paymentTerms?.trim() || undefined,
         id: id,
         updatedBy: data.updatedBy || 'Admin',
-      })
+      }
+
+      const response = await apiClient.put<ApiResponse<Customer>>(`${this.baseUrl}/${id}`, sanitizedData)
       if (!response.data.data) {
         throw new Error('Failed to update customer')
       }

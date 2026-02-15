@@ -281,10 +281,30 @@ export default function MaterialRequisitionDetailPage() {
       {
         accessorKey: 'quantityRequired',
         header: 'Required Qty',
-        size: 120,
-        Cell: ({ cell }) => (
-          <span className="font-medium">{cell.getValue<number>()}</span>
-        ),
+        size: 180,
+        Cell: ({ row }) => {
+          const item = row.original;
+          const total = item.quantityRequired;
+          const lengthPerPiece = item.lengthRequiredMM;
+          const numPieces = item.numberOfPieces;
+          const uom = item.uom || 'mm';
+
+          // Show breakdown if we have per-piece data (for raw materials)
+          if (lengthPerPiece && numPieces && numPieces > 1) {
+            return (
+              <div className="text-sm">
+                <span className="font-medium text-blue-600">{lengthPerPiece}{uom}</span>
+                <span className="text-muted-foreground"> × </span>
+                <span className="font-medium">{numPieces} pcs</span>
+                <span className="text-muted-foreground"> = </span>
+                <span className="font-semibold">{total}{uom}</span>
+              </div>
+            );
+          }
+
+          // Otherwise just show total (for components or single pieces)
+          return <span className="font-medium">{total} {uom}</span>;
+        },
         muiTableBodyCellProps: {
           align: 'right',
         },

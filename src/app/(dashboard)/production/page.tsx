@@ -29,6 +29,7 @@ import Link from 'next/link'
 
 interface ProductionOrderSummary {
   orderId: number
+  orderItemId: number | null  // For multi-product orders
   orderNo: string
   customerName: string | null
   productName: string | null
@@ -49,7 +50,8 @@ export default function ProductionDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    fetch('http://localhost:5217/api/production/orders')
+    // Use order-items endpoint for multi-product order support
+    fetch('http://localhost:5217/api/production/order-items')
       .then(r => r.json())
       .then(data => {
         if (data.success) setOrders(data.data)
@@ -193,11 +195,16 @@ export default function ProductionDashboardPage() {
                     const isComplete = order.productionStatus === 'Completed'
                     const hasInProgress = order.productionStatus === 'InProgress'
 
+                    // Use orderItemId for multi-product orders, orderId for legacy orders
+                    const detailUrl = order.orderItemId
+                      ? `/production/order-items/${order.orderItemId}`
+                      : `/production/orders/${order.orderId}`
+
                     return (
-                      <TableRow key={order.orderId}>
+                      <TableRow key={order.orderItemId ?? order.orderId}>
                         <TableCell className="font-medium">
                           <Link
-                            href={`/production/orders/${order.orderId}`}
+                            href={detailUrl}
                             className="hover:underline text-blue-600"
                           >
                             {order.orderNo}
@@ -252,7 +259,7 @@ export default function ProductionDashboardPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/production/orders/${order.orderId}`}>
+                          <Link href={detailUrl}>
                             <Button size="sm" variant="ghost">
                               View Workflow
                               <ArrowRight className="ml-2 h-4 w-4" />

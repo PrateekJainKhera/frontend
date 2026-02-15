@@ -37,7 +37,7 @@ const formSchema = z.object({
   customerName: z.string().min(2, 'Name must be at least 2 characters'),
   customerType: z.enum(['Direct', 'Agent', 'Dealer']),
   contactPerson: z.string().optional(),
-  email: z.string().optional(),
+  email: z.string().email('Invalid email format').optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),

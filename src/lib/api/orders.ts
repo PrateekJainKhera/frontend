@@ -1,6 +1,35 @@
 import axios from 'axios'
 import { apiClient, ApiResponse } from './axios-config'
 
+export interface OrderItemResponse {
+  id: number
+  orderId: number
+  itemSequence: string  // A, B, C, D...
+  productId: number
+  productName?: string
+  partCode?: string
+  quantity: number
+  originalQuantity: number
+  qtyCompleted: number
+  qtyRejected: number
+  qtyInProgress: number
+  qtyScrap: number
+  dueDate: string
+  adjustedDueDate?: string | null
+  priority: string
+  status: string
+  primaryDrawingId?: number | null
+  linkedProductTemplateId?: number | null
+  materialGradeApproved: boolean
+  materialGradeApprovalDate?: string | null
+  materialGradeApprovedBy?: string | null
+  materialGradeRemark?: string | null
+  createdAt: string
+  createdBy?: string | null
+  updatedAt?: string | null
+  updatedBy?: string | null
+}
+
 export interface OrderResponse {
   id: number
   orderNo: string
@@ -59,6 +88,9 @@ export interface OrderResponse {
   createdBy?: string | null
   updatedAt?: string | null
   version: number
+
+  // Multi-Product Support
+  items?: OrderItemResponse[]
 }
 
 export interface CreateOrderPayload {

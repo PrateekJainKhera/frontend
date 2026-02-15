@@ -31,13 +31,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { toast } from 'sonner'
 import { generatePartCode } from '@/lib/utils/part-code-generator'
 import { RollerType, ChildPartType } from '@/types'
 import { Customer } from '@/types/customer'
-import { Upload, FileImage, Check, ChevronsUpDown, Plus } from 'lucide-react'
+import { Upload, FileImage, Check, ChevronsUpDown, Plus, SendHorizontal } from 'lucide-react'
 import { productService } from '@/lib/api/products'
 import { customerService } from '@/lib/api/customer'
 import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
@@ -52,10 +53,6 @@ const formSchema = z.object({
   productTemplateId: z.number().min(1, 'Product template is required'),
   diameter: z.number().min(1, 'Diameter must be greater than 0'),
   length: z.number().min(1, 'Length must be greater than 0'),
-  materialGrade: z.string().min(1, 'Material grade is required'),
-  drawingNo: z.string().optional(),
-  revisionNo: z.string().optional(),
-  revisionDate: z.string().optional(),
   numberOfTeeth: z.number().min(1, 'Number of teeth is required'),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
@@ -78,8 +75,6 @@ interface ChildPartEntry {
   drawingFileName: string
 }
 
-const materialGrades = ['EN8', 'EN19', 'SS304', 'SS316', 'Alloy Steel', 'NBR (Nitrile Rubber)']
-
 export function CreateProductDialog({
   open,
   onOpenChange,
@@ -97,6 +92,7 @@ export function CreateProductDialog({
   const [isAddModelDialogOpen, setIsAddModelDialogOpen] = useState(false)
   const [newModelName, setNewModelName] = useState('')
   const [isCreatingModel, setIsCreatingModel] = useState(false)
+  const [requestDrawing, setRequestDrawing] = useState(true) // Default checked - mandatory per client requirement
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -107,10 +103,6 @@ export function CreateProductDialog({
       productTemplateId: 0,
       diameter: 0,
       length: 0,
-      materialGrade: '',
-      drawingNo: '',
-      revisionNo: '',
-      revisionDate: '',
       numberOfTeeth: 0,
       surfaceFinish: '',
       hardness: '',
@@ -196,15 +188,11 @@ export function CreateProductDialog({
     }
   }, [watchedTemplateId, templates])
 
-  // Auto-generate part code when relevant fields change
+  // Auto-generate part code preview when roller type changes
   useEffect(() => {
     const subscription = form.watch((value) => {
-      if (value.rollerType && value.diameter && value.materialGrade) {
-        const code = generatePartCode(
-          value.rollerType as RollerType,
-          value.diameter as number,
-          value.materialGrade as string
-        )
+      if (value.rollerType) {
+        const code = generatePartCode(value.rollerType as RollerType)
         setGeneratedPartCode(code)
       }
     })
@@ -258,29 +246,33 @@ export function CreateProductDialog({
   }
 
   const onSubmit = async (data: FormData) => {
+    // Validate that drawing request is checked (mandatory per client requirement)
+    if (!requestDrawing) {
+      toast.error('Please check "Request Drawing from Team" - this is required for all products')
+      return
+    }
+
     setIsSubmitting(true)
     const loadingToast = toast.loading('Creating product...')
 
     try {
       // Create product using API service
-      const product = await productService.create({
+      const result = await productService.create({
         customerName: data.customerName,
         modelId: data.modelId,
         rollerType: data.rollerType,
         diameter: data.diameter,
         length: data.length,
-        materialGrade: data.materialGrade,
-        drawingNo: data.drawingNo,
-        revisionNo: data.revisionNo,
-        revisionDate: data.revisionDate,
         numberOfTeeth: data.numberOfTeeth,
         surfaceFinish: data.surfaceFinish,
         hardness: data.hardness,
+        productTemplateId: data.productTemplateId,
         processTemplateId: data.processTemplateId,
+        requestDrawing: requestDrawing,
       })
 
       toast.dismiss(loadingToast)
-      toast.success(`Product created: ${product.partCode}`)
+      toast.success(result.message)
       form.reset()
       setGeneratedPartCode('')
       setChildParts([])
@@ -515,32 +507,6 @@ export function CreateProductDialog({
                 )}
               />
 
-              {/* Material Grade - DROPDOWN */}
-              <FormField
-                control={form.control}
-                name="materialGrade"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Material Grade *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select grade" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {materialGrades.map((grade) => (
-                          <SelectItem key={grade} value={grade}>
-                            {grade}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               {/* Diameter */}
               <FormField
                 control={form.control}
@@ -577,51 +543,6 @@ export function CreateProductDialog({
                         {...field}
                         onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Drawing No */}
-              <FormField
-                control={form.control}
-                name="drawingNo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Drawing Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="DRG-MAG-250-v2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Revision No */}
-              <FormField
-                control={form.control}
-                name="revisionNo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Revision Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="R1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Revision Date */}
-              <FormField
-                control={form.control}
-                name="revisionDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Revision Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -678,6 +599,27 @@ export function CreateProductDialog({
                 )}
               />
             </div>
+
+            {/* Request Drawing Checkbox - MANDATORY */}
+            <div className={`flex items-center space-x-2 p-4 border rounded-lg ${
+              requestDrawing ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-300'
+            }`}>
+              <Checkbox
+                id="requestDrawing"
+                checked={requestDrawing}
+                onCheckedChange={(checked) => setRequestDrawing(checked as boolean)}
+              />
+              <label
+                htmlFor="requestDrawing"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
+              >
+                <SendHorizontal className={`h-4 w-4 ${requestDrawing ? 'text-blue-600' : 'text-red-600'}`} />
+                <span>Request Drawing from Team immediately after creating product <span className="text-red-600">*</span></span>
+              </label>
+            </div>
+            {!requestDrawing && (
+              <p className="text-sm text-red-600 -mt-2">⚠️ This checkbox is required - you cannot create a product without requesting drawing</p>
+            )}
 
             {/* Child Parts Section - Loaded from template */}
             {watchedTemplateId && watchedTemplateId > 0 && (

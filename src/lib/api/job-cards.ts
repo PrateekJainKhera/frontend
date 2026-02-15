@@ -37,6 +37,8 @@ export interface JobCardResponse {
 
   orderId: number
   orderNo?: string | null
+  orderItemId?: number | null
+  itemSequence?: string | null
 
   drawingId?: number | null
   drawingNumber?: string | null
@@ -78,6 +80,8 @@ export interface CreateJobCardPayload {
   creationType?: string
   orderId: number
   orderNo?: string
+  orderItemId?: number | null
+  itemSequence?: string | null
   drawingId?: number | null
   drawingNumber?: string | null
   drawingRevision?: string | null

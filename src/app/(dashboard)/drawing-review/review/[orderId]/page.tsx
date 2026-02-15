@@ -167,12 +167,14 @@ export default function DrawingReviewDetailPage() {
     switch (status) {
       case 'Pending':
         return <Badge variant="outline" className="border-gray-500 text-gray-700">Pending</Badge>
-      case 'In Review':
-        return <Badge variant="outline" className="border-blue-500 text-blue-700">In Review</Badge>
+      case 'UnderReview':
+        return <Badge variant="outline" className="border-blue-500 text-blue-700">Under Review</Badge>
       case 'Approved':
         return <Badge variant="outline" className="border-green-500 text-green-700">Approved</Badge>
-      case 'Needs Revision':
-        return <Badge variant="outline" className="border-orange-500 text-orange-700">Needs Revision</Badge>
+      case 'Rejected':
+        return <Badge variant="outline" className="border-red-500 text-red-700">Rejected</Badge>
+      case 'RevisionRequired':
+        return <Badge variant="outline" className="border-orange-500 text-orange-700">Revision Required</Badge>
       default:
         return null
     }

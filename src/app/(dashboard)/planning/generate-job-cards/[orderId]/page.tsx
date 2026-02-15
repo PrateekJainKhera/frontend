@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Package, AlertTriangle, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
-import { orderService, OrderResponse } from '@/lib/api/orders'
+import { orderService, OrderResponse, OrderItemResponse } from '@/lib/api/orders'
+import { productService, ProductChildPartDrawingResponse } from '@/lib/api/products'
+import { Product } from '@/types/product'
 import { productTemplateService, ProductTemplateResponse, ProductTemplateBOMItemResponse } from '@/lib/api/product-templates'
 import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
 import { processTemplateService, ProcessTemplateStepResponse } from '@/lib/api/process-templates'
@@ -27,9 +29,26 @@ import { componentService, ComponentResponse } from '@/lib/api/components'
 import { inventoryService, InventoryResponse } from '@/lib/api/inventory'
 import { materialRequisitionService, CreateMaterialRequisitionRequest } from '@/lib/api/material-requisitions'
 import { materialPieceService, MaterialPieceResponse } from '@/lib/api/material-pieces'
+import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 import { PieceSelectionDialog } from '@/components/planning/PieceSelectionDialog'
 import { formatDate } from '@/lib/utils/formatters'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Eye, Download, FileText } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 interface ChildPartPlanningItem {
   bomItem: ProductTemplateBOMItemResponse
@@ -49,10 +68,17 @@ interface EditableMaterialRequirement extends JobCardMaterialRequirementRequest 
 export default function GenerateJobCardsPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const orderId = params.orderId as string
+
+  // Get itemId and itemSequence from URL query params
+  const [itemId, setItemId] = useState<number | null>(null)
+  const [itemSequence, setItemSequence] = useState<string | null>(null)
+  const [productId, setProductId] = useState<number | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [order, setOrder] = useState<OrderResponse | null>(null)
+  const [currentOrderItem, setCurrentOrderItem] = useState<OrderItemResponse | null>(null)
   const [productTemplate, setProductTemplate] = useState<ProductTemplateResponse | null>(null)
   const [childPartItems, setChildPartItems] = useState<ChildPartPlanningItem[]>([])
   const [assemblyProcessSteps, setAssemblyProcessSteps] = useState<ProcessTemplateStepResponse[]>([])
@@ -94,10 +120,35 @@ export default function GenerateJobCardsPage() {
     Map<number, Array<{ piece: MaterialPieceResponse; quantityMM: number }>>
   >(new Map())
 
+  // Product drawings
+  const [productData, setProductData] = useState<Product | null>(null)
+  const [assemblyDrawing, setAssemblyDrawing] = useState<DrawingResponse | null>(null)
+  const [childPartDrawings, setChildPartDrawings] = useState<ProductChildPartDrawingResponse[]>([])
+
+  // Drawing viewer modal state
+  const [viewingDrawing, setViewingDrawing] = useState<{
+    fileName: string
+    fileType: string
+    fileUrl: string
+  } | null>(null)
+
+  // Read URL query params on mount
+  useEffect(() => {
+    const itemIdParam = searchParams.get('itemId')
+    const itemSeqParam = searchParams.get('itemSequence')
+
+    if (itemIdParam) {
+      setItemId(Number(itemIdParam))
+    }
+    if (itemSeqParam) {
+      setItemSequence(itemSeqParam)
+    }
+  }, [searchParams])
+
   useEffect(() => {
     loadData()
     loadMaterials()
-  }, [orderId])
+  }, [orderId, itemId, itemSequence])
 
   const loadData = async () => {
     setLoading(true)
@@ -105,12 +156,46 @@ export default function GenerateJobCardsPage() {
       const orderData = await orderService.getById(Number(orderId))
       setOrder(orderData)
 
-      if (!orderData.linkedProductTemplateId) {
+      let productTemplateId: number | null = null
+      let currentProductId: number | null = null
+
+      // Multi-product order: get product from OrderItem
+      if (itemId && orderData.items && orderData.items.length > 0) {
+        const orderItem = orderData.items.find(item => item.id === itemId)
+        if (orderItem) {
+          currentProductId = orderItem.productId
+          setProductId(currentProductId)
+          setCurrentOrderItem(orderItem) // Store the current item for display
+
+          // Load product to get ProductTemplateId
+          const productData = await productService.getById(currentProductId)
+          productTemplateId = productData.productTemplateId ?? null
+
+          console.log(`Multi-product order: Item ${itemSequence}, ProductId: ${currentProductId}, ProductTemplateId: ${productTemplateId}`)
+        } else {
+          toast.error('Order item not found')
+          setLoading(false)
+          return
+        }
+      }
+      // Legacy single-product order: use order.linkedProductTemplateId
+      else {
+        productTemplateId = orderData.linkedProductTemplateId ?? null
+        currentProductId = orderData.productId
+        setProductId(currentProductId)
+        setCurrentOrderItem(null) // No specific item for legacy orders
+        console.log(`Legacy order: ProductTemplateId: ${productTemplateId}`)
+      }
+
+      if (!productTemplateId) {
+        toast.warning('No product template linked', {
+          description: 'Product needs a template assigned in Master Data'
+        })
         setLoading(false)
         return
       }
 
-      const templateData = await productTemplateService.getById(orderData.linkedProductTemplateId)
+      const templateData = await productTemplateService.getById(productTemplateId)
       console.log('Product template loaded:', templateData)
       console.log('Product template processTemplateId:', templateData.processTemplateId)
       setProductTemplate(templateData)
@@ -191,6 +276,34 @@ export default function GenerateJobCardsPage() {
         setAssemblyProcessSteps([])
       }
       console.log('=== END ASSEMBLY PROCESS DEBUGGING ===')
+
+      // Load product drawings (assembly + child parts)
+      if (currentProductId) {
+        try {
+          const productData = await productService.getById(currentProductId)
+          setProductData(productData)
+
+          // Load assembly drawing if available
+          if (productData.assemblyDrawingId) {
+            try {
+              const assemblyDrawingData = await drawingService.getById(productData.assemblyDrawingId)
+              setAssemblyDrawing(assemblyDrawingData)
+            } catch (error) {
+              console.warn('Failed to load assembly drawing:', error)
+            }
+          }
+
+          // Load child part drawings
+          try {
+            const childPartDrawingsData = await productService.getChildPartDrawings(currentProductId)
+            setChildPartDrawings(childPartDrawingsData)
+          } catch (error) {
+            console.warn('Failed to load child part drawings:', error)
+          }
+        } catch (error) {
+          console.error('Failed to load product drawings:', error)
+        }
+      }
 
     } catch (error) {
       toast.error('Failed to load order data', {
@@ -357,7 +470,8 @@ export default function GenerateJobCardsPage() {
       const childPart = childPartItems.find(item => item.childPartTemplate?.id === childPartTemplateId)
       if (!childPart) continue
 
-      const requiredQty = material.requiredQuantity * (order.quantity * childPart.bomItem.quantity)
+      const itemQuantity = currentOrderItem ? currentOrderItem.quantity : order.quantity
+      const requiredQty = material.requiredQuantity * (itemQuantity * childPart.bomItem.quantity)
       const totalWithWastage = requiredQty * (1 + (material.wastagePercent || 0) / 100)
 
       // Convert inventory quantity to length if stored as weight
@@ -512,13 +626,16 @@ export default function GenerateJobCardsPage() {
       totalRequired: number
     }> = {}
 
+    // Use item-specific quantity for multi-product orders
+    const itemQuantity = currentOrderItem ? currentOrderItem.quantity : (order?.quantity || 1)
+
     childPartItems.forEach(item => {
       if (!item.childPartTemplate || item.childPartTemplate.isPurchased) return
 
       const materials = getChildPartMaterials(item.childPartTemplate.id, item.bomItem.childPartTemplateName)
 
       materials.forEach(material => {
-        const piecesCount = (order?.quantity || 1) * item.bomItem.quantity
+        const piecesCount = itemQuantity * item.bomItem.quantity
         const scaledQty = material.requiredQuantity * piecesCount
         const totalWithWastage = scaledQty * (1 + (material.wastagePercent || 0) / 100)
         const pieceLengthMM = material.requiredQuantity * (1 + (material.wastagePercent || 0) / 100)
@@ -562,11 +679,14 @@ export default function GenerateJobCardsPage() {
       totalRequired: number
     }> = {}
 
+    // Use item-specific quantity for multi-product orders
+    const itemQuantity = currentOrderItem ? currentOrderItem.quantity : (order?.quantity || 1)
+
     childPartItems.forEach(item => {
       // Only process purchased parts
       if (!item.childPartTemplate || !item.childPartTemplate.isPurchased) return
 
-      const requiredQty = (order?.quantity || 1) * item.bomItem.quantity
+      const requiredQty = itemQuantity * item.bomItem.quantity
       const key = item.childPartTemplate.templateCode
 
       if (!aggregated[key]) {
@@ -589,6 +709,19 @@ export default function GenerateJobCardsPage() {
 
   const handleGenerateJobCards = async () => {
     if (!order || !productTemplate) return
+
+    // For multi-product orders, ensure a specific item is selected
+    if (order.items && order.items.length > 0 && !currentOrderItem) {
+      toast.error('No Order Item Selected', {
+        description: 'This is a multi-product order. Please select a specific item (Order-A, Order-B, etc.) from the Planning dashboard.',
+        duration: 6000,
+      })
+      return
+    }
+
+    // NOTE: Drawing review is now at ORDER ITEM level for multi-product orders
+    // The backend will validate each job card's order item drawing status
+    // This allows independent approval and planning per product
 
     // Check if all manufactured (non-purchased) child parts have processes
     const partsWithoutProcesses = childPartItems.filter(
@@ -619,6 +752,8 @@ export default function GenerateJobCardsPage() {
           rawMaterialName: string
           materialGrade: string | undefined
           requiredQuantity: number
+          lengthPerPiece: number
+          numberOfPieces: number
           unit: string
         }>
       }> = []
@@ -629,7 +764,13 @@ export default function GenerateJobCardsPage() {
         if (item.processSteps.length === 0) continue
 
         for (const step of item.processSteps) {
-          const jobCardNo = `JC-${order.orderNo}-${item.childPartTemplate.templateCode}-${String(step.stepNo).padStart(2, '0')}`
+          // Include item sequence in job card number for multi-product orders
+          const itemSeqSuffix = currentOrderItem ? `-${currentOrderItem.itemSequence}` : ''
+          const jobCardNo = `JC-${order.orderNo}${itemSeqSuffix}-${item.childPartTemplate.templateCode}-${String(step.stepNo).padStart(2, '0')}`
+
+          // Use item-specific quantity for multi-product orders
+          const itemQuantity = currentOrderItem ? currentOrderItem.quantity : order.quantity
+          const itemPriority = currentOrderItem ? currentOrderItem.priority : order.priority
 
           // Get edited materials for first step only
           const materialRequirements = step.stepNo === 1
@@ -637,7 +778,9 @@ export default function GenerateJobCardsPage() {
                 rawMaterialId: mr.rawMaterialId,
                 rawMaterialName: mr.rawMaterialName,
                 materialGrade: mr.materialGrade,
-                requiredQuantity: mr.requiredQuantity * (order.quantity * item.bomItem.quantity),
+                requiredQuantity: mr.requiredQuantity * (itemQuantity * item.bomItem.quantity),
+                lengthPerPiece: mr.requiredQuantity, // Per-piece requirement (e.g., 300mm)
+                numberOfPieces: itemQuantity * item.bomItem.quantity, // Total pieces (e.g., 2)
                 unit: mr.unit,
                 wastagePercent: mr.wastagePercent,
                 source: mr.source,
@@ -652,6 +795,8 @@ export default function GenerateJobCardsPage() {
             creationType: 'auto',
             orderId: order.id,
             orderNo: order.orderNo,
+            orderItemId: currentOrderItem?.id || null,
+            itemSequence: currentOrderItem?.itemSequence || null,
             drawingId: null,
             drawingNumber: item.childPartTemplate.drawingNumber || null,
             drawingRevision: item.childPartTemplate.drawingRevision || null,
@@ -663,8 +808,8 @@ export default function GenerateJobCardsPage() {
             processName: step.processName || null,
             stepNo: step.stepNo,
             processTemplateId: item.childPartTemplate.processTemplateId,
-            quantity: order.quantity * item.bomItem.quantity,
-            priority: order.priority,
+            quantity: itemQuantity * item.bomItem.quantity,
+            priority: itemPriority,
             manufacturingDimensions: null,
             createdBy: 'Admin',
             specialNotes: !isMaterialAvailable ? 'Pending Material - Material shortage detected' : null,
@@ -687,6 +832,8 @@ export default function GenerateJobCardsPage() {
                 rawMaterialName: mr.rawMaterialName,
                 materialGrade: mr.materialGrade,
                 requiredQuantity: mr.requiredQuantity,
+                lengthPerPiece: mr.lengthPerPiece,
+                numberOfPieces: mr.numberOfPieces,
                 unit: mr.unit
               }))
             })
@@ -695,14 +842,21 @@ export default function GenerateJobCardsPage() {
       }
 
       // Generate assembly job cards
+      const itemQuantity = currentOrderItem ? currentOrderItem.quantity : order.quantity
+      const itemPriority = currentOrderItem ? currentOrderItem.priority : order.priority
+
       for (const step of assemblyProcessSteps) {
-        const jobCardNo = `JC-${order.orderNo}-ASSY-${String(step.stepNo).padStart(2, '0')}`
+        // Include item sequence in job card number for multi-product orders
+        const itemSeqSuffix = currentOrderItem ? `-${currentOrderItem.itemSequence}` : ''
+        const jobCardNo = `JC-${order.orderNo}${itemSeqSuffix}-ASSY-${String(step.stepNo).padStart(2, '0')}`
 
         const payload: CreateJobCardPayload = {
           jobCardNo,
           creationType: 'auto',
           orderId: order.id,
           orderNo: order.orderNo,
+          orderItemId: currentOrderItem?.id || null,
+          itemSequence: currentOrderItem?.itemSequence || null,
           drawingId: null,
           drawingNumber: productTemplate.drawingNumber || null,
           drawingRevision: productTemplate.drawingRevision || null,
@@ -714,8 +868,8 @@ export default function GenerateJobCardsPage() {
           processName: step.processName || null,
           stepNo: step.stepNo,
           processTemplateId: productTemplate.processTemplateId,
-          quantity: order.quantity,
-          priority: order.priority,
+          quantity: itemQuantity,
+          priority: itemPriority,
           manufacturingDimensions: null,
           createdBy: 'Admin',
         }
@@ -795,6 +949,8 @@ export default function GenerateJobCardsPage() {
               materialName: material.rawMaterialName,
               materialGrade: material.materialGrade || '',
               quantityRequired: material.requiredQuantity,
+              lengthRequiredMM: material.lengthPerPiece, // Per-piece requirement (e.g., 300mm)
+              numberOfPieces: material.numberOfPieces, // Total pieces (e.g., 2)
               uom: material.unit,
               jobCardId: jobCard.jobCardId,
               jobCardNo: jobCard.jobCardNo,
@@ -831,11 +987,13 @@ export default function GenerateJobCardsPage() {
           requisitionDate,
           orderId: order.id,
           orderNo: order.orderNo,
+          orderItemId: currentOrderItem?.id || undefined,
+          itemSequence: currentOrderItem?.itemSequence || undefined,
           customerName: order.customerName || undefined,
-          priority: order.priority || 'Medium',
-          dueDate: order.dueDate,
+          priority: (currentOrderItem ? currentOrderItem.priority : order.priority) || 'Medium',
+          dueDate: currentOrderItem ? currentOrderItem.dueDate : order.dueDate,
           requestedBy: 'Planning',
-          remarks: `Auto-generated from job card planning for order ${order.orderNo}`,
+          remarks: `Auto-generated from job card planning for order ${order.orderNo}${currentOrderItem ? `-${currentOrderItem.itemSequence}` : ''}`,
           createdBy: 'Admin',
           items: requisitionItems
         }
@@ -934,9 +1092,11 @@ export default function GenerateJobCardsPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-sm sm:text-lg">{order.orderNo}</Badge>
-              <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
-                {order.priority}
+              <Badge variant="outline" className="text-sm sm:text-lg">
+                {order.orderNo}{currentOrderItem ? `-${currentOrderItem.itemSequence}` : ''}
+              </Badge>
+              <Badge variant={(currentOrderItem ? currentOrderItem.priority : order.priority) === 'Urgent' ? 'destructive' : 'outline'}>
+                {currentOrderItem ? currentOrderItem.priority : order.priority}
               </Badge>
             </div>
           </div>
@@ -945,19 +1105,198 @@ export default function GenerateJobCardsPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
             <div>
               <span className="text-muted-foreground">Quantity:</span>
-              <span className="ml-2 font-medium">{order.quantity} pcs</span>
+              <span className="ml-2 font-medium">{currentOrderItem ? currentOrderItem.quantity : order.quantity} pcs</span>
             </div>
             <div>
               <span className="text-muted-foreground">Due Date:</span>
-              <span className="ml-2 font-medium">{formatDate(order.dueDate)}</span>
+              <span className="ml-2 font-medium">{formatDate(currentOrderItem ? currentOrderItem.dueDate : order.dueDate)}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Child Parts:</span>
               <span className="ml-2 font-medium">{childPartItems.length}</span>
             </div>
           </div>
+          <div className="mt-4 pt-3 border-t">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Drawing Review:</span>
+              <Badge
+                variant={order.drawingReviewStatus === 'Approved' ? 'default' : 'destructive'}
+                className={order.drawingReviewStatus === 'Approved' ? 'bg-green-600' : ''}
+              >
+                {order.drawingReviewStatus}
+              </Badge>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Product Drawings */}
+      {(assemblyDrawing || childPartDrawings.length > 0) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Product Drawings
+            </CardTitle>
+            <CardDescription>
+              View or download approved drawings for this product
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Part Name</TableHead>
+                    <TableHead>Drawing Number</TableHead>
+                    <TableHead>File Name</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Assembly Drawing */}
+                  {assemblyDrawing && (
+                    <TableRow>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                          Assembly Drawing
+                        </div>
+                      </TableCell>
+                      <TableCell>{assemblyDrawing.drawingNumber || '-'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {assemblyDrawing.fileName || '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (assemblyDrawing.fileUrl && assemblyDrawing.fileType) {
+                                setViewingDrawing({
+                                  fileName: assemblyDrawing.fileName || assemblyDrawing.drawingName,
+                                  fileType: assemblyDrawing.fileType,
+                                  fileUrl: assemblyDrawing.fileUrl,
+                                })
+                              }
+                            }}
+                            disabled={!assemblyDrawing.fileUrl}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (assemblyDrawing.fileUrl) {
+                                const link = document.createElement('a')
+                                link.href = assemblyDrawing.fileUrl
+                                link.download = assemblyDrawing.fileName || assemblyDrawing.drawingName
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                              }
+                            }}
+                            disabled={!assemblyDrawing.fileUrl}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {/* Child Part Drawings */}
+                  {childPartDrawings.length > 0 && (
+                    <>
+                      <TableRow className="bg-muted/50">
+                        <TableCell colSpan={4} className="font-medium text-sm">
+                          Child Part Drawings
+                        </TableCell>
+                      </TableRow>
+                      {childPartDrawings.map((drawing) => (
+                        <TableRow key={drawing.id}>
+                          <TableCell>{drawing.childPartTemplateName || 'Unknown Part'}</TableCell>
+                          <TableCell>{drawing.drawingNumber || '-'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {drawing.fileName || '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (drawing.fileUrl && drawing.fileType) {
+                                    setViewingDrawing({
+                                      fileName: drawing.fileName || drawing.drawingName || 'Drawing',
+                                      fileType: drawing.fileType,
+                                      fileUrl: drawing.fileUrl,
+                                    })
+                                  }
+                                }}
+                                disabled={!drawing.fileUrl}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (drawing.fileUrl) {
+                                    const link = document.createElement('a')
+                                    link.href = drawing.fileUrl
+                                    link.download = drawing.fileName || drawing.drawingName || 'drawing'
+                                    document.body.appendChild(link)
+                                    link.click()
+                                    document.body.removeChild(link)
+                                  }
+                                }}
+                                disabled={!drawing.fileUrl}
+                              >
+                                <Download className="h-4 w-4 mr-1" />
+                                Download
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Empty State */}
+                  {!assemblyDrawing && childPartDrawings.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        No drawings available for this product
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Drawing Review Alert */}
+      {order.drawingReviewStatus !== 'Approved' && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-5 w-5" />
+          <AlertDescription>
+            <strong>Drawing Review Required:</strong> This order cannot proceed to planning until the drawing is reviewed and approved.
+            Current status: <strong>{order.drawingReviewStatus}</strong>
+            {order.drawingReviewStatus === 'Pending' && ' - Awaiting review'}
+            {order.drawingReviewStatus === 'UnderReview' && ' - Currently under review'}
+            {order.drawingReviewStatus === 'Rejected' && ' - Drawing has been rejected, revisions needed'}
+            {order.drawingReviewStatus === 'RevisionRequired' && ' - Revisions required before approval'}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Material Alert */}
       {!allMaterialsAvailable && (
@@ -1096,11 +1435,10 @@ export default function GenerateJobCardsPage() {
                   </div>
 
                   {/* Editable Material Requirements */}
-                  {item.childPartTemplate && (() => {
+                  {item.childPartTemplate && !isPurchased && (() => {
                     const materials = getChildPartMaterials(item.childPartTemplate.id, item.bomItem.childPartTemplateName)
-                    const hasMaterials = materials.length > 0 || item.childPartTemplate.materialRequirements?.length === 0
 
-                    return hasMaterials && (
+                    return (
                       <div className="p-3 rounded-md border border-blue-200 bg-blue-50/50">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1151,7 +1489,8 @@ export default function GenerateJobCardsPage() {
                               </thead>
                               <tbody>
                                 {materials.map((material) => {
-                                  const scaledQty = material.requiredQuantity * (order?.quantity || 1) * item.bomItem.quantity
+                                  const itemQuantity = currentOrderItem ? currentOrderItem.quantity : (order?.quantity || 1)
+                                  const scaledQty = material.requiredQuantity * itemQuantity * item.bomItem.quantity
                                   const totalWithWastage = scaledQty * (1 + (material.wastagePercent || 0) / 100)
 
                                   return (
@@ -1229,7 +1568,7 @@ export default function GenerateJobCardsPage() {
                                             placeholder="unit"
                                           />
                                         </div>
-                                        <div className="text-gray-500 text-xs mt-0.5">× {order?.quantity || 1} × {item.bomItem.quantity}</div>
+                                        <div className="text-gray-500 text-xs mt-0.5">× {itemQuantity} × {item.bomItem.quantity}</div>
                                       </td>
                                       <td className="p-2">
                                         <input
@@ -1716,7 +2055,7 @@ export default function GenerateJobCardsPage() {
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button
               onClick={handleGenerateJobCards}
-              disabled={partsWithoutProcesses.length > 0}
+              disabled={order.drawingReviewStatus !== 'Approved' || partsWithoutProcesses.length > 0}
               className="flex-1"
               size="lg"
             >
@@ -1728,7 +2067,16 @@ export default function GenerateJobCardsPage() {
             </Button>
           </div>
 
-          {partsWithoutProcesses.length > 0 && (
+          {order.drawingReviewStatus !== 'Approved' && (
+            <Alert className="mt-4" variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Drawing must be reviewed and approved before job cards can be generated. Current status: <strong>{order.drawingReviewStatus}</strong>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {order.drawingReviewStatus === 'Approved' && partsWithoutProcesses.length > 0 && (
             <Alert className="mt-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">
@@ -1766,6 +2114,39 @@ export default function GenerateJobCardsPage() {
           onConfirm={handlePieceSelectionConfirm}
         />
       )}
+
+      {/* Drawing Viewer Modal */}
+      <Dialog open={viewingDrawing !== null} onOpenChange={(open) => !open && setViewingDrawing(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>View Drawing</DialogTitle>
+            <DialogDescription>
+              {viewingDrawing?.fileName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {viewingDrawing && (
+              <div className="w-full h-full min-h-[500px] bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden">
+                {viewingDrawing.fileType === 'pdf' ? (
+                  <iframe
+                    src={viewingDrawing.fileUrl}
+                    className="w-full h-full min-h-[500px]"
+                    title={viewingDrawing.fileName}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center p-4 h-full">
+                    <img
+                      src={viewingDrawing.fileUrl}
+                      alt={viewingDrawing.fileName}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

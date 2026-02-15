@@ -3,6 +3,36 @@ import { Customer } from './customer'
 import { Product } from './product'
 import { ChildPartStatus } from './child-part-production'
 
+// Order item for multi-product orders
+export interface OrderItem {
+  id: number
+  orderId: number
+  itemSequence: string  // A, B, C, D...
+  productId: number
+  productName?: string
+  partCode?: string
+  quantity: number
+  originalQuantity: number
+  qtyCompleted: number
+  qtyRejected: number
+  qtyInProgress: number
+  qtyScrap: number
+  dueDate: string
+  adjustedDueDate?: string | null
+  priority: Priority
+  status: string
+  primaryDrawingId?: number | null  // DEPRECATED: Moving to Product level
+  linkedProductTemplateId?: number | null
+  materialGradeApproved: boolean
+  materialGradeApprovalDate?: string | null
+  materialGradeApprovedBy?: string | null
+  materialGradeRemark?: string | null
+  createdAt: string
+  createdBy?: string
+  updatedAt?: string | null
+  updatedBy?: string | null
+}
+
 export interface Order {
   id: string
   orderNo: string
@@ -72,6 +102,9 @@ export interface Order {
   materialGradeApprovalDate?: Date | null
   materialGradeNotes?: string | null
   alternativeMaterialsConsidered?: AlternativeMaterial[]
+
+  // Multi-product support
+  items?: OrderItem[]
 }
 
 export interface ProcessHistory {

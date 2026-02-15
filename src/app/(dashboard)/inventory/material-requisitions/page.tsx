@@ -213,10 +213,15 @@ export default function MaterialRequisitionsPage() {
       {
         accessorKey: 'orderNo',
         header: 'Order No',
-        size: 130,
-        Cell: ({ cell }) => (
-          <span className="font-medium">{cell.getValue<string>() || "-"}</span>
-        ),
+        size: 150,
+        Cell: ({ row }) => {
+          const orderNo = row.original.orderNo;
+          const itemSequence = row.original.itemSequence;
+          const fullOrderRef = orderNo + (itemSequence ? `-${itemSequence}` : '');
+          return (
+            <span className="font-medium">{fullOrderRef || "-"}</span>
+          );
+        },
       },
       {
         accessorKey: 'customerName',

@@ -13,9 +13,30 @@ import { jobCardService, JobCardResponse } from '@/lib/api/job-cards'
 import { formatDate } from '@/lib/utils/formatters'
 import { toast } from 'sonner'
 
+// Flatten OrderItems with order context for display
+interface OrderItemWithContext {
+  orderId: number
+  orderNo: string
+  orderStatus: string
+  orderPriority: string
+  customerName?: string
+  itemId: number
+  itemSequence: string
+  productId: number
+  productName?: string
+  partCode?: string
+  quantity: number
+  dueDate: string
+  itemPriority: string
+  itemStatus: string
+  drawingReviewStatus?: string
+  planningStatus?: string
+}
+
 export function PlanningDashboardTab() {
   const [loading, setLoading] = useState(true)
   const [orders, setOrders] = useState<OrderResponse[]>([])
+  const [orderItems, setOrderItems] = useState<OrderItemWithContext[]>([])
   const [jobCards, setJobCards] = useState<JobCardResponse[]>([])
 
   useEffect(() => {
@@ -31,6 +52,55 @@ export function PlanningDashboardTab() {
       ])
       setOrders(ordersData)
       setJobCards(jobCardsData)
+
+      // Flatten OrderItems from all orders with context
+      const flattenedItems: OrderItemWithContext[] = []
+      ordersData.forEach(order => {
+        if (order.items && order.items.length > 0) {
+          // Multi-product order: add each item
+          order.items.forEach(item => {
+            flattenedItems.push({
+              orderId: order.id,
+              orderNo: order.orderNo,
+              orderStatus: order.status,
+              orderPriority: order.priority,
+              customerName: order.customerName,
+              itemId: item.id,
+              itemSequence: item.itemSequence,
+              productId: item.productId,
+              productName: item.productName,
+              partCode: item.partCode,
+              quantity: item.quantity,
+              dueDate: item.dueDate,
+              itemPriority: item.priority,
+              itemStatus: item.status,
+              drawingReviewStatus: order.drawingReviewStatus,
+              planningStatus: order.planningStatus
+            })
+          })
+        } else {
+          // Legacy single-product order: create single item
+          flattenedItems.push({
+            orderId: order.id,
+            orderNo: order.orderNo,
+            orderStatus: order.status,
+            orderPriority: order.priority,
+            customerName: order.customerName,
+            itemId: 0, // Legacy orders don't have itemId
+            itemSequence: 'A', // Default sequence
+            productId: order.productId,
+            productName: order.productName,
+            partCode: order.productCode,
+            quantity: order.quantity,
+            dueDate: order.dueDate,
+            itemPriority: order.priority,
+            itemStatus: order.status,
+            drawingReviewStatus: order.drawingReviewStatus,
+            planningStatus: order.planningStatus
+          })
+        }
+      })
+      setOrderItems(flattenedItems)
     } catch (error) {
       toast.error('Failed to load planning data', {
         description: error instanceof Error ? error.message : 'An error occurred'
@@ -40,15 +110,15 @@ export function PlanningDashboardTab() {
     }
   }
 
-  // Orders ready for planning: drawing review approved + not yet planned
-  const pendingPlanningOrders = orders.filter(order =>
-    order.drawingReviewStatus === 'Approved' &&
-    order.planningStatus === 'Not Planned'
+  // Items ready for planning: order drawing approved + not yet planned
+  const pendingPlanningItems = orderItems.filter(item =>
+    item.drawingReviewStatus === 'Approved' &&
+    item.planningStatus === 'Not Planned'
   )
 
-  // Orders that are planned or released
-  const plannedOrders = orders.filter(order =>
-    order.planningStatus === 'Planned' || order.planningStatus === 'Released'
+  // Items that are planned or released
+  const plannedItems = orderItems.filter(item =>
+    item.planningStatus === 'Planned' || item.planningStatus === 'Released'
   )
 
   // Job cards pending material
@@ -59,8 +129,8 @@ export function PlanningDashboardTab() {
   // Stats
   const stats = {
     totalOrders: orders.length,
-    pendingPlanning: pendingPlanningOrders.length,
-    planned: plannedOrders.length,
+    pendingPlanning: pendingPlanningItems.length,
+    planned: plannedItems.length,
     materialShortage: materialPendingJobCards.length
   }
 
@@ -184,63 +254,63 @@ export function PlanningDashboardTab() {
         </Card>
       )}
 
-      {/* Pending Planning Orders */}
+      {/* Pending Planning Items */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Orders Pending Planning</CardTitle>
+              <CardTitle>Items Pending Planning</CardTitle>
               <CardDescription>
-                Orders without job cards - ready for planning
+                Order items without job cards - ready for planning
               </CardDescription>
             </div>
             <Badge variant="outline">
-              {pendingPlanningOrders.length}
+              {pendingPlanningItems.length}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          {pendingPlanningOrders.length === 0 ? (
+          {pendingPlanningItems.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-600" />
-              <p>All orders have been planned!</p>
-              <p className="text-sm mt-1">No orders awaiting job card generation</p>
+              <p>All items have been planned!</p>
+              <p className="text-sm mt-1">No items awaiting job card generation</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {pendingPlanningOrders.map((order) => (
+              {pendingPlanningItems.map((item) => (
                 <div
-                  key={order.id}
+                  key={`${item.orderId}-${item.itemSequence}`}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <p className="font-semibold">{order.orderNo}</p>
-                      <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
-                        {order.priority}
+                      <p className="font-semibold">{item.orderNo}-{item.itemSequence}</p>
+                      <Badge variant={item.itemPriority === 'Urgent' ? 'destructive' : 'outline'}>
+                        {item.itemPriority}
                       </Badge>
-                      <Badge variant="outline">{order.status}</Badge>
+                      <Badge variant="outline">{item.itemStatus}</Badge>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customerName}</span>
+                        <span className="ml-2">{item.customerName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.productName}</span>
+                        <span className="ml-2">{item.partCode || item.productName}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Quantity:</span>
-                        <span className="ml-2">{order.quantity} pcs</span>
+                        <span className="ml-2">{item.quantity} pcs</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Due Date:</span>
-                        <span className="ml-2">{formatDate(order.dueDate)}</span>
+                        <span className="ml-2">{formatDate(item.dueDate)}</span>
                       </div>
                     </div>
                   </div>
-                  <Link href={`/planning/generate-job-cards/${order.id}`}>
+                  <Link href={`/planning/generate-job-cards/${item.orderId}?itemId=${item.itemId}&itemSequence=${item.itemSequence}`}>
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
                       Generate Job Cards
@@ -253,48 +323,52 @@ export function PlanningDashboardTab() {
         </CardContent>
       </Card>
 
-      {/* Planned Orders */}
+      {/* Planned Items */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Planned Orders</CardTitle>
+              <CardTitle>Planned Items</CardTitle>
               <CardDescription>
-                Orders with job cards generated
+                Order items with job cards generated
               </CardDescription>
             </div>
             <Badge variant="outline">
-              {plannedOrders.length}
+              {plannedItems.length}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          {plannedOrders.length === 0 ? (
+          {plannedItems.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-3" />
-              <p>No planned orders yet</p>
-              <p className="text-sm mt-1">Generate job cards for orders above</p>
+              <p>No planned items yet</p>
+              <p className="text-sm mt-1">Generate job cards for items above</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {plannedOrders.map((order) => {
-                const orderJobCards = jobCards.filter(jc => jc.orderId === order.id)
-                const completedJobCards = orderJobCards.filter(jc => jc.status === 'Completed')
-                const progress = orderJobCards.length > 0
-                  ? Math.round((completedJobCards.length / orderJobCards.length) * 100)
+              {plannedItems.map((item) => {
+                // Filter job cards by OrderId AND ItemSequence
+                const itemJobCards = jobCards.filter(jc =>
+                  jc.orderId === item.orderId &&
+                  (jc.itemSequence === item.itemSequence || item.itemId === 0) // Legacy orders don't have itemSequence
+                )
+                const completedJobCards = itemJobCards.filter(jc => jc.status === 'Completed')
+                const progress = itemJobCards.length > 0
+                  ? Math.round((completedJobCards.length / itemJobCards.length) * 100)
                   : 0
 
                 return (
                   <div
-                    key={order.id}
+                    key={`${item.orderId}-${item.itemSequence}`}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
-                        <p className="font-semibold">{order.orderNo}</p>
-                        <Badge variant="outline">{order.customerName}</Badge>
+                        <p className="font-semibold">{item.orderNo}-{item.itemSequence}</p>
+                        <Badge variant="outline">{item.customerName}</Badge>
                         <Badge variant="secondary">
-                          {orderJobCards.length} job cards
+                          {itemJobCards.length} job cards
                         </Badge>
                         {progress === 100 && (
                           <Badge className="bg-green-600">
@@ -306,21 +380,21 @@ export function PlanningDashboardTab() {
                       <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Product:</span>
-                          <span className="ml-2">{order.productName}</span>
+                          <span className="ml-2">{item.partCode || item.productName}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Progress:</span>
-                          <span className="ml-2">{completedJobCards.length} / {orderJobCards.length} complete ({progress}%)</span>
+                          <span className="ml-2">{completedJobCards.length} / {itemJobCards.length} complete ({progress}%)</span>
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Link href={`/planning/job-cards?orderId=${order.id}`}>
+                      <Link href={`/planning/job-cards?orderId=${item.orderId}&itemSequence=${item.itemSequence}`}>
                         <Button variant="outline" size="sm">
                           View Job Cards
                         </Button>
                       </Link>
-                      <Link href={`/orders/${order.id}`}>
+                      <Link href={`/orders/${item.orderId}`}>
                         <Button variant="outline" size="sm">
                           View Order
                         </Button>

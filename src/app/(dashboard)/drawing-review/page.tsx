@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { FileText, CheckCircle2, Clock, AlertTriangle, Eye } from 'lucide-react'
+import { FileText, CheckCircle2, Clock, AlertTriangle, Eye, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { orderService, OrderResponse } from '@/lib/api/orders'
+import { productService } from '@/lib/api/products'
+import { Product } from '@/types/product'
 import { formatDate } from '@/lib/utils/formatters'
 
 export default function DrawingReviewDashboardPage() {
   const [loading, setLoading] = useState(true)
-  const [orders, setOrders] = useState<OrderResponse[]>([])
+  const [products, setProducts] = useState<Product[]>([])
 
   useEffect(() => {
     loadData()
@@ -21,50 +22,55 @@ export default function DrawingReviewDashboardPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const data = await orderService.getAll()
-      setOrders(data)
+      const data = await productService.getAll()
+      setProducts(data)
     } catch (err) {
-      console.error('Failed to load orders:', err)
+      console.error('Failed to load products:', err)
     }
     setLoading(false)
   }
 
-  // Filter orders by drawing review status
-  const pendingReviewOrders = orders.filter(order =>
-    order.drawingReviewStatus === 'Pending' &&
-    (order.status === 'Pending' || order.status === 'In Progress')
+  // Filter products by drawing review status
+  const pendingReviewProducts = products.filter(product =>
+    product.drawingReviewStatus === 'Pending'
   )
 
-  const inReviewOrders = orders.filter(order =>
-    order.drawingReviewStatus === 'In Review'
+  const underReviewProducts = products.filter(product =>
+    product.drawingReviewStatus === 'UnderReview'
   )
 
-  const needsRevisionOrders = orders.filter(order =>
-    order.drawingReviewStatus === 'Needs Revision'
+  const revisionRequiredProducts = products.filter(product =>
+    product.drawingReviewStatus === 'RevisionRequired'
   )
 
-  const approvedOrders = orders.filter(order =>
-    order.drawingReviewStatus === 'Approved'
+  const rejectedProducts = products.filter(product =>
+    product.drawingReviewStatus === 'Rejected'
+  )
+
+  const approvedProducts = products.filter(product =>
+    product.drawingReviewStatus === 'Approved'
   )
 
   // Stats
   const stats = {
-    totalPending: pendingReviewOrders.length,
-    inReview: inReviewOrders.length,
-    needsRevision: needsRevisionOrders.length,
-    approved: approvedOrders.length
+    totalPending: pendingReviewProducts.length,
+    underReview: underReviewProducts.length,
+    revisionRequired: revisionRequiredProducts.length + rejectedProducts.length,
+    approved: approvedProducts.length
   }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Pending':
         return <Badge variant="outline" className="border-gray-500 text-gray-700">Pending</Badge>
-      case 'In Review':
-        return <Badge variant="outline" className="border-blue-500 text-blue-700">In Review</Badge>
+      case 'UnderReview':
+        return <Badge variant="outline" className="border-blue-500 text-blue-700">Under Review</Badge>
       case 'Approved':
         return <Badge variant="outline" className="border-green-500 text-green-700">Approved</Badge>
-      case 'Needs Revision':
-        return <Badge variant="outline" className="border-orange-500 text-orange-700">Needs Revision</Badge>
+      case 'Rejected':
+        return <Badge variant="outline" className="border-red-500 text-red-700">Rejected</Badge>
+      case 'RevisionRequired':
+        return <Badge variant="outline" className="border-orange-500 text-orange-700">Revision Required</Badge>
       default:
         return null
     }
@@ -86,6 +92,16 @@ export default function DrawingReviewDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Product Drawing Review</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage and approve product drawings before production planning
+          </p>
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
@@ -95,29 +111,29 @@ export default function DrawingReviewDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalPending}</div>
-            <p className="text-xs text-muted-foreground">Awaiting review</p>
+            <p className="text-xs text-muted-foreground">Awaiting drawing upload</p>
           </CardContent>
         </Card>
 
         <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Review</CardTitle>
+            <CardTitle className="text-sm font-medium">Under Review</CardTitle>
             <Clock className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.inReview}</div>
+            <div className="text-2xl font-bold">{stats.underReview}</div>
             <p className="text-xs text-muted-foreground">Currently reviewing</p>
           </CardContent>
         </Card>
 
         <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Needs Revision</CardTitle>
+            <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.needsRevision}</div>
-            <p className="text-xs text-muted-foreground">Requires changes</p>
+            <div className="text-2xl font-bold">{stats.revisionRequired}</div>
+            <p className="text-xs text-muted-foreground">Revision/Rejected</p>
           </CardContent>
         </Card>
 
@@ -133,66 +149,63 @@ export default function DrawingReviewDashboardPage() {
         </Card>
       </div>
 
-      {/* Pending Review Orders */}
+      {/* Pending Review Products */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Orders Pending Drawing Review</CardTitle>
+              <CardTitle>Products Pending Drawing Review</CardTitle>
               <CardDescription>
-                New orders awaiting drawing review and template linkage
+                Products awaiting drawing upload and linkage
               </CardDescription>
             </div>
             <Badge variant="outline">
-              {pendingReviewOrders.length}
+              {pendingReviewProducts.length}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          {pendingReviewOrders.length === 0 ? (
+          {pendingReviewProducts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-600" />
-              <p>All orders have been reviewed!</p>
-              <p className="text-sm mt-1">No orders awaiting drawing review</p>
+              <p>All products have been reviewed!</p>
+              <p className="text-sm mt-1">No products awaiting drawing review</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {pendingReviewOrders.map((order) => (
+              {pendingReviewProducts.map((product) => (
                 <div
-                  key={order.id}
+                  key={product.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <p className="font-semibold">{order.orderNo}</p>
-                      <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
-                        {order.priority}
-                      </Badge>
-                      {getStatusBadge(order.drawingReviewStatus)}
+                      <p className="font-semibold">{product.partCode}</p>
+                      {getStatusBadge(product.drawingReviewStatus)}
                     </div>
-                    <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customerName}</span>
+                        <span className="ml-2">{product.customerName}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.productName}</span>
+                        <span className="text-muted-foreground">Model:</span>
+                        <span className="ml-2">{product.modelName}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Quantity:</span>
-                        <span className="ml-2">{order.quantity} pcs</span>
+                        <span className="text-muted-foreground">Type:</span>
+                        <span className="ml-2">{product.rollerType}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Due Date:</span>
-                        <span className="ml-2">{formatDate(order.dueDate)}</span>
+                        <span className="text-muted-foreground">Created:</span>
+                        <span className="ml-2">{formatDate(product.createdAt)}</span>
                       </div>
                     </div>
                   </div>
-                  <Link href={`/drawing-review/review/${order.id}`}>
+                  <Link href={`/drawing-review/products/${product.id}`}>
                     <Button>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Review Drawing
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Drawing
                     </Button>
                   </Link>
                 </div>
@@ -202,58 +215,55 @@ export default function DrawingReviewDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* In Review Orders */}
-      {inReviewOrders.length > 0 && (
+      {/* Under Review Products */}
+      {underReviewProducts.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Orders In Review</CardTitle>
+                <CardTitle>Products Under Review</CardTitle>
                 <CardDescription>
                   Currently being reviewed by engineering team
                 </CardDescription>
               </div>
               <Badge variant="outline">
-                {inReviewOrders.length}
+                {underReviewProducts.length}
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {inReviewOrders.map((order) => (
+              {underReviewProducts.map((product) => (
                 <div
-                  key={order.id}
+                  key={product.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <p className="font-semibold">{order.orderNo}</p>
-                      <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
-                        {order.priority}
-                      </Badge>
-                      {getStatusBadge(order.drawingReviewStatus)}
+                      <p className="font-semibold">{product.partCode}</p>
+                      {getStatusBadge(product.drawingReviewStatus)}
                     </div>
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customerName}</span>
+                        <span className="ml-2">{product.customerName}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.productName}</span>
+                        <span className="text-muted-foreground">Model:</span>
+                        <span className="ml-2">{product.modelName}</span>
                       </div>
-                      {order.drawingReviewNotes && (
+                      {product.drawingReviewNotes && (
                         <div className="col-span-3">
                           <span className="text-muted-foreground">Notes:</span>
-                          <span className="ml-2 text-xs">{order.drawingReviewNotes}</span>
+                          <span className="ml-2 text-xs">{product.drawingReviewNotes}</span>
                         </div>
                       )}
                     </div>
                   </div>
-                  <Link href={`/drawing-review/review/${order.id}`}>
+                  <Link href={`/drawing-review/products/${product.id}/upload-drawings`}>
                     <Button variant="outline">
-                      <Eye className="mr-2 h-4 w-4" />
-                      Continue Review
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Drawings
                     </Button>
                   </Link>
                 </div>
@@ -263,55 +273,52 @@ export default function DrawingReviewDashboardPage() {
         </Card>
       )}
 
-      {/* Needs Revision Orders */}
-      {needsRevisionOrders.length > 0 && (
+      {/* Revision Required / Rejected Products */}
+      {(revisionRequiredProducts.length > 0 || rejectedProducts.length > 0) && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Orders Needing Revision</CardTitle>
+                <CardTitle>Products Needing Attention</CardTitle>
                 <CardDescription>
-                  Drawings require modifications before approval
+                  Drawings require modifications or have been rejected
                 </CardDescription>
               </div>
               <Badge variant="destructive">
-                {needsRevisionOrders.length}
+                {revisionRequiredProducts.length + rejectedProducts.length}
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {needsRevisionOrders.map((order) => (
+              {[...revisionRequiredProducts, ...rejectedProducts].map((product) => (
                 <div
-                  key={order.id}
+                  key={product.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <p className="font-semibold">{order.orderNo}</p>
-                      <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
-                        {order.priority}
-                      </Badge>
-                      {getStatusBadge(order.drawingReviewStatus)}
+                      <p className="font-semibold">{product.partCode}</p>
+                      {getStatusBadge(product.drawingReviewStatus)}
                     </div>
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{order.customerName}</span>
+                        <span className="ml-2">{product.customerName}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.productName}</span>
+                        <span className="text-muted-foreground">Model:</span>
+                        <span className="ml-2">{product.modelName}</span>
                       </div>
-                      {order.drawingReviewNotes && (
+                      {product.drawingReviewNotes && (
                         <div className="col-span-3">
                           <span className="text-muted-foreground">Revision Notes:</span>
-                          <span className="ml-2 text-xs text-orange-700">{order.drawingReviewNotes}</span>
+                          <span className="ml-2 text-xs text-orange-700">{product.drawingReviewNotes}</span>
                         </div>
                       )}
                     </div>
                   </div>
-                  <Link href={`/drawing-review/review/${order.id}`}>
+                  <Link href={`/drawing-review/products/${product.id}`}>
                     <Button variant="outline">
                       View Details
                     </Button>
@@ -323,66 +330,66 @@ export default function DrawingReviewDashboardPage() {
         </Card>
       )}
 
-      {/* Recently Approved Orders */}
+      {/* Recently Approved Products */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Recently Approved Orders</CardTitle>
+              <CardTitle>Recently Approved Products</CardTitle>
               <CardDescription>
-                Drawings approved and ready for planning
+                Drawings approved and ready for production planning
               </CardDescription>
             </div>
             <Badge variant="outline">
-              {approvedOrders.length}
+              {approvedProducts.length}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          {approvedOrders.length === 0 ? (
+          {approvedProducts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-3" />
-              <p>No approved orders yet</p>
-              <p className="text-sm mt-1">Review and approve orders above</p>
+              <p>No approved products yet</p>
+              <p className="text-sm mt-1">Review and approve products above</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {approvedOrders.slice(0, 5).map((order) => (
+              {approvedProducts.slice(0, 10).map((product) => (
                 <div
-                  key={order.id}
+                  key={product.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <p className="font-semibold">{order.orderNo}</p>
-                      <Badge variant="outline">{order.customerName}</Badge>
-                      {getStatusBadge(order.drawingReviewStatus)}
-                      {order.linkedProductTemplateId && (
+                      <p className="font-semibold">{product.partCode}</p>
+                      <Badge variant="outline">{product.customerName}</Badge>
+                      {getStatusBadge(product.drawingReviewStatus)}
+                      {product.assemblyDrawingId && (
                         <Badge variant="secondary" className="text-xs">
-                          Template Linked
+                          Drawings Linked
                         </Badge>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
+                    <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div>
-                        <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{order.productName}</span>
+                        <span className="text-muted-foreground">Model:</span>
+                        <span className="ml-2">{product.modelName}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Type:</span>
+                        <span className="ml-2">{product.rollerType}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Reviewed By:</span>
-                        <span className="ml-2">{order.drawingReviewedBy || 'N/A'}</span>
+                        <span className="ml-2">{product.drawingReviewedBy || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Link href={`/drawing-review/review/${order.id}`}>
+                    <Link href={`/drawing-review/products/${product.id}`}>
                       <Button variant="outline" size="sm">
+                        <Eye className="mr-2 h-4 w-4" />
                         View Details
-                      </Button>
-                    </Link>
-                    <Link href={`/orders/${order.id}`}>
-                      <Button variant="outline" size="sm">
-                        View Order
                       </Button>
                     </Link>
                   </div>

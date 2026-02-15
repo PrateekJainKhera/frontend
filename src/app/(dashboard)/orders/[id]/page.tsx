@@ -412,7 +412,7 @@ export default function OrderDetailPage() {
                 <span className="text-sm text-muted-foreground">Status:</span>
                 <Badge variant={
                   order.drawingReviewStatus === 'Approved' ? 'default' :
-                  order.drawingReviewStatus === 'Needs Revision' ? 'destructive' : 'secondary'
+                  order.drawingReviewStatus === 'RevisionRequired' ? 'destructive' : 'secondary'
                 }>
                   {order.drawingReviewStatus}
                 </Badge>

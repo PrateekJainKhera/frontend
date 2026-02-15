@@ -135,6 +135,25 @@ class ScheduleService {
   }
 
   /**
+   * Get full scheduling tree for an order item: OrderItem → ChildPart groups → Process steps
+   * For multi-product orders (e.g., ORD-007-A)
+   */
+  async getOrderItemSchedulingTree(orderItemId: number): Promise<OrderSchedulingTree> {
+    try {
+      const response = await apiClient.get<ApiResponse<OrderSchedulingTree>>(
+        `${this.baseUrl}/order-item/${orderItemId}/tree`
+      )
+      if (!response.data.data) throw new Error('Order item scheduling tree not found')
+      return response.data.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch order item scheduling tree: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  /**
    * Create a new schedule
    */
   async create(data: CreateScheduleRequest): Promise<number> {

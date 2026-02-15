@@ -36,6 +36,7 @@ import { orderService } from '@/lib/api/orders'
 import { Separator } from '@/components/ui/separator'
 import { CreateCustomerDialog } from '@/components/forms/create-customer-dialog'
 import { CreateProductDialog } from '@/components/forms/create-product-dialog'
+import { ProductSearchDialog } from '@/components/dialogs/product-search-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 
@@ -48,12 +49,16 @@ const DRAWING_SOURCES = [
 
 type DrawingSource = typeof DRAWING_SOURCES[number]['value']
 
+// Order item type for multi-product orders
+interface OrderItem {
+  product: Product
+  quantity: number
+  dueDate: string
+  priority: Priority
+}
+
 const formSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
-  productId: z.string().min(1, 'Product is required'),
-  quantity: z.number().min(1, 'Quantity must be at least 1'),
-  priority: z.nativeEnum(Priority),
-  dueDate: z.string().min(1, 'Due date is required'),
   orderSource: z.nativeEnum(OrderSource),
   agentCustomerId: z.string().optional(),
   schedulingStrategy: z.nativeEnum(SchedulingStrategy),
@@ -71,13 +76,16 @@ type FormData = z.infer<typeof formSchema>
 export default function CreateOrderPage() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
   const [orderSource, setOrderSource] = useState<OrderSource>(OrderSource.DIRECT)
   const [createCustomerDialogOpen, setCreateCustomerDialogOpen] = useState(false)
   const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false)
+  const [productSearchDialogOpen, setProductSearchDialogOpen] = useState(false)
   const [drawingSource, setDrawingSource] = useState<DrawingSource | ''>('')
   const [selectedMasterDrawingIds, setSelectedMasterDrawingIds] = useState<number[]>([])
+
+  // Multi-product order items
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([])
 
   // Drawings to be uploaded after order creation (customer_provides)
   const [pendingDrawings, setPendingDrawings] = useState<Array<{
@@ -91,19 +99,16 @@ export default function CreateOrderPage() {
 
   // Master data loaded from API
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [products, setProducts] = useState<Product[]>([])
   const [drawings, setDrawings] = useState<DrawingResponse[]>([])
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [c, p, d] = await Promise.all([
+        const [c, d] = await Promise.all([
           customerService.getAll(),
-          productService.getAll(),
           drawingService.getAll(),
         ])
         setCustomers(c)
-        setProducts(p)
         setDrawings(d)
       } catch (err) {
         console.error('Failed to load master data:', err)
@@ -123,10 +128,6 @@ export default function CreateOrderPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerId: '',
-      productId: '',
-      quantity: 1,
-      priority: Priority.MEDIUM,
-      dueDate: getDefaultDueDate(),
       orderSource: OrderSource.DIRECT,
       agentCustomerId: '',
       schedulingStrategy: SchedulingStrategy.DUE_DATE,
@@ -138,16 +139,43 @@ export default function CreateOrderPage() {
     },
   })
 
-  // Filter products by selected customer
-  const filteredProducts = selectedCustomerId
-    ? products.filter(p => {
-      const customer = customers.find(c => c.id === Number(selectedCustomerId))
-      return customer && p.customerName === customer.customerName
-    })
-    : products
-
   // Filter agent customers only
   const agentCustomers = customers.filter(c => c.customerType === 'Agent')
+
+  // Add product to order items
+  const handleAddProduct = (product: Product) => {
+    setOrderItems(prev => [
+      ...prev,
+      {
+        product,
+        quantity: 1,
+        dueDate: getDefaultDueDate(),
+        priority: Priority.MEDIUM,
+      },
+    ])
+    setProductSearchDialogOpen(false)
+  }
+
+  // Remove product from order items
+  const handleRemoveProduct = (productId: number) => {
+    setOrderItems(prev => prev.filter(item => item.product.id !== productId))
+    toast.info('Product removed from order')
+  }
+
+  // Update order item field
+  const handleUpdateItem = (
+    productId: number,
+    field: 'quantity' | 'dueDate' | 'priority',
+    value: number | string | Priority
+  ) => {
+    setOrderItems(prev =>
+      prev.map(item =>
+        item.product.id === productId
+          ? { ...item, [field]: value }
+          : item
+      )
+    )
+  }
 
   // Handle adding a drawing
   const handleAddDrawing = (file: File, drawingName: string, drawingType: string) => {
@@ -162,18 +190,27 @@ export default function CreateOrderPage() {
   }
 
   const onSubmit = async (data: FormData) => {
+    // Validation: at least one product required
+    if (orderItems.length === 0) {
+      toast.error('Please add at least one product to the order')
+      return
+    }
+
     setIsSubmitting(true)
     toast.loading('Creating order...')
 
     try {
+      // Build multi-product payload
       const payload: any = {
-        dueDate: data.dueDate,
         customerId: Number(data.customerId),
-        productId: Number(data.productId),
-        quantity: data.quantity,
-        priority: data.priority,
         orderSource: data.orderSource,
         schedulingStrategy: data.schedulingStrategy,
+        items: orderItems.map(item => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          dueDate: item.dueDate,
+          priority: item.priority,
+        })),
       }
 
       if (data.customerMachine) payload.customerMachine = data.customerMachine
@@ -277,9 +314,8 @@ export default function CreateOrderPage() {
                           onValueChange={(value) => {
                             field.onChange(value)
                             setSelectedCustomerId(value)
-                            // Reset product selection when customer changes
-                            form.setValue('productId', '')
-                            setSelectedProduct(null)
+                            // Clear order items when customer changes
+                            setOrderItems([])
                           }}
                           value={field.value}
                         >
@@ -314,82 +350,134 @@ export default function CreateOrderPage() {
                   )}
                 />
 
-                {/* Product Selection - DROPDOWN ONLY (filtered by customer) */}
-                <FormField
-                  control={form.control}
-                  name="productId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Part Code / Product *</FormLabel>
-                      <div className="flex gap-2">
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value)
-                            const product = products.find(p => p.id === Number(value))
-                            setSelectedProduct(product || null)
-                          }}
-                          value={field.value}
-                          disabled={!selectedCustomerId}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder={
-                                selectedCustomerId
-                                  ? "Select part code"
-                                  : "Select customer first"
-                              } />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {filteredProducts.map((product) => (
-                              <SelectItem key={product.id} value={product.id.toString()}>
-                                {product.partCode} - {product.modelName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setCreateProductDialogOpen(true)}
-                          title="Add New Product"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <FormDescription>
-                        ⚠️ Dropdown only - filtered by selected customer
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Product Details (Auto-display) */}
-                {selectedProduct && (
-                  <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
-                    <p className="font-semibold text-primary">Selected Product Details:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-muted-foreground">Part Code:</span>
-                        <span className="ml-2 font-mono font-semibold">{selectedProduct.partCode}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Roller Type:</span>
-                        <span className="ml-2">{selectedProduct.rollerType}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Dimensions:</span>
-                        <span className="ml-2">⌀{selectedProduct.diameter} × {selectedProduct.length}mm</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Material:</span>
-                        <span className="ml-2">{selectedProduct.materialGrade}</span>
-                      </div>
+                {/* Multi-Product Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <FormLabel>Products *</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Search and add products to this order
+                      </p>
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setProductSearchDialogOpen(true)}
+                      disabled={!selectedCustomerId}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Product
+                    </Button>
                   </div>
-                )}
+
+                  {/* List of selected products */}
+                  {orderItems.length === 0 ? (
+                    <div className="p-8 text-center border border-dashed rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        {selectedCustomerId
+                          ? 'No products added yet. Click "Add Product" to search and add products.'
+                          : 'Please select a customer first'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {orderItems.map((item, index) => (
+                        <div
+                          key={item.product.id}
+                          className="p-4 border rounded-lg space-y-3 bg-card"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-semibold text-sm bg-primary/10 px-2 py-0.5 rounded">
+                                  Item {String.fromCharCode(65 + index)}
+                                </span>
+                                <p className="font-semibold text-sm truncate">
+                                  {item.product.partCode}
+                                </p>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {item.product.modelName} • {item.product.rollerType} • {item.product.numberOfTeeth} teeth
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                ⌀{item.product.diameter}mm × {item.product.length}mm • {item.product.materialGrade}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveProduct(item.product.id)}
+                            >
+                              <XCircle className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+
+                          {/* Item-specific fields */}
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <Label className="text-xs">Quantity *</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  handleUpdateItem(
+                                    item.product.id,
+                                    'quantity',
+                                    Number(e.target.value)
+                                  )
+                                }
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Due Date *</Label>
+                              <Input
+                                type="date"
+                                value={item.dueDate}
+                                onChange={(e) =>
+                                  handleUpdateItem(
+                                    item.product.id,
+                                    'dueDate',
+                                    e.target.value
+                                  )
+                                }
+                                min={new Date().toISOString().split('T')[0]}
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Priority *</Label>
+                              <Select
+                                value={item.priority}
+                                onValueChange={(value) =>
+                                  handleUpdateItem(
+                                    item.product.id,
+                                    'priority',
+                                    value as Priority
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.values(Priority).map((priority) => (
+                                    <SelectItem key={priority} value={priority}>
+                                      {priority}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <Separator />
 
@@ -748,80 +836,6 @@ export default function CreateOrderPage() {
                   />
                 )}
 
-                {/* Quantity */}
-                <FormField
-                  control={form.control}
-                  name="quantity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantity *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="Enter quantity"
-                          value={field.value}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Number of units to produce
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Priority */}
-                <FormField
-                  control={form.control}
-                  name="priority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Priority *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.values(Priority).map((priority) => (
-                            <SelectItem key={priority} value={priority}>
-                              {priority}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Due Date */}
-                <FormField
-                  control={form.control}
-                  name="dueDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Due Date *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="date"
-                          {...field}
-                          min={new Date().toISOString().split('T')[0]}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Default: 14 days from today (editable for OEM orders)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 {/* Scheduling Strategy */}
                 <FormField
                   control={form.control}
@@ -874,30 +888,35 @@ export default function CreateOrderPage() {
 
         {/* Order Summary */}
         <div className="space-y-6">
-          {selectedProduct && (
+          {orderItems.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Order Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
+              <CardContent className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Product:</span>
-                  <span className="font-semibold">{selectedProduct.partCode}</span>
+                  <span className="text-muted-foreground">Products:</span>
+                  <span className="font-semibold">{orderItems.length} item(s)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Quantity:</span>
-                  <span className="font-semibold">{form.watch('quantity')} pcs</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Priority:</span>
-                  <span className="font-semibold">{form.watch('priority')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Due Date:</span>
+                  <span className="text-muted-foreground">Total Quantity:</span>
                   <span className="font-semibold">
-                    {new Date(form.watch('dueDate')).toLocaleDateString('en-IN')}
+                    {orderItems.reduce((sum, item) => sum + item.quantity, 0)} pcs
                   </span>
                 </div>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="font-medium text-xs text-muted-foreground">Items:</p>
+                  {orderItems.map((item, index) => (
+                    <div key={item.product.id} className="flex justify-between text-xs">
+                      <span className="truncate flex-1">
+                        {String.fromCharCode(65 + index)}: {item.product.partCode}
+                      </span>
+                      <span className="font-medium ml-2">{item.quantity}x</span>
+                    </div>
+                  ))}
+                </div>
+                <Separator />
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Order Source:</span>
                   <span className="font-semibold">{form.watch('orderSource')}</span>
@@ -938,6 +957,14 @@ export default function CreateOrderPage() {
           // In a real app, you would refresh products list here
           toast.success('Product created! Please refresh to see the new product.')
         }}
+      />
+
+      {/* Product Search Dialog */}
+      <ProductSearchDialog
+        open={productSearchDialogOpen}
+        onOpenChange={setProductSearchDialogOpen}
+        onSelectProduct={handleAddProduct}
+        excludedProductIds={orderItems.map(item => item.product.id)}
       />
     </div>
   )

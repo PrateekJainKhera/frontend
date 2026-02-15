@@ -9,6 +9,8 @@ export interface MaterialRequisitionResponse {
   jobCardNo?: string
   orderId?: number
   orderNo?: string
+  orderItemId?: number // For multi-product orders
+  itemSequence?: string // A, B, C, D...
   customerName?: string
   status: string // Pending, Approved, Rejected, Issued, Completed, Cancelled
   priority: string // Low, Medium, High, Urgent
@@ -109,6 +111,8 @@ export interface CreateMaterialRequisitionRequest {
   jobCardNo?: string
   orderId?: number
   orderNo?: string
+  orderItemId?: number // For multi-product orders
+  itemSequence?: string // A, B, C, D...
   customerName?: string
   priority?: string
   dueDate?: string
@@ -126,6 +130,8 @@ export interface UpdateMaterialRequisitionRequest {
   jobCardNo?: string
   orderId?: number
   orderNo?: string
+  orderItemId?: number // For multi-product orders
+  itemSequence?: string // A, B, C, D...
   customerName?: string
   status: string
   priority: string

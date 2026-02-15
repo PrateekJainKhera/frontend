@@ -214,7 +214,7 @@ export const mockOrders: Order[] = [
     status: OrderStatus.PENDING,
     priority: Priority.URGENT,
     planningStatus: PlanningStatus.NOT_PLANNED,
-    drawingReviewStatus: DrawingReviewStatus.IN_REVIEW,
+    drawingReviewStatus: DrawingReviewStatus.UNDER_REVIEW,
     drawingReviewNotes: 'Customer drawing requires clarification on tolerances',
 
     // Drawing-driven order (customer provided drawing)

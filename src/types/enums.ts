@@ -147,7 +147,8 @@ export enum SchedulingStrategy {
 
 export enum DrawingReviewStatus {
   PENDING = 'Pending',
-  IN_REVIEW = 'In Review',
+  UNDER_REVIEW = 'UnderReview',
   APPROVED = 'Approved',
-  NEEDS_REVISION = 'Needs Revision'
+  REJECTED = 'Rejected',
+  REVISION_REQUIRED = 'RevisionRequired'
 }
