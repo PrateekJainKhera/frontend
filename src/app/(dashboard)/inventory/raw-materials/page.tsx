@@ -38,7 +38,7 @@ interface AggregatedMaterial {
   totalWeight: number;
   availableWeight: number;
   totalWastageLength: number;
-  wastagePercentage: number;
+  wastageMMage: number;
   totalWastageValue: number;
   pieces: MaterialPieceResponse[];
 }
@@ -159,7 +159,7 @@ export default function RawMaterialInventoryPage() {
 
       const originalLength = materialPieces.reduce((sum, p) => sum + p.originalLengthMM, 0);
       const usedLength = originalLength - totalLength;
-      const wastagePercentage = originalLength > 0 ? (totalWastageLength / originalLength) * 100 : 0;
+      const wastageMMage = originalLength > 0 ? (totalWastageLength / originalLength) * 100 : 0;
 
       // Calculate wastage value (assuming scrap is 30% of original cost)
       const totalWastageValue = scrapPieces.reduce((sum, p) => sum + (p.currentValue || 0) * 0.3, 0);
@@ -181,7 +181,7 @@ export default function RawMaterialInventoryPage() {
         totalWeight,
         availableWeight,
         totalWastageLength,
-        wastagePercentage,
+        wastageMMage,
         totalWastageValue,
         pieces: materialPieces,
       };
@@ -212,7 +212,7 @@ export default function RawMaterialInventoryPage() {
   const totalLength = pieces.reduce((sum, p) => sum + p.currentLengthMM, 0);
   const totalWastageLength = pieces.filter(p => p.isWastage).reduce((sum, p) => sum + p.currentLengthMM, 0);
   const originalLength = pieces.reduce((sum, p) => sum + p.originalLengthMM, 0);
-  const wastagePercentage = originalLength > 0 ? (totalWastageLength / originalLength) * 100 : 0;
+  const wastageMMage = originalLength > 0 ? (totalWastageLength / originalLength) * 100 : 0;
 
   const availableValue = pieces.filter(p => p.status === "Available" && !p.isWastage)
     .reduce((sum, p) => sum + (p.currentValue || 0), 0);
@@ -466,8 +466,8 @@ export default function RawMaterialInventoryPage() {
                               <h4 className="text-sm font-medium text-muted-foreground">Wastage</h4>
                               <div className="space-y-1 text-sm">
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Wastage %:</span>
-                                  <span className="font-medium text-orange-600">{material.wastagePercentage.toFixed(1)}%</span>
+                                  <span className="text-muted-foreground">Wastage (mm):</span>
+                                  <span className="font-medium text-orange-600">{material.wastageMMage.toFixed(1)}%</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">Wastage Length:</span>
@@ -555,7 +555,7 @@ export default function RawMaterialInventoryPage() {
                   Wastage
                 </CardDescription>
                 <CardTitle className="text-3xl text-orange-600">
-                  {wastagePercentage.toFixed(1)}%
+                  {wastageMMage.toFixed(1)}%
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -743,9 +743,9 @@ export default function RawMaterialInventoryPage() {
 
                 <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
                   <div>
-                    <div className="text-sm text-muted-foreground">Wastage Percentage</div>
+                    <div className="text-sm text-muted-foreground">Wastage (mm)</div>
                     <div className="text-2xl font-bold text-blue-600">
-                      {wastagePercentage.toFixed(2)}%
+                      {wastageMMage.toFixed(2)}%
                     </div>
                   </div>
                   <BarChart3 className="h-8 w-8 text-blue-600" />

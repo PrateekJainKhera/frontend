@@ -112,7 +112,7 @@ export function MaterialAllocationDialog({
 
     const fulfillmentPercent = (totalLength / totalRequiredLength) * 100
     const wastage = totalLength - totalRequiredLength
-    const wastagePercent = totalLength > 0 ? (wastage / totalLength) * 100 : 0
+    const wastageMM = totalLength > 0 ? (wastage / totalLength) * 100 : 0
 
     return {
       totalPieces,
@@ -120,7 +120,7 @@ export function MaterialAllocationDialog({
       totalWeight,
       fulfillmentPercent,
       wastage,
-      wastagePercent,
+      wastageMM,
       isComplete: totalLength >= totalRequiredLength,
     }
   }, [selectedPieces, allocatedLengths, requiredLength, totalRequiredLength, availablePieces])
@@ -298,7 +298,7 @@ export function MaterialAllocationDialog({
                 <div>
                   <p className="text-sm text-muted-foreground">Expected Wastage</p>
                   <p className="text-xl font-bold text-red-600">
-                    {allocationSummary.wastagePercent.toFixed(2)}%
+                    {allocationSummary.wastageMM.toFixed(2)}%
                   </p>
                 </div>
               </div>
@@ -353,7 +353,7 @@ export function MaterialAllocationDialog({
                     const isSelected = selectedPieces.has(piece.pieceId)
                     const allocLength = allocatedLengths[piece.pieceId] || requiredLength
                     const wastage = piece.currentLength - allocLength
-                    const wastagePercent = (wastage / piece.currentLength) * 100
+                    const wastageMM = (wastage / piece.currentLength) * 100
 
                     return (
                       <TableRow key={piece.pieceId} className={isSelected ? 'bg-blue-50' : ''}>
@@ -405,7 +405,7 @@ export function MaterialAllocationDialog({
                             <div className="flex flex-col">
                               <span className="font-medium text-red-600">{wastage}mm</span>
                               <span className="text-xs text-muted-foreground">
-                                {wastagePercent.toFixed(1)}%
+                                {wastageMM.toFixed(1)}%
                               </span>
                             </div>
                           ) : (

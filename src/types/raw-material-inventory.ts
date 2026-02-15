@@ -107,7 +107,7 @@ export interface RawMaterialInventory {
   totalWastageLength?: number;
   totalWastageWeight?: number;
   totalWastageValue?: number;
-  wastagePercentage?: number;
+  wastageMMage?: number;
 
   // All pieces
   pieces: MaterialPiece[];
@@ -148,7 +148,7 @@ export interface MaterialConsumptionRecord {
   totalLengthUsed?: number;
   totalWeightUsed?: number;
   totalWastageGenerated?: number;
-  wastagePercentage?: number;
+  wastageMMage?: number;
   totalCost: number;
 
   consumedBy: string; // Operator name
@@ -169,14 +169,14 @@ export interface WastageReport {
     totalWastageLength?: number;
     totalWastageWeight?: number;
     totalWastageValue: number;
-    wastagePercentage: number;
+    wastageMMage: number;
     piecesBecameScrap: number;
   }[];
 
   // Overall summary
   totalWastageValue: number;
   totalMaterialCost: number;
-  overallWastagePercentage: number;
+  overallWastageMMage: number;
 
   // Top wastage reasons
   wastageReasons: {
@@ -224,7 +224,7 @@ export interface MaterialCuttingPlan {
   // Results
   totalMaterialUsed: number;
   totalWastage: number;
-  wastagePercentage: number;
+  wastageMMage: number;
   efficiency: number;
 
   createdAt: Date;

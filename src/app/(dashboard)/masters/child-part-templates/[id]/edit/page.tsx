@@ -27,7 +27,7 @@ interface MaterialRequirement {
   materialGrade: string
   quantityRequired: string
   unit: string
-  wastagePercent: string
+  wastageMM: string
 }
 
 interface ProcessStep {
@@ -63,7 +63,7 @@ export default function EditChildPartTemplatePage() {
         materialGrade: m.materialGrade,
         quantityRequired: m.quantityRequired.toString(),
         unit: m.unit,
-        wastagePercent: m.wastagePercent.toString()
+        wastageMM: m.wastageMM.toString()
       })))
 
       // Load process steps
@@ -103,7 +103,7 @@ export default function EditChildPartTemplatePage() {
       materialGrade: '',
       quantityRequired: '',
       unit: 'kg',
-      wastagePercent: '5'
+      wastageMM: '5'
     }
     setMaterialRequirements([...materialRequirements, newMaterial])
   }
@@ -450,11 +450,11 @@ export default function EditChildPartTemplatePage() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Wastage %</Label>
+                          <Label>Wastage (mm)</Label>
                           <Input
                             type="number"
-                            value={material.wastagePercent}
-                            onChange={(e) => updateMaterialRequirement(material.id, 'wastagePercent', e.target.value)}
+                            value={material.wastageMM}
+                            onChange={(e) => updateMaterialRequirement(material.id, 'wastageMM', e.target.value)}
                             placeholder="5"
                           />
                         </div>

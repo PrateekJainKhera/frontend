@@ -7,7 +7,7 @@ export interface ChildPartTemplateMaterialRequirementRequest {
   materialGrade: string
   quantityRequired: number
   unit: string
-  wastagePercent?: number
+  wastageMM?: number
 }
 
 export interface ChildPartTemplateProcessStepRequest {
@@ -53,7 +53,7 @@ export interface ChildPartTemplateMaterialRequirementResponse {
   materialGrade: string
   quantityRequired: number
   unit: string
-  wastagePercent: number
+  wastageMM: number
 }
 
 export interface ChildPartTemplateProcessStepResponse {

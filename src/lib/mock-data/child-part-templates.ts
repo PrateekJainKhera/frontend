@@ -23,7 +23,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: 'EN8',
         quantityRequired: 1.3,
         unit: 'meter',
-        wastagePercent: 5
+        wastageMM: 5
       }
     ],
 
@@ -110,7 +110,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: 'MS',
         quantityRequired: 1.1,
         unit: 'meter',
-        wastagePercent: 3
+        wastageMM: 3
       }
     ],
 
@@ -185,7 +185,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: 'MS',
         quantityRequired: 0.5,
         unit: 'kg',
-        wastagePercent: 8
+        wastageMM: 8
       }
     ],
 
@@ -257,7 +257,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: 'EN8',
         quantityRequired: 1.5,
         unit: 'meter',
-        wastagePercent: 5
+        wastageMM: 5
       }
     ],
 
@@ -339,7 +339,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: '6061-T6',
         quantityRequired: 1.3,
         unit: 'meter',
-        wastagePercent: 4
+        wastageMM: 4
       }
     ],
 
@@ -412,7 +412,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: 'NBR 70 Shore A',
         quantityRequired: 3.5,
         unit: 'kg',
-        wastagePercent: 10
+        wastageMM: 10
       }
     ],
 
@@ -484,7 +484,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: 'MS',
         quantityRequired: 0.8,
         unit: 'kg',
-        wastagePercent: 8
+        wastageMM: 8
       }
     ],
 
@@ -557,7 +557,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: 'Aluminum 6061',
         quantityRequired: 1.0,
         unit: 'meter',
-        wastagePercent: 4
+        wastageMM: 4
       }
     ],
 
@@ -621,7 +621,7 @@ export const mockChildPartTemplates: ChildPartTemplate[] = [
         materialGrade: 'MS',
         quantityRequired: 0.5,
         unit: 'kg',
-        wastagePercent: 8
+        wastageMM: 8
       }
     ],
 

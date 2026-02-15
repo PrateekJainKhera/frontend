@@ -214,7 +214,7 @@ export function MaterialIssueDialog({
                 <div className="flex items-center gap-1">
                   <TrendingDown className="h-4 w-4 text-orange-600" />
                   <p className="text-2xl font-bold text-orange-700">
-                    {allocation.expectedWastagePercent.toFixed(2)}%
+                    {allocation.expectedWastageMM.toFixed(2)} mm
                   </p>
                 </div>
               </div>

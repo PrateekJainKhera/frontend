@@ -301,7 +301,7 @@ export const mockMaterialAllocations: MaterialAllocation[] = [
     status: 'Issued',
 
     expectedWastage: 500,
-    expectedWastagePercent: 0.83,
+    expectedWastageMM: 0.83,
 
     allocatedBy: 'USR-005',
     allocatedByName: 'Stores Manager',
@@ -350,7 +350,7 @@ export const mockMaterialAllocations: MaterialAllocation[] = [
     status: 'Reserved',
 
     expectedWastage: 750,
-    expectedWastagePercent: 1.0,
+    expectedWastageMM: 1.0,
 
     allocatedBy: 'USR-005',
     allocatedByName: 'Stores Manager',
@@ -399,7 +399,7 @@ export const mockMaterialAllocations: MaterialAllocation[] = [
     status: 'Reserved',
 
     expectedWastage: 350,
-    expectedWastagePercent: 1.0,
+    expectedWastageMM: 1.0,
 
     allocatedBy: 'USR-005',
     allocatedByName: 'Stores Manager',

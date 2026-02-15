@@ -443,7 +443,7 @@ export const en8SteelRodInventory: RawMaterialInventory = {
   totalWastageLength: 480, // 200 + 280
   totalWastageWeight: 9.22,
   totalWastageValue: 640,
-  wastagePercentage: 4.28, // (480 / 11210) * 100
+  wastageMMage: 4.28, // (480 / 11210) * 100
 
   pieces: en8SteelRodPieces,
 

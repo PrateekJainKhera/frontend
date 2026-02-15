@@ -23,7 +23,7 @@ interface ChildPartInfo {
   childPartName: string
   pieceLengthMM: number
   piecesCount: number
-  wastagePercent: number
+  wastageMM: number
 }
 
 interface PieceSelectionDialogProps {
@@ -254,9 +254,9 @@ export function PieceSelectionDialog({
                 <span className="inline-flex items-center text-[11px] font-semibold bg-blue-50 text-blue-700 rounded-full px-2.5 py-1">
                   {singlePart.piecesCount} pcs × {singlePart.pieceLengthMM.toFixed(0)} mm/pc
                 </span>
-                {singlePart.wastagePercent > 0 && (
+                {singlePart.wastageMM > 0 && (
                   <span className="inline-flex items-center text-[11px] font-semibold bg-amber-50 text-amber-700 rounded-full px-2.5 py-1">
-                    +{singlePart.wastagePercent}% wastage
+                    +{singlePart.wastageMM}% wastage
                   </span>
                 )}
               </>

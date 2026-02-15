@@ -250,8 +250,8 @@ export default function JobCardDetailPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium">{mat.requiredQuantity} {mat.unit}</p>
-                    {mat.wastagePercent > 0 && (
-                      <p className="text-xs text-muted-foreground">(+{mat.wastagePercent}% wastage)</p>
+                    {mat.wastageMM > 0 && (
+                      <p className="text-xs text-muted-foreground">(+{mat.wastageMM}% wastage)</p>
                     )}
                   </div>
                 </div>

@@ -42,7 +42,7 @@ export function calculateRemainingWeight(
 /**
  * Calculate wastage percentage for a material piece
  */
-export function calculateWastagePercentage(
+export function calculateWastageMMage(
   originalLength: number,
   currentLength: number
 ): number {
@@ -274,9 +274,9 @@ export function getWastageRecommendations(
   const recommendations: string[] = [];
 
   // High wastage percentage
-  if (inventory.wastagePercentage && inventory.wastagePercentage > 15) {
+  if (inventory.wastageMMage && inventory.wastageMMage > 15) {
     recommendations.push(
-      `High wastage rate (${inventory.wastagePercentage}%). Review cutting plans and consider ordering custom lengths.`
+      `High wastage rate (${inventory.wastageMMage}%). Review cutting plans and consider ordering custom lengths.`
     );
   }
 

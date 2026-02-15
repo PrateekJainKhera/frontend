@@ -28,7 +28,7 @@ export interface ChildPartMaterialRequirement {
   materialGrade: string
   quantityRequired: number
   unit: string // 'kg', 'meter', 'pieces'
-  wastagePercent: number
+  wastageMM: number // Wastage in millimeters
 }
 
 export interface ChildPartTemplate {

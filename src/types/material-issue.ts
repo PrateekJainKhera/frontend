@@ -127,7 +127,7 @@ export interface MaterialAllocation {
 
   // Wastage tracking
   expectedWastage: number
-  expectedWastagePercent: number
+  expectedWastageMM: number
 
   // Metadata
   allocatedBy: string

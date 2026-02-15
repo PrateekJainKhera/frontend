@@ -10,7 +10,7 @@ export interface JobCardMaterialRequirementResponse {
   materialGrade: string
   requiredQuantity: number
   unit: string
-  wastagePercent: number
+  wastageMM: number
   totalQuantityWithWastage: number
   source: string
   confirmedBy: string
@@ -25,7 +25,7 @@ export interface JobCardMaterialRequirementRequest {
   materialGrade?: string
   requiredQuantity: number
   unit: string
-  wastagePercent?: number
+  wastageMM?: number
   source?: string
   confirmedBy?: string
 }

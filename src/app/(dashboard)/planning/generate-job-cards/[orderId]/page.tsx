@@ -112,7 +112,7 @@ export default function GenerateJobCardsPage() {
     materialGrade?: string
     requiredLengthMM: number
     aggregatedMaterialIndex: number
-    childParts: Array<{ childPartName: string; pieceLengthMM: number; piecesCount: number; wastagePercent: number }>
+    childParts: Array<{ childPartName: string; pieceLengthMM: number; piecesCount: number; wastageMM: number }>
   } | null>(null)
 
   // Store selected pieces per material (key: materialId or aggregatedMaterialIndex)
@@ -425,7 +425,7 @@ export default function GenerateJobCardsPage() {
     materialGrade: string | undefined,
     requiredLengthMM: number,
     aggregatedMaterialIndex: number,
-    childParts: Array<{ childPartName: string; pieceLengthMM: number; piecesCount: number; wastagePercent: number }>
+    childParts: Array<{ childPartName: string; pieceLengthMM: number; piecesCount: number; wastageMM: number }>
   ) => {
     setSelectedMaterialForPieces({
       materialId,
@@ -472,7 +472,8 @@ export default function GenerateJobCardsPage() {
 
       const itemQuantity = currentOrderItem ? currentOrderItem.quantity : order.quantity
       const requiredQty = material.requiredQuantity * (itemQuantity * childPart.bomItem.quantity)
-      const totalWithWastage = requiredQty * (1 + (material.wastagePercent || 0) / 100)
+      // Wastage is now in mm, not percentage
+      const totalWithWastage = requiredQty + (material.wastageMM || 0)
 
       // Convert inventory quantity to length if stored as weight
       let availableQty = inventory.availableQuantity
@@ -551,7 +552,7 @@ export default function GenerateJobCardsPage() {
       materialGrade: mr.materialGrade,
       requiredQuantity: mr.quantityRequired,
       unit: mr.unit,
-      wastagePercent: mr.wastagePercent,
+      wastageMM: mr.wastageMM,
       source: 'Template',
       confirmedBy: 'Admin'
     }))
@@ -593,7 +594,7 @@ export default function GenerateJobCardsPage() {
       materialGrade: '',
       requiredQuantity: 0,
       unit: 'pcs',
-      wastagePercent: 0,
+      wastageMM: 0,
       source: 'Manual',
       confirmedBy: 'Admin'
     }
@@ -618,7 +619,7 @@ export default function GenerateJobCardsPage() {
       childParts: Array<{
         childPartName: string
         requiredQty: number
-        wastagePercent: number
+        wastageMM: number
         totalQty: number
         pieceLengthMM: number   // per-piece length WITH wastage
         piecesCount: number     // total number of pieces to cut
@@ -637,8 +638,9 @@ export default function GenerateJobCardsPage() {
       materials.forEach(material => {
         const piecesCount = itemQuantity * item.bomItem.quantity
         const scaledQty = material.requiredQuantity * piecesCount
-        const totalWithWastage = scaledQty * (1 + (material.wastagePercent || 0) / 100)
-        const pieceLengthMM = material.requiredQuantity * (1 + (material.wastagePercent || 0) / 100)
+        // Wastage is now in mm, not percentage
+        const totalWithWastage = scaledQty + (material.wastageMM || 0)
+        const pieceLengthMM = material.requiredQuantity + (material.wastageMM || 0)
 
         const key = `${material.rawMaterialId || material.rawMaterialName}-${material.materialGrade || 'NoGrade'}`
 
@@ -656,7 +658,7 @@ export default function GenerateJobCardsPage() {
         aggregated[key].childParts.push({
           childPartName: item.bomItem.childPartTemplateName,
           requiredQty: scaledQty,
-          wastagePercent: material.wastagePercent || 0,
+          wastageMM: material.wastageMM || 0,
           totalQty: totalWithWastage,
           pieceLengthMM,
           piecesCount,
@@ -782,7 +784,7 @@ export default function GenerateJobCardsPage() {
                 lengthPerPiece: mr.requiredQuantity, // Per-piece requirement (e.g., 300mm)
                 numberOfPieces: itemQuantity * item.bomItem.quantity, // Total pieces (e.g., 2)
                 unit: mr.unit,
-                wastagePercent: mr.wastagePercent,
+                wastageMM: mr.wastageMM,
                 source: mr.source,
                 confirmedBy: 'Admin'
               }))
@@ -1482,7 +1484,7 @@ export default function GenerateJobCardsPage() {
                                   <th className="text-left p-2 font-semibold text-blue-900">Material</th>
                                   <th className="text-left p-2 font-semibold text-blue-900">Grade</th>
                                   <th className="text-right p-2 font-semibold text-blue-900">Qty/Unit</th>
-                                  <th className="text-right p-2 font-semibold text-blue-900">Wastage%</th>
+                                  <th className="text-right p-2 font-semibold text-blue-900">Wastage (mm)</th>
                                   <th className="text-right p-2 font-semibold text-blue-900">Total</th>
                                   <th className="text-center p-2 font-semibold text-blue-900 w-16">Action</th>
                                 </tr>
@@ -1491,7 +1493,8 @@ export default function GenerateJobCardsPage() {
                                 {materials.map((material) => {
                                   const itemQuantity = currentOrderItem ? currentOrderItem.quantity : (order?.quantity || 1)
                                   const scaledQty = material.requiredQuantity * itemQuantity * item.bomItem.quantity
-                                  const totalWithWastage = scaledQty * (1 + (material.wastagePercent || 0) / 100)
+                                  // Wastage is now in mm, not percentage
+                                  const totalWithWastage = scaledQty + (material.wastageMM || 0)
 
                                   return (
                                     <tr key={material.tempId} className="border-b border-blue-100 bg-white">
@@ -1573,8 +1576,8 @@ export default function GenerateJobCardsPage() {
                                       <td className="p-2">
                                         <input
                                           type="number"
-                                          value={material.wastagePercent || 0}
-                                          onChange={(e) => updateMaterial(item.childPartTemplate!.id, material.tempId, { wastagePercent: parseFloat(e.target.value) || 0 })}
+                                          value={material.wastageMM || 0}
+                                          onChange={(e) => updateMaterial(item.childPartTemplate!.id, material.tempId, { wastageMM: parseFloat(e.target.value) || 0 })}
                                           className="w-14 px-2 py-1 text-xs border rounded text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         />
                                       </td>
@@ -1699,7 +1702,7 @@ export default function GenerateJobCardsPage() {
                               <td className="p-3 text-right">
                                 <div className="font-medium">{childPart.totalQty.toFixed(2)} {material.unit}</div>
                                 <div className="text-xs text-gray-500">
-                                  Net {childPart.requiredQty.toFixed(0)} + {childPart.wastagePercent}% wastage
+                                  Net {childPart.requiredQty.toFixed(0)} + {childPart.wastageMM}% wastage
                                 </div>
                               </td>
                               {cpIdx === 0 && (
@@ -1758,7 +1761,7 @@ export default function GenerateJobCardsPage() {
                                                     childPartName: cp.childPartName,
                                                     pieceLengthMM: cp.pieceLengthMM,
                                                     piecesCount: cp.piecesCount,
-                                                    wastagePercent: cp.wastagePercent,
+                                                    wastageMM: cp.wastageMM,
                                                   }))
                                                 )}
                                               >

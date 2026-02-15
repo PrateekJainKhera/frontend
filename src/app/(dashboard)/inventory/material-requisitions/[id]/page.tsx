@@ -748,7 +748,7 @@ export default function MaterialRequisitionDetailPage() {
             childPartName: selectedItemForPieces.materialName || "Material",
             pieceLengthMM: selectedItemForPieces.lengthRequiredMM ?? selectedItemForPieces.quantityRequired,
             piecesCount: selectedItemForPieces.numberOfPieces ?? 1,
-            wastagePercent: 0,
+            wastageMM: 0,
           }]}
           preSelectedIds={
             // Local state (from this session's confirms) takes priority over server data

@@ -29,7 +29,7 @@ export function MaterialRequirementsSelector({
       materialGrade: '',
       requiredQuantity: 0,
       unit: 'pcs',
-      wastagePercent: 0,
+      wastageMM: 0,
       source: 'Manual',
       confirmedBy: ''
     }
@@ -48,7 +48,8 @@ export function MaterialRequirementsSelector({
   }
 
   const calculateTotalQuantity = (required: number, wastage: number) => {
-    return required * (1 + wastage / 100)
+    // Wastage is now in mm, not percentage
+    return required + wastage
   }
 
   if (value.length === 0) {
@@ -179,8 +180,8 @@ export function MaterialRequirementsSelector({
                       type="number"
                       step="0.01"
                       max="100"
-                      value={material.wastagePercent || 0}
-                      onChange={(e) => handleUpdateMaterial(index, 'wastagePercent', parseFloat(e.target.value) || 0)}
+                      value={material.wastageMM || 0}
+                      onChange={(e) => handleUpdateMaterial(index, 'wastageMM', parseFloat(e.target.value) || 0)}
                       placeholder="0"
                       disabled={disabled}
                     />
@@ -189,7 +190,7 @@ export function MaterialRequirementsSelector({
                   <div className="space-y-2">
                     <Label>Total with Wastage</Label>
                     <div className="h-10 px-3 rounded-md border bg-muted flex items-center text-sm font-medium">
-                      {calculateTotalQuantity(material.requiredQuantity, material.wastagePercent || 0).toFixed(2)} {material.unit}
+                      {calculateTotalQuantity(material.requiredQuantity, material.wastageMM || 0).toFixed(2)} {material.unit}
                     </div>
                   </div>
                 </div>
