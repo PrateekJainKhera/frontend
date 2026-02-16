@@ -30,6 +30,7 @@ import { inventoryService, InventoryResponse } from '@/lib/api/inventory'
 import { materialRequisitionService, CreateMaterialRequisitionRequest } from '@/lib/api/material-requisitions'
 import { materialPieceService, MaterialPieceResponse } from '@/lib/api/material-pieces'
 import { drawingService, DrawingResponse } from '@/lib/api/drawings'
+import { productDefaultMaterialService, ProductDefaultMaterialResponse } from '@/lib/api/product-default-materials'
 import { PieceSelectionDialog } from '@/components/planning/PieceSelectionDialog'
 import { formatDate } from '@/lib/utils/formatters'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -99,6 +100,10 @@ export default function GenerateJobCardsPage() {
 
   // Component inventory data - Map of componentId to InventoryResponse
   const [componentInventoryData, setComponentInventoryData] = useState<Map<number, InventoryResponse>>(new Map())
+
+  // Product default materials loaded from DB
+  const [productDefaultMaterials, setProductDefaultMaterials] = useState<ProductDefaultMaterialResponse[]>([])
+  const [isSavingDefaults, setIsSavingDefaults] = useState(false)
 
   // Track unsaved changes and saving state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -276,6 +281,16 @@ export default function GenerateJobCardsPage() {
         setAssemblyProcessSteps([])
       }
       console.log('=== END ASSEMBLY PROCESS DEBUGGING ===')
+
+      // Load product default materials from DB
+      if (currentProductId) {
+        try {
+          const defaults = await productDefaultMaterialService.getByProductId(currentProductId)
+          setProductDefaultMaterials(defaults)
+        } catch (error) {
+          console.warn('No default materials found for product:', error)
+        }
+      }
 
       // Load product drawings (assembly + child parts)
       if (currentProductId) {
@@ -492,19 +507,68 @@ export default function GenerateJobCardsPage() {
   const saveMaterialEdits = async () => {
     setIsSaving(true)
     try {
-      // Save to localStorage (can be replaced with API call later)
+      // Save to localStorage for this order session
       const saveKey = `planning_materials_${orderId}`
       localStorage.setItem(saveKey, JSON.stringify(materialEdits))
 
       setHasUnsavedChanges(false)
-      toast.success('Material changes saved successfully', {
-        description: 'Changes saved to this order (templates unchanged)'
-      })
+      toast.success('Material changes saved for this order')
     } catch (error) {
       console.error('Failed to save material edits:', error)
       toast.error('Failed to save material changes')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const saveAsProductDefaults = async () => {
+    if (!productId) return
+    setIsSavingDefaults(true)
+    try {
+      // Collect all current materials across all child parts
+      const allMaterials: Array<{
+        childPartTemplateId?: number | null
+        rawMaterialId?: number | null
+        rawMaterialName: string
+        materialGrade?: string
+        requiredQuantity: number
+        unit: string
+        wastageMM?: number
+      }> = []
+
+      for (const [childPartTemplateId, materials] of Object.entries(materialEdits)) {
+        for (const mat of materials) {
+          if (mat.rawMaterialName) {
+            allMaterials.push({
+              childPartTemplateId: Number(childPartTemplateId),
+              rawMaterialId: mat.rawMaterialId,
+              rawMaterialName: mat.rawMaterialName,
+              materialGrade: mat.materialGrade,
+              requiredQuantity: mat.requiredQuantity,
+              unit: mat.unit,
+              wastageMM: mat.wastageMM,
+            })
+          }
+        }
+      }
+
+      await productDefaultMaterialService.saveDefaults(productId, {
+        materials: allMaterials,
+        updatedBy: 'Admin'
+      })
+
+      // Refresh defaults in state
+      const updated = await productDefaultMaterialService.getByProductId(productId)
+      setProductDefaultMaterials(updated)
+
+      toast.success('Saved as product defaults', {
+        description: 'These materials will auto-fill for future orders of this product'
+      })
+    } catch (error) {
+      console.error('Failed to save product defaults:', error)
+      toast.error('Failed to save product defaults')
+    } finally {
+      setIsSavingDefaults(false)
     }
   }
 
@@ -534,6 +598,24 @@ export default function GenerateJobCardsPage() {
     // If we have edits for this child part, return them
     if (materialEdits[childPartTemplateId]) {
       return materialEdits[childPartTemplateId]
+    }
+
+    // Check if product has saved defaults for this child part
+    const savedDefaults = productDefaultMaterials.filter(d => d.childPartTemplateId === childPartTemplateId)
+    if (savedDefaults.length > 0) {
+      return savedDefaults.map((d, idx) => ({
+        tempId: `default-${childPartTemplateId}-${idx}`,
+        childPartTemplateId,
+        childPartName,
+        rawMaterialId: d.rawMaterialId,
+        rawMaterialName: d.rawMaterialName,
+        materialGrade: d.materialGrade,
+        requiredQuantity: d.requiredQuantity,
+        unit: d.unit,
+        wastageMM: d.wastageMM,
+        source: 'Default',
+        confirmedBy: 'Admin'
+      }))
     }
 
     // Otherwise, load from template
@@ -1449,6 +1531,9 @@ export default function GenerateJobCardsPage() {
                             <Badge variant="secondary" className="text-xs">
                               {materials.length} material{materials.length !== 1 ? 's' : ''}
                             </Badge>
+                            {productDefaultMaterials.some(d => d.childPartTemplateId === item.childPartTemplate?.id) && !materialEdits[item.childPartTemplate!.id] && (
+                              <Badge variant="outline" className="text-xs border-blue-400 text-blue-700">From Defaults</Badge>
+                            )}
                             {hasUnsavedChanges && (
                               <Badge variant="destructive" className="text-xs animate-pulse">Unsaved</Badge>
                             )}
@@ -1462,6 +1547,19 @@ export default function GenerateJobCardsPage() {
                             >
                               + Add Material
                             </Button>
+                            {productId && materials.length > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs border-blue-400 text-blue-700 hover:bg-blue-50"
+                                onClick={saveAsProductDefaults}
+                                disabled={isSavingDefaults}
+                                title="Save current materials as defaults for this product"
+                              >
+                                <Save className="h-3 w-3 mr-1" />
+                                {isSavingDefaults ? 'Saving...' : 'Save as Defaults'}
+                              </Button>
+                            )}
                             {hasUnsavedChanges && (
                               <Button
                                 size="sm"
@@ -2097,11 +2195,12 @@ export default function GenerateJobCardsPage() {
           disabled={isSaving}
           className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-2xl hover:shadow-xl transition-all z-50 bg-green-600 hover:bg-green-700"
           size="icon"
-          title="Save material changes"
+          title="Save material changes for this order"
         >
           <Save className="h-6 w-6" />
         </Button>
       )}
+
 
       {/* Piece Selection Dialog */}
       {selectedMaterialForPieces && (
