@@ -67,6 +67,7 @@ const muiTheme = createTheme({
 })
 
 export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProps) {
+    const [data, setData] = useState<ProcessResponse[]>(processes)
     const [selectedProcess, setSelectedProcess] = useState<ProcessResponse | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -74,6 +75,11 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
         pageIndex: 0,
         pageSize: 10,
     })
+
+    // Sync prop to internal state
+    useMemo(() => {
+        setData(processes)
+    }, [processes])
 
     const handleView = (process: ProcessResponse) => {
         setSelectedProcess(process)
@@ -85,7 +91,6 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
         setEditDialogOpen(true)
     }
 
-    // Define columns (simplified schema)
     const columns = useMemo<MRT_ColumnDef<ProcessResponse>[]>(
         () => [
             {
@@ -105,21 +110,13 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                 ),
             },
             {
-                accessorKey: 'category',
-                header: 'Category',
-                size: 120,
+                accessorKey: 'processCategoryName',
+                header: 'Process Category',
+                size: 150,
                 Cell: ({ cell }) => (
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(cell.getValue<string>() || '')}`}>
-                        {cell.getValue<string>()}
+                        {cell.getValue<string>() || '-'}
                     </span>
-                ),
-            },
-            {
-                accessorKey: 'defaultMachine',
-                header: 'Default Machine',
-                size: 140,
-                Cell: ({ cell }) => (
-                    <span className="text-sm">{cell.getValue<string>() || '-'}</span>
                 ),
             },
             {
@@ -133,6 +130,17 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                             <Clock className="h-3 w-3 text-muted-foreground" />
                             {value} min
                         </div>
+                    ) : <span className="text-sm text-muted-foreground">-</span>;
+                },
+            },
+            {
+                accessorKey: 'cycleTimePerPieceHours',
+                header: 'Cycle Time/Piece',
+                size: 130,
+                Cell: ({ cell }) => {
+                    const value = cell.getValue<number>();
+                    return value ? (
+                        <span className="text-sm">{value} hrs</span>
                     ) : <span className="text-sm text-muted-foreground">-</span>;
                 },
             },
@@ -168,7 +176,7 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
 
     const table = useMaterialReactTable({
         columns,
-        data: processes,
+        data: data,
         enableColumnActions: false,
         enableColumnFilters: false,
         enableSorting: true,
@@ -177,21 +185,14 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
         enableBottomToolbar: true,
         enableRowActions: true,
         positionActionsColumn: 'last',
-
-        // Enable Column Reordering
         enableColumnOrdering: true,
 
-        // Configure Actions column size
         displayColumnDefOptions: {
             'mrt-row-actions': {
                 header: 'Actions',
                 size: 100,
-                muiTableHeadCellProps: {
-                    align: 'center',
-                },
-                muiTableBodyCellProps: {
-                    align: 'center',
-                },
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableBodyCellProps: { align: 'center' },
             },
         },
 
@@ -230,7 +231,6 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
         <ThemeProvider theme={muiTheme}>
             <MaterialReactTable table={table} />
 
-            {/* Dialogs */}
             {selectedProcess && (
                 <>
                     <ViewProcessDialog

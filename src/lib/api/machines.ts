@@ -8,6 +8,8 @@ export interface CreateMachineRequest {
   department?: string
   status?: string
   notes?: string
+  dailyCapacityHours?: number
+  processCategoryIds?: number[]
 }
 
 export interface UpdateMachineRequest extends CreateMachineRequest {
@@ -25,6 +27,9 @@ export interface MachineResponse {
   status: string | null
   notes: string | null
   isActive: boolean
+  dailyCapacityHours: number
+  processCategoryIds: number[]
+  processCategoryNames: string[]
   createdAt: string
   createdBy: string | null
   updatedAt: string | null

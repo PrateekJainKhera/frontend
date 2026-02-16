@@ -54,6 +54,7 @@ export interface ProductTemplateBOMItemResponse {
   childPartTemplateName: string
   childPartTemplateCode: string
   childPartType: string
+  isPurchased: boolean
   quantity: number
   notes?: string | null
   sequenceNumber?: number | null

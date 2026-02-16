@@ -3,22 +3,27 @@ import { apiClient, ApiResponse } from './axios-config'
 
 export interface CreateProcessRequest {
   processName: string
-  category: string
-  defaultMachine?: string | null
-  defaultMachineId?: number | null
-  defaultSetupTimeHours?: number | null
-  defaultCycleTimePerPieceHours?: number | null
-  standardSetupTimeMin?: number
-  restTimeHours?: number
+  processCategoryId: number
+  standardSetupTimeMin: number
+  cycleTimePerPieceHours: number
+  restTimeHours?: number | null
   description?: string | null
   isOutsourced?: boolean
-  isActive?: boolean
   createdBy?: string | null
 }
 
-export interface UpdateProcessRequest extends CreateProcessRequest {
+export interface UpdateProcessRequest {
   id: number
   processCode: string
+  processName: string
+  processCategoryId: number
+  standardSetupTimeMin: number
+  cycleTimePerPieceHours: number
+  restTimeHours?: number | null
+  description?: string | null
+  isOutsourced?: boolean
+  isActive?: boolean
+  status?: string | null
   updatedBy?: string | null
 }
 
@@ -26,21 +31,17 @@ export interface ProcessResponse {
   id: number
   processCode: string
   processName: string
-  category: string
-  defaultMachine?: string | null
-  defaultMachineId?: number | null
-  defaultMachineName?: string | null
-  defaultMachineCode?: string | null
-  defaultSetupTimeHours?: number | null
-  defaultCycleTimePerPieceHours?: number | null
-  standardSetupTimeMin: number
-  restTimeHours?: number
+  processCategoryId?: number | null
+  processCategoryName?: string | null
+  standardSetupTimeMin?: number | null
+  cycleTimePerPieceHours?: number | null
+  restTimeHours?: number | null
   description?: string | null
   isOutsourced: boolean
   status?: string | null
   isActive: boolean
   createdAt: string
-  updatedAt: string
+  updatedAt?: string | null
   createdBy?: string | null
   updatedBy?: string | null
 }

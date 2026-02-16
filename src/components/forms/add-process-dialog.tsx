@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Plus, Check, ChevronsUpDown } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -19,20 +19,15 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from '@/components/ui/command'
 import {
   Popover,
@@ -43,20 +38,17 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ProcessCategory } from '@/types/enums'
 import { toast } from 'sonner'
-import { processService } from '@/lib/api/processes'
-import { machineService, MachineResponse } from '@/lib/api/machines'
 import { cn } from '@/lib/utils'
+import { processService } from '@/lib/api/processes'
+import { processCategoryService } from '@/lib/api/process-categories'
+import { ProcessCategory as ProcessCategoryType } from '@/types/process-category'
 
 const formSchema = z.object({
   processName: z.string().min(2, 'Process name is required'),
-  category: z.nativeEnum(ProcessCategory, { message: 'Category is required' }),
-  defaultMachine: z.string().optional(),
-  defaultMachineId: z.number().optional(),
-  defaultSetupTimeHours: z.number().min(0, 'Setup time cannot be negative').optional(),
-  defaultCycleTimePerPieceHours: z.number().min(0, 'Cycle time cannot be negative').optional(),
+  processCategoryId: z.number().min(1, 'Process category is required'),
   standardTimeMin: z.number().min(0, 'Setup time cannot be negative'),
+  cycleTimePerPieceHours: z.number().min(0.001, 'Cycle time must be greater than 0'),
   restTimeHours: z.number().min(0, 'Rest time cannot be negative').optional(),
   description: z.string().optional(),
   isOutsourced: z.boolean(),
@@ -72,40 +64,75 @@ interface AddProcessDialogProps {
 
 export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [machines, setMachines] = useState<MachineResponse[]>([])
-  const [machinesLoading, setMachinesLoading] = useState(false)
+  const [processCategories, setProcessCategories] = useState<ProcessCategoryType[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(false)
+  const [showAddCategoryDialog, setShowAddCategoryDialog] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryDescription, setNewCategoryDescription] = useState('')
+  const [isAddingCategory, setIsAddingCategory] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       processName: '',
-      defaultMachine: '',
       description: '',
       standardTimeMin: 0,
+      cycleTimePerPieceHours: 0.5,
       restTimeHours: 0,
-      defaultSetupTimeHours: 0.5,
-      defaultCycleTimePerPieceHours: 0.1,
       isOutsourced: false,
     },
   })
 
-  // Load machines when dialog opens
+  // Load process categories when dialog opens
   useEffect(() => {
     if (open) {
-      loadMachines()
+      loadProcessCategories()
     }
   }, [open])
 
-  const loadMachines = async () => {
-    setMachinesLoading(true)
+  const loadProcessCategories = async () => {
+    setCategoriesLoading(true)
     try {
-      const data = await machineService.getAll()
-      setMachines(data.filter(m => m.isActive))
+      const data = await processCategoryService.getAll()
+      setProcessCategories(data.filter(c => c.isActive))
     } catch (error) {
-      console.error('Failed to load machines:', error)
-      toast.error('Failed to load machines')
+      console.error('Failed to load process categories:', error)
+      toast.error('Failed to load process categories')
     } finally {
-      setMachinesLoading(false)
+      setCategoriesLoading(false)
+    }
+  }
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error('Category name is required')
+      return
+    }
+
+    setIsAddingCategory(true)
+    try {
+      const newCategoryId = await processCategoryService.create({
+        categoryName: newCategoryName,
+        description: newCategoryDescription || undefined,
+        createdBy: 'Admin'
+      })
+
+      toast.success('Process category added successfully')
+
+      // Reload categories
+      await loadProcessCategories()
+
+      // Set the newly created category as selected
+      form.setValue('processCategoryId', newCategoryId)
+
+      // Reset and close dialog
+      setNewCategoryName('')
+      setNewCategoryDescription('')
+      setShowAddCategoryDialog(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add category')
+    } finally {
+      setIsAddingCategory(false)
     }
   }
 
@@ -115,16 +142,12 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
     try {
       await processService.create({
         processName: data.processName,
-        category: data.category,
-        defaultMachine: data.defaultMachine || null,
-        defaultMachineId: data.defaultMachineId || null,
-        defaultSetupTimeHours: data.defaultSetupTimeHours || 0.5,
-        defaultCycleTimePerPieceHours: data.defaultCycleTimePerPieceHours || 0.1,
+        processCategoryId: data.processCategoryId,
         standardSetupTimeMin: data.standardTimeMin,
-        restTimeHours: data.restTimeHours || 0,
+        cycleTimePerPieceHours: data.cycleTimePerPieceHours,
+        restTimeHours: data.restTimeHours || null,
         description: data.description || null,
         isOutsourced: data.isOutsourced,
-        isActive: true,
         createdBy: 'Admin'
       })
 
@@ -145,14 +168,15 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Process</DialogTitle>
-          <DialogDescription>
-            Add a new manufacturing process. Process code will be auto-generated.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Process</DialogTitle>
+            <DialogDescription>
+              Add a new manufacturing process. Process code will be auto-generated.
+            </DialogDescription>
+          </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -173,24 +197,76 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
 
               <FormField
                 control={form.control}
-                name="category"
+                name="processCategoryId"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.values(ProcessCategory).map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <FormItem className="flex flex-col col-span-full">
+                    <FormLabel>Process Category *</FormLabel>
+                    <div className="flex gap-2 items-center">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              disabled={categoriesLoading}
+                              className={cn(
+                                "flex-1 min-w-0 justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? processCategories.find(
+                                    (category) => category.id === field.value
+                                  )?.categoryName
+                                : categoriesLoading ? 'Loading...' : 'Select process category'}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0 min-w-[200px]" style={{ width: 'var(--radix-popover-trigger-width)' }} align="start">
+                          <Command>
+                            <CommandInput placeholder="Search process category..." className="h-9" />
+                            <CommandList className="max-h-[300px] overflow-y-auto">
+                              <CommandEmpty>No process category found.</CommandEmpty>
+                              <CommandGroup>
+                                {processCategories.map((category) => (
+                                  <CommandItem
+                                    key={category.id}
+                                    value={category.categoryName}
+                                    onSelect={() => {
+                                      form.setValue('processCategoryId', category.id)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        category.id === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {category.categoryName}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowAddCategoryDialog(true)}
+                        title="Add new process category"
+                        className="shrink-0"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <FormDescription>
+                      Used for capacity-based scheduling
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -198,96 +274,20 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
 
               <FormField
                 control={form.control}
-                name="defaultMachineId"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Default Machine</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            disabled={machinesLoading}
-                            className={cn(
-                              'w-full justify-between',
-                              !field.value && 'text-muted-foreground'
-                            )}
-                          >
-                            {field.value && field.value > 0
-                              ? machines.find((machine) => machine.id === field.value)
-                                  ?.machineName || 'Select machine'
-                              : machinesLoading ? 'Loading machines...' : 'Select machine'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search machine..." />
-                          <CommandEmpty>No machine found.</CommandEmpty>
-                          <CommandGroup className="max-h-64 overflow-auto">
-                            {machines.map((machine) => (
-                              <CommandItem
-                                key={machine.id}
-                                value={`${machine.machineName} ${machine.machineCode}`}
-                                onSelect={() => {
-                                  field.onChange(machine.id)
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    'mr-2 h-4 w-4',
-                                    field.value === machine.id ? 'opacity-100' : 'opacity-0'
-                                  )}
-                                />
-                                {machine.machineName} ({machine.machineCode})
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="defaultSetupTimeHours"
+                name="cycleTimePerPieceHours"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Default Setup Time (hours)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        placeholder="0.5"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="defaultCycleTimePerPieceHours"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Cycle Time/Piece (hours)</FormLabel>
+                    <FormLabel>Cycle Time per Piece (hours) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="0.1"
+                        placeholder="e.g. 2.5"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     </FormControl>
+                    <FormDescription>Time to process one piece</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -298,16 +298,17 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
                 name="standardTimeMin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Setup Time (minutes) *</FormLabel>
+                    <FormLabel>Setup Time (min) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         step="1"
-                        placeholder="0"
+                        placeholder="e.g. 30"
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                       />
                     </FormControl>
+                    <FormDescription>One-time per job</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -318,7 +319,7 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
                 name="restTimeHours"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rest Time (hours)</FormLabel>
+                    <FormLabel>Rest Time (hrs)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -328,6 +329,7 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     </FormControl>
+                    <FormDescription>Optional cooling time</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -392,5 +394,66 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
         </Form>
       </DialogContent>
     </Dialog>
+
+    {/* Quick Add Category Dialog */}
+    <Dialog open={showAddCategoryDialog} onOpenChange={setShowAddCategoryDialog}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Add Process Category</DialogTitle>
+          <DialogDescription>
+            Create a new process category for capacity-based scheduling
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <label htmlFor="category-name" className="text-sm font-medium">
+              Category Name *
+            </label>
+            <Input
+              id="category-name"
+              placeholder="e.g., Turning 1, Grinding 1"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleAddCategory()
+                }
+              }}
+            />
+          </div>
+          <div className="grid gap-2">
+            <label htmlFor="category-description" className="text-sm font-medium">
+              Description
+            </label>
+            <Textarea
+              id="category-description"
+              placeholder="Optional description"
+              value={newCategoryDescription}
+              onChange={(e) => setNewCategoryDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setShowAddCategoryDialog(false)
+              setNewCategoryName('')
+              setNewCategoryDescription('')
+            }}
+            disabled={isAddingCategory}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleAddCategory} disabled={isAddingCategory}>
+            {isAddingCategory ? 'Adding...' : 'Add Category'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

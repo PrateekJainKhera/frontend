@@ -48,6 +48,7 @@ const muiTheme = createTheme({
 })
 
 export function RawMaterialsDataGrid({ materials, onUpdate }: RawMaterialsDataGridProps) {
+    const [data, setData] = useState<MaterialResponse[]>(materials)
     const [selectedMaterial, setSelectedMaterial] = useState<MaterialResponse | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -55,6 +56,11 @@ export function RawMaterialsDataGrid({ materials, onUpdate }: RawMaterialsDataGr
         pageIndex: 0,
         pageSize: 10,
     })
+
+    // Sync prop to internal state
+    useMemo(() => {
+        setData(materials)
+    }, [materials])
 
     const handleView = (material: MaterialResponse) => {
         setSelectedMaterial(material)
@@ -122,7 +128,7 @@ export function RawMaterialsDataGrid({ materials, onUpdate }: RawMaterialsDataGr
 
     const table = useMaterialReactTable({
         columns,
-        data: materials,
+        data: data,
         enableColumnActions: false,
         enableColumnFilters: false,
         enableSorting: true,

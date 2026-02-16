@@ -75,23 +75,45 @@ export interface ScheduleSlot {
 
 /**
  * Machine Suggestion Response (Semi-Automatic Scheduling)
+ * Now includes capacity-based metrics for improved scheduling
  */
 export interface MachineSuggestion {
   machineId: number;
   machineCode: string;
   machineName: string;
+  machineType?: string | null;
+  location?: string | null;
+  department?: string | null;
 
-  // Capability info from ProcessMachineCapability
-  setupTimeHours: number;
-  cycleTimePerPieceHours: number;
-  preferenceLevel: number;  // 1 = Best, 5 = Last Resort
-  efficiencyRating: number;
-  isPreferredMachine: boolean;
+  // Process Category (NEW)
+  processCategoryId: number;
+  processCategoryName: string;
+
+  // Capacity Information (NEW)
+  dailyCapacityHours: number;
+  scheduledHours: number;
+  availableHours: number;
+  utilizationPercent: number;
+
+  // Status (NEW)
+  capacityStatus: string; // Available, Moderate, Busy, Overloaded
+  isBusy: boolean;
+
+  // Breakdown of scheduled work (NEW)
+  totalJobCards: number;
+  scheduledJobCardNumbers: string[];
+
+  // Legacy fields (kept for backward compatibility)
+  setupTimeHours?: number;
+  cycleTimePerPieceHours?: number;
+  preferenceLevel?: number;  // 1 = Best, 5 = Last Resort
+  efficiencyRating?: number;
+  isPreferredMachine?: boolean;
 
   // Calculated times for this specific job
-  estimatedSetupMinutes: number;
-  estimatedCycleMinutes: number;
-  totalEstimatedMinutes: number;
+  estimatedSetupMinutes?: number;
+  estimatedCycleMinutes?: number;
+  totalEstimatedMinutes?: number;
 
   // Next available time slot
   nextAvailableStart?: Date | null;
@@ -99,8 +121,8 @@ export interface MachineSuggestion {
   suggestedEnd?: Date | null;
 
   // Current machine status
-  isCurrentlyAvailable: boolean;
-  scheduledJobsCount: number;
+  isCurrentlyAvailable?: boolean;
+  scheduledJobsCount?: number;
   currentStatus?: string | null;
 
   // Upcoming schedules (for visualization)

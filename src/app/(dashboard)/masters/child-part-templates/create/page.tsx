@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, Check, ChevronsUpDown } from 'lucide-react'
+import { ArrowLeft, Save, Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,25 +13,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { RollerType } from '@/types'
 import { childPartTemplateService } from '@/lib/api/child-part-templates'
 import { processTemplateService, ProcessTemplateResponse } from '@/lib/api/process-templates'
+import { childPartTypeService, ChildPartTypeResponse } from '@/lib/api/child-part-types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-
-// Simplified Child Part Types
-const CHILD_PART_TYPES = [
-  'SHAFT',
-  'SLEEVE',
-  'TIKKI',
-  'GEAR',
-  'ENDS',
-  'PIPE',
-  'BEARING',
-  'PATTI',
-  'MAGNET',
-  'OTHER'
-] as const
 
 export default function CreateChildPartTemplatePage() {
   const router = useRouter()
@@ -39,6 +27,15 @@ export default function CreateChildPartTemplatePage() {
   const [loadingTemplates, setLoadingTemplates] = useState(false)
   const [processTemplates, setProcessTemplates] = useState<ProcessTemplateResponse[]>([])
   const [processTemplateOpen, setProcessTemplateOpen] = useState(false)
+
+  // Child part types from DB
+  const [childPartTypes, setChildPartTypes] = useState<ChildPartTypeResponse[]>([])
+  const [loadingTypes, setLoadingTypes] = useState(false)
+
+  // Quick-add type dialog
+  const [showAddTypeDialog, setShowAddTypeDialog] = useState(false)
+  const [newTypeName, setNewTypeName] = useState('')
+  const [isAddingType, setIsAddingType] = useState(false)
 
   // Form fields
   const [templateName, setTemplateName] = useState('')
@@ -49,17 +46,6 @@ export default function CreateChildPartTemplatePage() {
 
   // Auto-generate template code based on child part type
   const templateCode = childPartType ? `CPT-${childPartType}-${Date.now().toString().slice(-6)}` : ''
-
-  // Optional: Basic dimensions for reference
-  const [length, setLength] = useState('')
-  const [diameter, setDiameter] = useState('')
-  const [innerDiameter, setInnerDiameter] = useState('')
-  const [outerDiameter, setOuterDiameter] = useState('')
-  const [thickness, setThickness] = useState('')
-  const [dimensionUnit, setDimensionUnit] = useState('mm')
-
-  // Optional: Drawing reference (just ID/number, not full details)
-  const [drawingReference, setDrawingReference] = useState('')
 
   // Technical notes
   const [technicalNotes, setTechnicalNotes] = useState('')
@@ -72,10 +58,43 @@ export default function CreateChildPartTemplatePage() {
     RollerType.MAGNETIC,
   ]
 
-  // Load Process Templates
+  // Load Process Templates + Child Part Types
   useEffect(() => {
     loadProcessTemplates()
+    loadChildPartTypes()
   }, [])
+
+  const loadChildPartTypes = async () => {
+    setLoadingTypes(true)
+    try {
+      const types = await childPartTypeService.getAll()
+      setChildPartTypes(types)
+    } catch (error) {
+      console.error('Failed to load child part types:', error)
+    } finally {
+      setLoadingTypes(false)
+    }
+  }
+
+  const handleAddType = async () => {
+    if (!newTypeName.trim()) {
+      toast.error('Type name is required')
+      return
+    }
+    setIsAddingType(true)
+    try {
+      await childPartTypeService.create({ typeName: newTypeName.trim(), createdBy: 'Admin' })
+      toast.success(`Type '${newTypeName.trim().toUpperCase()}' added`)
+      await loadChildPartTypes()
+      setChildPartType(newTypeName.trim().toUpperCase())
+      setNewTypeName('')
+      setShowAddTypeDialog(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add type')
+    } finally {
+      setIsAddingType(false)
+    }
+  }
 
   const loadProcessTemplates = async () => {
     setLoadingTemplates(true)
@@ -129,13 +148,6 @@ export default function CreateChildPartTemplatePage() {
         rollerType: applicableTypes.join(','), // Store as comma-separated string
         processTemplateId: processTemplateId || undefined,
         description: description.trim() || undefined,
-        length: length ? parseFloat(length) : undefined,
-        diameter: diameter ? parseFloat(diameter) : undefined,
-        innerDiameter: innerDiameter ? parseFloat(innerDiameter) : undefined,
-        outerDiameter: outerDiameter ? parseFloat(outerDiameter) : undefined,
-        thickness: thickness ? parseFloat(thickness) : undefined,
-        dimensionUnit: dimensionUnit || 'mm',
-        drawingNumber: drawingReference.trim() || undefined,
         technicalNotes: technicalNotes.trim() || undefined,
         isPurchased: isPurchased,
         isActive: true,
@@ -204,31 +216,33 @@ export default function CreateChildPartTemplatePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="childPartType">Child Part Type *</Label>
-                <select
-                  id="childPartType"
-                  value={childPartType}
-                  onChange={(e) => setChildPartType(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  required
-                >
-                  <option value="">Select type...</option>
-                  {CHILD_PART_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="drawingReference">Drawing Reference</Label>
-                <Input
-                  id="drawingReference"
-                  placeholder="e.g., DWG-001"
-                  value={drawingReference}
-                  onChange={(e) => setDrawingReference(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Reference to drawing number from Drawings Master</p>
+                <div className="flex gap-2 items-center">
+                  <select
+                    id="childPartType"
+                    value={childPartType}
+                    onChange={(e) => setChildPartType(e.target.value)}
+                    className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    required
+                    disabled={loadingTypes}
+                  >
+                    <option value="">{loadingTypes ? 'Loading...' : 'Select type...'}</option>
+                    {childPartTypes.map((t) => (
+                      <option key={t.id} value={t.typeName}>
+                        {t.typeName}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowAddTypeDialog(true)}
+                    title="Add new child part type"
+                    className="shrink-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -373,91 +387,6 @@ export default function CreateChildPartTemplatePage() {
           </CardContent>
         </Card>
 
-        {/* Dimensions (Optional) */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Dimensions (Optional)</CardTitle>
-            <CardDescription>Physical specifications for reference</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="length">Length</Label>
-                <Input
-                  id="length"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 180"
-                  value={length}
-                  onChange={(e) => setLength(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="diameter">Diameter</Label>
-                <Input
-                  id="diameter"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 25"
-                  value={diameter}
-                  onChange={(e) => setDiameter(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="outerDiameter">Outer Diameter</Label>
-                <Input
-                  id="outerDiameter"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 60"
-                  value={outerDiameter}
-                  onChange={(e) => setOuterDiameter(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="innerDiameter">Inner Diameter</Label>
-                <Input
-                  id="innerDiameter"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 51"
-                  value={innerDiameter}
-                  onChange={(e) => setInnerDiameter(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="thickness">Thickness</Label>
-                <Input
-                  id="thickness"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 4.5"
-                  value={thickness}
-                  onChange={(e) => setThickness(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="dimensionUnit">Unit</Label>
-                <select
-                  id="dimensionUnit"
-                  value={dimensionUnit}
-                  onChange={(e) => setDimensionUnit(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="mm">mm</option>
-                  <option value="cm">cm</option>
-                  <option value="inch">inch</option>
-                </select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Technical Notes */}
         <Card>
           <CardHeader>
@@ -486,6 +415,47 @@ export default function CreateChildPartTemplatePage() {
           </Button>
         </div>
       </form>
+
+      {/* Quick Add Child Part Type Dialog */}
+      <Dialog open={showAddTypeDialog} onOpenChange={setShowAddTypeDialog}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>Add Child Part Type</DialogTitle>
+            <DialogDescription>Enter a name for the new child part type</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newTypeName">Type Name *</Label>
+              <Input
+                id="newTypeName"
+                placeholder="e.g., FLANGE"
+                value={newTypeName}
+                onChange={(e) => setNewTypeName(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleAddType()
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">Will be saved in UPPERCASE</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { setShowAddTypeDialog(false); setNewTypeName('') }}
+              disabled={isAddingType}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddType} disabled={isAddingType}>
+              {isAddingType ? 'Adding...' : 'Add Type'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

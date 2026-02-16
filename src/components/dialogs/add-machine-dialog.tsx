@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -20,9 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Settings, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { machineService } from '@/lib/api/machines'
+import { processCategoryService } from '@/lib/api/process-categories'
+import { ProcessCategory } from '@/types/process-category'
 
 interface AddMachineDialogProps {
   open: boolean
@@ -32,6 +35,8 @@ interface AddMachineDialogProps {
 
 export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [processCategories, setProcessCategories] = useState<ProcessCategory[]>([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [formData, setFormData] = useState({
     machineName: '',
     type: '',
@@ -39,7 +44,22 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
     department: '',
     status: 'Idle',
     notes: '',
+    dailyCapacityHours: 8.0,
   })
+
+  useEffect(() => {
+    const loadProcessCategories = async () => {
+      try {
+        const categories = await processCategoryService.getAll()
+        setProcessCategories(categories.filter(c => c.isActive))
+      } catch (error) {
+        console.error('Failed to load process categories:', error)
+      }
+    }
+    if (open) {
+      loadProcessCategories()
+    }
+  }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,6 +86,8 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
         department: formData.department || undefined,
         status: formData.status,
         notes: formData.notes || undefined,
+        dailyCapacityHours: formData.dailyCapacityHours,
+        processCategoryIds: selectedCategoryIds,
       })
 
       toast.success('Machine added successfully', {
@@ -79,7 +101,9 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
         department: '',
         status: 'Idle',
         notes: '',
+        dailyCapacityHours: 8.0,
       })
+      setSelectedCategoryIds([])
 
       onClose()
       onSuccess?.()
@@ -207,6 +231,72 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
                     }
                     className="mt-1"
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Capacity & Categories */}
+            <div>
+              <h3 className="font-semibold text-sm mb-3">Capacity & Process Categories</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="dailyCapacity">
+                    Daily Capacity (Hours) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="dailyCapacity"
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max="24"
+                    placeholder="e.g., 8.0"
+                    value={formData.dailyCapacityHours}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dailyCapacityHours: parseFloat(e.target.value) || 8.0 })
+                    }
+                    className="mt-1 max-w-xs"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Available working hours per day for this machine
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Process Categories</Label>
+                  <div className="mt-2 grid grid-cols-2 gap-3 max-h-48 overflow-y-auto border rounded-md p-3">
+                    {processCategories.length === 0 ? (
+                      <p className="text-sm text-muted-foreground col-span-2">
+                        No process categories available
+                      </p>
+                    ) : (
+                      processCategories.map((category) => (
+                        <div key={category.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`category-${category.id}`}
+                            checked={selectedCategoryIds.includes(category.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedCategoryIds([...selectedCategoryIds, category.id])
+                              } else {
+                                setSelectedCategoryIds(
+                                  selectedCategoryIds.filter((id) => id !== category.id)
+                                )
+                              }
+                            }}
+                          />
+                          <Label
+                            htmlFor={`category-${category.id}`}
+                            className="text-sm font-normal cursor-pointer"
+                          >
+                            {category.categoryName}
+                          </Label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Select the process categories this machine can handle
+                  </p>
                 </div>
               </div>
             </div>

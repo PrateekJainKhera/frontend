@@ -51,6 +51,7 @@ const muiTheme = createTheme({
 
 export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) {
     const router = useRouter()
+    const [data, setData] = useState<Product[]>(products)
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -58,6 +59,11 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
         pageIndex: 0,
         pageSize: 10,
     })
+
+    // Sync prop to internal state
+    useMemo(() => {
+        setData(products)
+    }, [products])
 
     const handleView = (product: Product) => {
         setSelectedProduct(product)
@@ -153,7 +159,7 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
 
     const table = useMaterialReactTable({
         columns,
-        data: products,
+        data: data,
         enableColumnActions: false,
         enableColumnFilters: false,
         enableSorting: true,

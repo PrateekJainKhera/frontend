@@ -69,6 +69,7 @@ const muiTheme = createTheme({
 })
 
 export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridProps) {
+    const [data, setData] = useState<ComponentResponse[]>(components)
     const [selectedComponent, setSelectedComponent] = useState<ComponentResponse | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -76,6 +77,11 @@ export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridP
         pageIndex: 0,
         pageSize: 10,
     })
+
+    // Sync prop to internal state
+    useMemo(() => {
+        setData(components)
+    }, [components])
 
     const handleView = (component: ComponentResponse) => {
         setSelectedComponent(component)
@@ -148,7 +154,7 @@ export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridP
 
     const table = useMaterialReactTable({
         columns,
-        data: components,
+        data: data,
         enableColumnActions: false,
         enableColumnFilters: false,
         enableSorting: true,

@@ -77,10 +77,16 @@ const muiTheme = createTheme({
 })
 
 export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
+    const [data, setData] = useState<Drawing[]>(drawings)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
     })
+
+    // Sync prop to internal state
+    useMemo(() => {
+        setData(drawings)
+    }, [drawings])
 
     // Define columns
     const columns = useMemo<MRT_ColumnDef<Drawing>[]>(
@@ -192,7 +198,7 @@ export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
 
     const table = useMaterialReactTable({
         columns,
-        data: drawings,
+        data: data,
         enableColumnActions: false,
         enableColumnFilters: false,
         enableSorting: true,

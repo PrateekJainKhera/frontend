@@ -212,8 +212,9 @@ export default function DrawingUploadPage() {
     setPreviewOpen(true)
   }
 
-  const allChildPartsUploaded = bomItems.length === 0 ||
-    bomItems.every(cp => childPartDrawings[cp.childPartTemplateId])
+  const nonPurchasedBomItems = bomItems.filter(cp => !cp.isPurchased)
+  const allChildPartsUploaded = nonPurchasedBomItems.length === 0 ||
+    nonPurchasedBomItems.every(cp => childPartDrawings[cp.childPartTemplateId])
 
   if (loading) {
     return (
@@ -267,8 +268,8 @@ export default function DrawingUploadPage() {
       <Alert>
         <FileText className="h-4 w-4" />
         <AlertDescription>
-          Upload the assembly drawing and all child part drawings based on the product template.
-          All drawings are required before submission.
+          Upload the assembly drawing and child part drawings based on the product template.
+          Purchased parts do not require drawings. All other drawings are required before submission.
         </AlertDescription>
       </Alert>
 
@@ -449,11 +450,14 @@ export default function DrawingUploadPage() {
                 const hasFile = !!childPartFiles[bomItem.childPartTemplateId]
 
                 return (
-                  <div key={bomItem.childPartTemplateId} className="border rounded-lg p-4">
+                  <div key={bomItem.childPartTemplateId} className={`border rounded-lg p-4 ${bomItem.isPurchased ? 'bg-muted/30' : ''}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="font-medium">{bomItem.childPartTemplateName}</h4>
+                          {bomItem.isPurchased && (
+                            <Badge variant="secondary">Purchased Part (Optional)</Badge>
+                          )}
                           {hasDrawing && (
                             <Badge variant="outline" className="border-green-500 text-green-700">
                               <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -578,9 +582,9 @@ export default function DrawingUploadPage() {
           Assembly drawing is required before submission
         </p>
       )}
-      {!allChildPartsUploaded && bomItems.length > 0 && (
+      {!allChildPartsUploaded && nonPurchasedBomItems.length > 0 && (
         <p className="text-sm text-muted-foreground text-center">
-          {bomItems.length - Object.keys(childPartDrawings).length} child part drawing(s) remaining
+          {nonPurchasedBomItems.length - Object.keys(childPartDrawings).length} child part drawing(s) remaining
         </p>
       )}
 

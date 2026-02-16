@@ -18,9 +18,6 @@ import {
   Loader2,
   Factory,
   Clock,
-  Calendar,
-  Star,
-  CheckCircle2,
   TrendingUp,
   AlertCircle,
   XCircle,
@@ -102,7 +99,8 @@ export function ScheduleMachineDialog({
           : format(new Date(), "yyyy-MM-dd'T'HH:mm")
         const start = effectiveStart(rawStart)
         setScheduledStart(start)
-        setScheduledEnd(calcEnd(start, bestMachine.totalEstimatedMinutes))
+        // Use totalEstimatedMinutes if available, otherwise default to 60 minutes
+        setScheduledEnd(calcEnd(start, bestMachine.totalEstimatedMinutes || 60))
       }
     } catch (error) {
       toast.error('Failed to load machine suggestions')
@@ -136,7 +134,7 @@ export function ScheduleMachineDialog({
       : scheduledStart
     const start = effectiveStart(rawStart)
     setScheduledStart(start)
-    setScheduledEnd(calcEnd(start, suggestion.totalEstimatedMinutes))
+    setScheduledEnd(calcEnd(start, suggestion.totalEstimatedMinutes || 60))
   }
 
   // When start time is changed manually — no clamping, user can override freely
@@ -148,7 +146,7 @@ export function ScheduleMachineDialog({
       setScheduledEnd(calcEnd(value, mins || 1440))
     } else {
       const sel = suggestions.find(s => s.machineId === selectedMachineId)
-      if (sel) setScheduledEnd(calcEnd(value, sel.totalEstimatedMinutes))
+      if (sel) setScheduledEnd(calcEnd(value, sel.totalEstimatedMinutes || 60))
     }
   }
 
@@ -219,12 +217,15 @@ export function ScheduleMachineDialog({
       } else {
         const selectedSuggestion = suggestions.find(s => s.machineId === selectedMachineId)
         if (!selectedSuggestion) return
+        // Calculate duration from start and end times if totalEstimatedMinutes is not available
+        const durationMinutes = selectedSuggestion.totalEstimatedMinutes ||
+          Math.round((new Date(scheduledEnd).getTime() - new Date(scheduledStart).getTime()) / (1000 * 60))
         await scheduleService.create({
           jobCardId,
           machineId: selectedMachineId!,
           scheduledStartTime: new Date(scheduledStart),
           scheduledEndTime: new Date(scheduledEnd),
-          estimatedDurationMinutes: selectedSuggestion.totalEstimatedMinutes,
+          estimatedDurationMinutes: durationMinutes,
           schedulingMethod: 'Semi-Automatic',
           suggestedBySystem: true,
           confirmedBy: 'User',
@@ -391,74 +392,101 @@ export function ScheduleMachineDialog({
                             <Badge variant="outline" className="text-xs">
                               {suggestion.machineCode}
                             </Badge>
-                            {suggestion.isPreferredMachine && (
-                              <Badge className="bg-yellow-500 text-white gap-1">
-                                <Star className="h-3 w-3" />
-                                Preferred
-                              </Badge>
-                            )}
                             {index === 0 && (
                               <Badge className="bg-green-500 text-white gap-1">
                                 <TrendingUp className="h-3 w-3" />
                                 Best Match
                               </Badge>
                             )}
+                            {/* Capacity Status Badge */}
+                            <Badge
+                              className={
+                                suggestion.capacityStatus === 'Available' ? 'bg-green-500 text-white' :
+                                suggestion.capacityStatus === 'Moderate' ? 'bg-blue-500 text-white' :
+                                suggestion.capacityStatus === 'Busy' ? 'bg-yellow-500 text-white' :
+                                'bg-red-500 text-white'
+                              }
+                            >
+                              {suggestion.capacityStatus}
+                            </Badge>
                           </div>
 
-                          {/* Machine Details Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                          {/* Process Category */}
+                          <div className="text-xs text-muted-foreground mb-3">
+                            Category: <span className="font-medium text-foreground">{suggestion.processCategoryName}</span>
+                          </div>
+
+                          {/* Capacity Utilization Bar */}
+                          <div className="space-y-1 mb-3">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Utilization</span>
+                              <span className="font-semibold text-sm">
+                                {Math.round(suggestion.utilizationPercent)}%
+                              </span>
+                            </div>
+                            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all ${
+                                  suggestion.utilizationPercent >= 100 ? 'bg-red-500' :
+                                  suggestion.utilizationPercent >= 90 ? 'bg-yellow-500' :
+                                  suggestion.utilizationPercent >= 70 ? 'bg-blue-500' :
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${Math.min(suggestion.utilizationPercent, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Capacity Details Grid */}
+                          <div className="grid grid-cols-3 gap-3 mt-3">
                             <div>
-                              <p className="text-xs text-muted-foreground">Setup Time</p>
+                              <p className="text-xs text-muted-foreground">Daily Capacity</p>
                               <p className="text-sm font-medium">
-                                {suggestion.estimatedSetupMinutes} min
+                                {suggestion.dailyCapacityHours}h
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Cycle Time</p>
+                              <p className="text-xs text-muted-foreground">Scheduled</p>
                               <p className="text-sm font-medium">
-                                {suggestion.estimatedCycleMinutes} min
+                                {suggestion.scheduledHours.toFixed(1)}h
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Total Time</p>
-                              <p className="text-sm font-medium text-primary">
-                                {suggestion.totalEstimatedMinutes} min
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Preference</p>
-                              <p className="text-sm font-medium">
-                                Level {suggestion.preferenceLevel}
+                              <p className="text-xs text-muted-foreground">Available</p>
+                              <p className="text-sm font-medium text-green-600">
+                                {suggestion.availableHours.toFixed(1)}h
                               </p>
                             </div>
                           </div>
 
-                          {/* Availability Info */}
+                          {/* Scheduled Jobs Info */}
                           <div className="mt-3 pt-3 border-t">
-                            <div className="flex items-center gap-4">
-                              {suggestion.isCurrentlyAvailable ? (
-                                <div className="flex items-center gap-2 text-green-600">
-                                  <CheckCircle2 className="h-4 w-4" />
-                                  <span className="text-sm font-medium">Available Now</span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2 text-yellow-600">
-                                  <Clock className="h-4 w-4" />
-                                  <span className="text-sm font-medium">
-                                    {suggestion.scheduledJobsCount} jobs scheduled
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">
+                                {suggestion.totalJobCards === 0 ? (
+                                  <span className="text-green-600 font-medium">No jobs scheduled today</span>
+                                ) : (
+                                  <span>
+                                    <span className="font-medium text-foreground">{suggestion.totalJobCards}</span> job{suggestion.totalJobCards > 1 ? 's' : ''} scheduled today
                                   </span>
-                                </div>
-                              )}
-
-                              {suggestion.nextAvailableStart && (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <Calendar className="h-4 w-4" />
-                                  <span className="text-sm">
-                                    Next available: {format(new Date(suggestion.nextAvailableStart), 'MMM dd, HH:mm')}
-                                  </span>
-                                </div>
-                              )}
+                                )}
+                              </span>
                             </div>
+                            {suggestion.scheduledJobCardNumbers && suggestion.scheduledJobCardNumbers.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {suggestion.scheduledJobCardNumbers.slice(0, 5).map((jobCardNo, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-xs font-normal">
+                                    {jobCardNo}
+                                  </Badge>
+                                ))}
+                                {suggestion.scheduledJobCardNumbers.length > 5 && (
+                                  <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                                    +{suggestion.scheduledJobCardNumbers.length - 5} more
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* Suggested Time Slot */}

@@ -36,20 +36,21 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { toast } from 'sonner'
 import { generatePartCode } from '@/lib/utils/part-code-generator'
-import { RollerType, ChildPartType, Product } from '@/types'
+import { ChildPartType, Product } from '@/types'
 import { Customer } from '@/types/customer'
 import { Upload, FileImage, Check, ChevronsUpDown, Plus, SendHorizontal } from 'lucide-react'
 import { productService } from '@/lib/api/products'
 import { customerService } from '@/lib/api/customer'
 import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
 import { machineModelService } from '@/lib/api/machine-models'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { MachineModel } from '@/types/machine-model'
 import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
   customerName: z.string().optional(),
   modelId: z.number().min(1, 'Machine model is required'),
-  rollerType: z.nativeEnum(RollerType, { message: 'Roller type is required' }),
+  rollerType: z.string().min(1, 'Roller type is required'),
   productTemplateId: z.number().min(1, 'Product template is required'),
   diameter: z.number().min(1, 'Diameter must be greater than 0'),
   length: z.number().min(1, 'Length must be greater than 0'),
@@ -67,7 +68,7 @@ interface CreateProductDialogProps {
   onSuccess: (createdProduct?: Product) => void
   // Optional initial values for pre-filling the form
   initialModelId?: number
-  initialRollerType?: RollerType
+  initialRollerType?: string
   initialNumberOfTeeth?: number
 }
 
@@ -100,6 +101,12 @@ export function CreateProductDialog({
   const [newModelName, setNewModelName] = useState('')
   const [isCreatingModel, setIsCreatingModel] = useState(false)
   const [requestDrawing, setRequestDrawing] = useState(true) // Default checked - mandatory per client requirement
+
+  // Roller types from master
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
+  const [showAddRollerTypeDialog, setShowAddRollerTypeDialog] = useState(false)
+  const [newRollerTypeName, setNewRollerTypeName] = useState('')
+  const [isAddingRollerType, setIsAddingRollerType] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -143,10 +150,41 @@ export function CreateProductDialog({
         }
       }
 
+      const loadRollerTypes = async () => {
+        try {
+          const data = await rollerTypeService.getAll()
+          setRollerTypes(data)
+        } catch (error) {
+          console.error('Failed to load roller types:', error)
+        }
+      }
+
       loadCustomers()
       loadMachineModels()
+      loadRollerTypes()
     }
   }, [open])
+
+  const handleAddRollerType = async () => {
+    if (!newRollerTypeName.trim()) {
+      toast.error('Type name is required')
+      return
+    }
+    setIsAddingRollerType(true)
+    try {
+      await rollerTypeService.create({ typeName: newRollerTypeName.trim(), createdBy: 'Admin' })
+      toast.success(`Roller type '${newRollerTypeName.trim()}' added`)
+      const data = await rollerTypeService.getAll()
+      setRollerTypes(data)
+      form.setValue('rollerType', newRollerTypeName.trim())
+      setNewRollerTypeName('')
+      setShowAddRollerTypeDialog(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add roller type')
+    } finally {
+      setIsAddingRollerType(false)
+    }
+  }
 
   // Fetch templates when roller type changes
   useEffect(() => {
@@ -199,7 +237,7 @@ export function CreateProductDialog({
   useEffect(() => {
     const subscription = form.watch((value) => {
       if (value.rollerType) {
-        const code = generatePartCode(value.rollerType as RollerType)
+        const code = generatePartCode(value.rollerType)
         setGeneratedPartCode(code)
       }
     })
@@ -470,27 +508,39 @@ export function CreateProductDialog({
                 )}
               />
 
-              {/* Roller Type - ENUM DROPDOWN (Only MAGNETIC and PRINTING) */}
+              {/* Roller Type - Dynamic from master */}
               <FormField
                 control={form.control}
                 name="rollerType"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Roller Type *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.values(RollerType).map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2 items-center">
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {rollerTypes.map((t) => (
+                            <SelectItem key={t.id} value={t.typeName}>
+                              {t.typeName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowAddRollerTypeDialog(true)}
+                        title="Add new roller type"
+                        className="shrink-0"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -783,6 +833,46 @@ export function CreateProductDialog({
             {isCreatingModel ? 'Creating...' : 'Create Model'}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Quick Add Roller Type Dialog */}
+    <Dialog open={showAddRollerTypeDialog} onOpenChange={setShowAddRollerTypeDialog}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle>Add Roller Type</DialogTitle>
+          <DialogDescription>Enter a name for the new roller type</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-2">
+            <label htmlFor="newRollerTypeName" className="text-sm font-medium">Type Name *</label>
+            <Input
+              id="newRollerTypeName"
+              placeholder="e.g., Anilox Roller"
+              value={newRollerTypeName}
+              onChange={(e) => setNewRollerTypeName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleAddRollerType()
+                }
+              }}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => { setShowAddRollerTypeDialog(false); setNewRollerTypeName('') }}
+            disabled={isAddingRollerType}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleAddRollerType} disabled={isAddingRollerType}>
+            {isAddingRollerType ? 'Adding...' : 'Add Type'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   </>

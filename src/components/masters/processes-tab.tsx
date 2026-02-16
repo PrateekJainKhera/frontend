@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,11 +37,14 @@ export function ProcessesTab({ searchQuery = '' }: ProcessesTabProps) {
     }
   }
 
-  const filteredProcesses = processes.filter(
-    (process) =>
-      process.processName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      process.processCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      process.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProcesses = useMemo(() =>
+    processes.filter(
+      (process) =>
+        process.processName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        process.processCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        process.processCategoryName?.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [processes, searchQuery]
   )
 
   return (
@@ -56,17 +59,17 @@ export function ProcessesTab({ searchQuery = '' }: ProcessesTabProps) {
         </Card>
         <Card className="border-2">
           <CardHeader className="pb-2">
-            <CardDescription>Machining</CardDescription>
+            <CardDescription>Active</CardDescription>
             <CardTitle className="text-2xl text-blue-600">
-              {processes.filter(p => p.category === 'Machining').length}
+              {processes.filter(p => p.isActive).length}
             </CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-2">
           <CardHeader className="pb-2">
-            <CardDescription>Finishing</CardDescription>
+            <CardDescription>Inactive</CardDescription>
             <CardTitle className="text-2xl text-green-600">
-              {processes.filter(p => p.category === 'Finishing').length}
+              {processes.filter(p => !p.isActive).length}
             </CardTitle>
           </CardHeader>
         </Card>

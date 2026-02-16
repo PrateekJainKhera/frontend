@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -21,10 +21,19 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { productService } from '@/lib/api/products'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 
 const formSchema = z.object({
   partCode: z.string().min(2, 'Part code is required'),
@@ -59,6 +68,34 @@ export function EditProductDialog({
   onSuccess,
 }: EditProductDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
+  const [showAddRollerTypeDialog, setShowAddRollerTypeDialog] = useState(false)
+  const [newRollerTypeName, setNewRollerTypeName] = useState('')
+  const [isAddingRollerType, setIsAddingRollerType] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      rollerTypeService.getAll().then(setRollerTypes).catch(console.error)
+    }
+  }, [open])
+
+  const handleAddRollerType = async () => {
+    if (!newRollerTypeName.trim()) { toast.error('Type name is required'); return }
+    setIsAddingRollerType(true)
+    try {
+      await rollerTypeService.create({ typeName: newRollerTypeName.trim(), createdBy: 'Admin' })
+      toast.success(`Roller type '${newRollerTypeName.trim()}' added`)
+      const data = await rollerTypeService.getAll()
+      setRollerTypes(data)
+      form.setValue('rollerType', newRollerTypeName.trim())
+      setNewRollerTypeName('')
+      setShowAddRollerTypeDialog(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add roller type')
+    } finally {
+      setIsAddingRollerType(false)
+    }
+  }
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -117,6 +154,7 @@ export function EditProductDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -190,9 +228,32 @@ export function EditProductDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Roller Type *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Magnetic Roller" {...field} />
-                    </FormControl>
+                    <div className="flex gap-2 items-center">
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {rollerTypes.map((t) => (
+                            <SelectItem key={t.id} value={t.typeName}>
+                              {t.typeName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowAddRollerTypeDialog(true)}
+                        title="Add new roller type"
+                        className="shrink-0"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -365,5 +426,43 @@ export function EditProductDialog({
         </Form>
       </DialogContent>
     </Dialog>
+
+    {/* Quick Add Roller Type Dialog */}
+    <Dialog open={showAddRollerTypeDialog} onOpenChange={setShowAddRollerTypeDialog}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle>Add Roller Type</DialogTitle>
+          <DialogDescription>Enter a name for the new roller type</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-2">
+            <label htmlFor="editNewRollerTypeName" className="text-sm font-medium">Type Name *</label>
+            <Input
+              id="editNewRollerTypeName"
+              placeholder="e.g., Anilox Roller"
+              value={newRollerTypeName}
+              onChange={(e) => setNewRollerTypeName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddRollerType() }
+              }}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => { setShowAddRollerTypeDialog(false); setNewRollerTypeName('') }}
+            disabled={isAddingRollerType}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleAddRollerType} disabled={isAddingRollerType}>
+            {isAddingRollerType ? 'Adding...' : 'Add Type'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

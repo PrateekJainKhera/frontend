@@ -3,14 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Settings, Wrench } from 'lucide-react'
+import { ArrowLeft, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { machineService, MachineResponse } from '@/lib/api/machines'
 import { MachineBasicInfoForm } from '@/components/forms/machine-basic-info-form'
-import { MachineProcessCapabilities } from '@/components/masters/machine-process-capabilities'
 
 export default function EditMachinePage() {
   const params = useParams()
@@ -19,7 +17,6 @@ export default function EditMachinePage() {
 
   const [loading, setLoading] = useState(true)
   const [machine, setMachine] = useState<MachineResponse | null>(null)
-  const [activeTab, setActiveTab] = useState('basic')
 
   useEffect(() => {
     loadMachine()
@@ -85,29 +82,14 @@ export default function EditMachinePage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Machine Info */}
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic">
-                <Settings className="mr-2 h-4 w-4" />
-                Basic Info
-              </TabsTrigger>
-              <TabsTrigger value="capabilities">
-                <Wrench className="mr-2 h-4 w-4" />
-                Process Capabilities
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="basic" className="space-y-4 mt-6">
-              <MachineBasicInfoForm machine={machine} onSuccess={loadMachine} />
-            </TabsContent>
-
-            <TabsContent value="capabilities" className="space-y-4 mt-6">
-              <MachineProcessCapabilities machineId={machineId} machineName={machine.machineName} />
-            </TabsContent>
-          </Tabs>
+          <div className="flex items-center gap-2 mb-6">
+            <Settings className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">Machine Information</h2>
+          </div>
+          <MachineBasicInfoForm machine={machine} onSuccess={loadMachine} />
         </CardContent>
       </Card>
     </div>

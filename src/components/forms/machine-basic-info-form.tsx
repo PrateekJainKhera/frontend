@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -11,6 +11,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -23,8 +24,11 @@ import {
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { machineService, MachineResponse } from '@/lib/api/machines'
+import { processCategoryService } from '@/lib/api/process-categories'
+import { ProcessCategory } from '@/types/process-category'
 
 const formSchema = z.object({
   machineName: z.string().min(2, 'Machine name must be at least 2 characters'),
@@ -33,6 +37,7 @@ const formSchema = z.object({
   department: z.string().optional(),
   status: z.string().optional(),
   notes: z.string().optional(),
+  dailyCapacityHours: z.number().min(0.1).max(24),
   isActive: z.boolean(),
 })
 
@@ -45,6 +50,20 @@ interface MachineBasicInfoFormProps {
 
 export function MachineBasicInfoForm({ machine, onSuccess }: MachineBasicInfoFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [processCategories, setProcessCategories] = useState<ProcessCategory[]>([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(machine.processCategoryIds || [])
+
+  useEffect(() => {
+    const loadProcessCategories = async () => {
+      try {
+        const categories = await processCategoryService.getAll()
+        setProcessCategories(categories.filter(c => c.isActive))
+      } catch (error) {
+        console.error('Failed to load process categories:', error)
+      }
+    }
+    loadProcessCategories()
+  }, [])
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -55,6 +74,7 @@ export function MachineBasicInfoForm({ machine, onSuccess }: MachineBasicInfoFor
       department: machine.department || '',
       status: machine.status || 'Available',
       notes: machine.notes || '',
+      dailyCapacityHours: machine.dailyCapacityHours || 8.0,
       isActive: machine.isActive,
     },
   })
@@ -72,6 +92,8 @@ export function MachineBasicInfoForm({ machine, onSuccess }: MachineBasicInfoFor
         department: data.department,
         status: data.status,
         notes: data.notes,
+        dailyCapacityHours: data.dailyCapacityHours,
+        processCategoryIds: selectedCategoryIds,
         isActive: data.isActive,
       })
 
@@ -182,6 +204,72 @@ export function MachineBasicInfoForm({ machine, onSuccess }: MachineBasicInfoFor
               </FormItem>
             )}
           />
+
+          {/* Daily Capacity Hours */}
+          <FormField
+            control={form.control}
+            name="dailyCapacityHours"
+            render={({ field }) => (
+              <FormItem className="md:col-span-2">
+                <FormLabel>Daily Capacity (Hours) *</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0.1"
+                    max="24"
+                    placeholder="8.0"
+                    {...field}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 8.0)}
+                    className="max-w-xs"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Available working hours per day for this machine (e.g., 8.0, 16.0, 24.0)
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Process Categories */}
+          <div className="md:col-span-2 space-y-3">
+            <Label>Process Categories</Label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 border rounded-md p-4 max-h-64 overflow-y-auto">
+              {processCategories.length === 0 ? (
+                <p className="text-sm text-muted-foreground col-span-2 md:col-span-3">
+                  No process categories available
+                </p>
+              ) : (
+                processCategories.map((category) => (
+                  <div key={category.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`category-${category.id}`}
+                      checked={selectedCategoryIds.includes(category.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedCategoryIds([...selectedCategoryIds, category.id])
+                        } else {
+                          setSelectedCategoryIds(
+                            selectedCategoryIds.filter((id) => id !== category.id)
+                          )
+                        }
+                      }}
+                    />
+                    <Label
+                      htmlFor={`category-${category.id}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {category.categoryName}
+                    </Label>
+                  </div>
+                ))
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Select the process categories this machine can handle
+            </p>
+          </div>
 
           {/* Notes */}
           <FormField
