@@ -26,11 +26,21 @@ export enum MaterialType {
   OTHER = 'Other'
 }
 
+// Material density constants (g/cm³)
+export const MATERIAL_DENSITY_MAP: Record<MaterialType, number> = {
+  [MaterialType.STEEL]: 7.85,
+  [MaterialType.STAINLESS_STEEL]: 8.2,
+  [MaterialType.ALUMINUM]: 2.8,
+  [MaterialType.METAL]: 7.85, // Default to steel density
+  [MaterialType.OTHER]: 7.85  // Default to steel density
+}
+
 export enum MaterialShape {
   ROD = 'Rod',
   PIPE = 'Pipe',
   FORGED = 'Forged',
-  SHEET = 'Sheet'
+  SHEET = 'Sheet',
+  FLAT = 'Flat'
 }
 
 export enum ProcessCategory {
@@ -129,7 +139,7 @@ export enum ModuleName {
 export enum CustomerType {
   DIRECT = 'Direct Customer',
   AGENT = 'Agent/Distributor',
-  DEALER = 'Dealer'
+  OEM = 'OEM'
 }
 
 export enum OrderSource {

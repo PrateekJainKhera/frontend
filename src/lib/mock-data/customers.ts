@@ -90,7 +90,7 @@ export const mockCustomers: Customer[] = [
     phone: '+91 98765 43215',
     address: 'Unit 5, Odhav Industrial Area, Ahmedabad - 382415',
     isActive: true,
-    customerType: CustomerType.DEALER,
+    customerType: CustomerType.OEM,
     creditLimit: 450000,
     creditDays: 30,
     paymentTerms: 'NET 15',

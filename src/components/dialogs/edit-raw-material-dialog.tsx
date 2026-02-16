@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { MaterialType, MaterialGrade, MaterialShape } from '@/types/enums'
+import { MaterialType, MaterialGrade, MaterialShape, MATERIAL_DENSITY_MAP } from '@/types/enums'
 import { toast } from 'sonner'
 
 const formSchema = z.object({
@@ -55,9 +55,9 @@ const formSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['innerDiameter'], message: 'Must be less than outer diameter' })
     }
   }
-  if (data.shape === 'Sheet') {
+  if (data.shape === 'Sheet' || data.shape === 'Flat') {
     if (!data.width || data.width < 0.01) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['width'], message: 'Width is required' })
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['width'], message: 'Width is required for Sheet/Flat shape' })
     }
   }
 })
@@ -94,6 +94,15 @@ export function EditRawMaterialDialog({
   })
 
   const shape = form.watch('shape')
+  const materialType = form.watch('materialType')
+
+  // Auto-set density based on material type
+  useEffect(() => {
+    if (materialType && materialType in MaterialType) {
+      const density = MATERIAL_DENSITY_MAP[materialType as MaterialType]
+      form.setValue('density', density)
+    }
+  }, [materialType, form])
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -103,9 +112,9 @@ export function EditRawMaterialDialog({
         materialType: data.materialType,
         grade: data.grade,
         shape: data.shape,
-        diameter: data.shape === 'Sheet' ? 0 : (data.diameter ?? 0),
+        diameter: (data.shape === 'Sheet' || data.shape === 'Flat') ? 0 : (data.diameter ?? 0),
         innerDiameter: data.shape === 'Pipe' ? data.innerDiameter : undefined,
-        width: data.shape === 'Sheet' ? data.width : undefined,
+        width: (data.shape === 'Sheet' || data.shape === 'Flat') ? data.width : undefined,
         lengthInMM: 0, // Not stored in master - actual length from inventory
         density: data.density,
         weightKG: 0, // Not stored in master - actual weight from inventory
@@ -292,7 +301,7 @@ export function EditRawMaterialDialog({
                 </>
               )}
 
-              {shape === 'Sheet' && (
+              {(shape === 'Sheet' || shape === 'Flat') && (
                 <FormField
                   control={form.control}
                   name="width"

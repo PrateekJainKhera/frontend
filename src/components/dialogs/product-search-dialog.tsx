@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -34,6 +35,7 @@ import { MachineModel } from '@/types/machine-model'
 import { machineModelService } from '@/lib/api/machine-models'
 import { productService } from '@/lib/api/products'
 import { toast } from 'sonner'
+import { CreateProductDialog } from '@/components/forms/create-product-dialog'
 
 const searchSchema = z.object({
   modelId: z.string().min(1, 'Machine model is required'),
@@ -60,6 +62,10 @@ export function ProductSearchDialog({
   const [searchResults, setSearchResults] = useState<Product[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false)
+  const [isAddModelDialogOpen, setIsAddModelDialogOpen] = useState(false)
+  const [newModelName, setNewModelName] = useState('')
+  const [isCreatingModel, setIsCreatingModel] = useState(false)
 
   const form = useForm<SearchFormData>({
     resolver: zodResolver(searchSchema),
@@ -122,12 +128,62 @@ export function ProductSearchDialog({
     toast.success(`Added ${product.partCode} to order`)
   }
 
+  const handleCreateProduct = () => {
+    setCreateProductDialogOpen(true)
+  }
+
+  const handleProductCreated = (createdProduct?: Product) => {
+    if (createdProduct) {
+      // Close the create dialog
+      setCreateProductDialogOpen(false)
+
+      // Add the newly created product to the order
+      onSelectProduct(createdProduct)
+
+      // Optionally re-run search to show the new product in results
+      const formData = form.getValues()
+      if (formData.modelId && formData.rollerType && formData.numberOfTeeth) {
+        onSearch(formData)
+      }
+    }
+  }
+
+  const handleCreateMachineModel = async () => {
+    if (!newModelName.trim()) {
+      toast.error('Model name is required')
+      return
+    }
+
+    setIsCreatingModel(true)
+    try {
+      const newModelId = await machineModelService.create({ modelName: newModelName })
+      toast.success(`Machine model "${newModelName}" created successfully`)
+
+      // Refresh the machine models list
+      const updatedModels = await machineModelService.getAll()
+      setMachineModels(updatedModels)
+
+      // Auto-select the newly created model
+      form.setValue('modelId', newModelId.toString())
+
+      // Close dialog and reset
+      setIsAddModelDialogOpen(false)
+      setNewModelName('')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create machine model'
+      toast.error(message)
+    } finally {
+      setIsCreatingModel(false)
+    }
+  }
+
   // Filter out already selected products
   const availableResults = searchResults.filter(
     p => !excludedProductIds.includes(p.id)
   )
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -147,25 +203,37 @@ export function ProductSearchDialog({
                   control={form.control}
                   name="modelId"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Machine Model *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select model" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {machineModels.map((model) => (
-                            <SelectItem key={model.id} value={model.id.toString()}>
-                              {model.modelName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Select model" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {machineModels.map((model) => (
+                              <SelectItem key={model.id} value={model.id.toString()}>
+                                {model.modelName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setIsAddModelDialogOpen(true)}
+                          title="Add new machine model"
+                          className="shrink-0"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -239,12 +307,24 @@ export function ProductSearchDialog({
               </div>
 
               {availableResults.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground space-y-4">
                   <p className="text-sm">
                     {searchResults.length === 0
                       ? 'No products found matching the criteria'
                       : 'All matching products are already in your order'}
                   </p>
+                  {searchResults.length === 0 && (
+                    <div className="flex justify-center">
+                      <Button
+                        variant="outline"
+                        onClick={handleCreateProduct}
+                        className="gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Create New Product with These Criteria
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -281,5 +361,67 @@ export function ProductSearchDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Create Product Dialog - Pre-filled with search criteria */}
+    <CreateProductDialog
+      open={createProductDialogOpen}
+      onOpenChange={setCreateProductDialogOpen}
+      onSuccess={handleProductCreated}
+      initialModelId={form.getValues('modelId') ? Number(form.getValues('modelId')) : undefined}
+      initialRollerType={form.getValues('rollerType')}
+      initialNumberOfTeeth={form.getValues('numberOfTeeth')}
+    />
+
+    {/* Quick Add Machine Model Dialog */}
+    <Dialog open={isAddModelDialogOpen} onOpenChange={setIsAddModelDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Machine Model</DialogTitle>
+          <DialogDescription>
+            Create a new machine model. It will be automatically selected for your search.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label htmlFor="modelName" className="text-sm font-medium">
+              Model Name *
+            </label>
+            <Input
+              id="modelName"
+              placeholder="e.g., Flexo 8-Color Press"
+              value={newModelName}
+              onChange={(e) => setNewModelName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleCreateMachineModel()
+                }
+              }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setIsAddModelDialogOpen(false)
+              setNewModelName('')
+            }}
+            disabled={isCreatingModel}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleCreateMachineModel}
+            disabled={isCreatingModel || !newModelName.trim()}
+          >
+            {isCreatingModel ? 'Creating...' : 'Create Model'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   )
 }

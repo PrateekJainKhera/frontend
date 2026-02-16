@@ -55,6 +55,7 @@ interface OrderItem {
   quantity: number
   dueDate: string
   priority: Priority
+  remarks?: string
 }
 
 const formSchema = z.object({
@@ -69,6 +70,7 @@ const formSchema = z.object({
   // Machine and Grade fields
   customerMachine: z.string().optional(),
   materialGradeRemark: z.string().optional(),
+  remarks: z.string().max(500, 'Remarks cannot exceed 500 characters').optional(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -136,6 +138,7 @@ export default function CreateOrderPage() {
       drawingNotes: '',
       customerMachine: '',
       materialGradeRemark: '',
+      remarks: '',
     },
   })
 
@@ -165,7 +168,7 @@ export default function CreateOrderPage() {
   // Update order item field
   const handleUpdateItem = (
     productId: number,
-    field: 'quantity' | 'dueDate' | 'priority',
+    field: 'quantity' | 'dueDate' | 'priority' | 'remarks',
     value: number | string | Priority
   ) => {
     setOrderItems(prev =>
@@ -210,6 +213,7 @@ export default function CreateOrderPage() {
           quantity: item.quantity,
           dueDate: item.dueDate,
           priority: item.priority,
+          remarks: item.remarks || undefined,
         })),
       }
 
@@ -472,6 +476,28 @@ export default function CreateOrderPage() {
                                 </SelectContent>
                               </Select>
                             </div>
+                          </div>
+
+                          {/* Remarks field */}
+                          <div>
+                            <Label className="text-xs">Remarks (Optional)</Label>
+                            <Textarea
+                              placeholder="Add any notes or special instructions for this product..."
+                              value={item.remarks || ''}
+                              onChange={(e) =>
+                                handleUpdateItem(
+                                  item.product.id,
+                                  'remarks',
+                                  e.target.value
+                                )
+                              }
+                              maxLength={500}
+                              className="mt-1 resize-none"
+                              rows={2}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {item.remarks?.length || 0}/500 characters
+                            </p>
                           </div>
                         </div>
                       ))}

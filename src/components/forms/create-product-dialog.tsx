@@ -36,7 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { toast } from 'sonner'
 import { generatePartCode } from '@/lib/utils/part-code-generator'
-import { RollerType, ChildPartType } from '@/types'
+import { RollerType, ChildPartType, Product } from '@/types'
 import { Customer } from '@/types/customer'
 import { Upload, FileImage, Check, ChevronsUpDown, Plus, SendHorizontal } from 'lucide-react'
 import { productService } from '@/lib/api/products'
@@ -64,7 +64,11 @@ type FormData = z.infer<typeof formSchema>
 interface CreateProductDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
+  onSuccess: (createdProduct?: Product) => void
+  // Optional initial values for pre-filling the form
+  initialModelId?: number
+  initialRollerType?: RollerType
+  initialNumberOfTeeth?: number
 }
 
 // Child part entry for the form
@@ -79,6 +83,9 @@ export function CreateProductDialog({
   open,
   onOpenChange,
   onSuccess,
+  initialModelId,
+  initialRollerType,
+  initialNumberOfTeeth,
 }: CreateProductDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [generatedPartCode, setGeneratedPartCode] = useState<string>('')
@@ -98,12 +105,12 @@ export function CreateProductDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerName: '',
-      modelId: 0,
-      rollerType: undefined,
+      modelId: initialModelId || 0,
+      rollerType: initialRollerType || undefined,
       productTemplateId: 0,
       diameter: 0,
       length: 0,
-      numberOfTeeth: 0,
+      numberOfTeeth: initialNumberOfTeeth || 0,
       surfaceFinish: '',
       hardness: '',
       processTemplateId: 1, // Default template ID
@@ -206,6 +213,21 @@ export function CreateProductDialog({
     }
   }, [open])
 
+  // Set initial values when dialog opens with pre-filled data
+  useEffect(() => {
+    if (open) {
+      if (initialModelId) {
+        form.setValue('modelId', initialModelId)
+      }
+      if (initialRollerType) {
+        form.setValue('rollerType', initialRollerType)
+      }
+      if (initialNumberOfTeeth) {
+        form.setValue('numberOfTeeth', initialNumberOfTeeth)
+      }
+    }
+  }, [open, initialModelId, initialRollerType, initialNumberOfTeeth, form])
+
   const handleFileChange = (id: string, file: File | null) => {
     setChildParts(
       childParts.map((part) =>
@@ -271,13 +293,16 @@ export function CreateProductDialog({
         requestDrawing: requestDrawing,
       })
 
+      // Fetch the created product to pass back to parent
+      const createdProduct = await productService.getById(result.id)
+
       toast.dismiss(loadingToast)
       toast.success(result.message)
       form.reset()
       setGeneratedPartCode('')
       setChildParts([])
       onOpenChange(false)
-      onSuccess()
+      onSuccess(createdProduct)
     } catch (error) {
       toast.dismiss(loadingToast)
       const message = error instanceof Error ? error.message : 'Failed to create product'

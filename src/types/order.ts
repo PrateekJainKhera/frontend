@@ -27,6 +27,7 @@ export interface OrderItem {
   materialGradeApprovalDate?: string | null
   materialGradeApprovedBy?: string | null
   materialGradeRemark?: string | null
+  remarks?: string | null
   createdAt: string
   createdBy?: string
   updatedAt?: string | null

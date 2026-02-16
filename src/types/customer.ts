@@ -2,7 +2,7 @@ export interface Customer {
   id: number
   customerCode: string
   customerName: string
-  customerType: string // 'Direct', 'Agent', 'Dealer'
+  customerType: string // 'Direct', 'Agent', 'OEM'
   contactPerson?: string
   email?: string
   phone?: string

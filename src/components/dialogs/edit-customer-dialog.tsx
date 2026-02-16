@@ -36,7 +36,7 @@ import { customerService } from '@/lib/api/customer'
 
 const formSchema = z.object({
   customerName: z.string().min(2, 'Name must be at least 2 characters'),
-  customerType: z.enum(['Direct', 'Agent', 'Dealer']),
+  customerType: z.enum(['Direct', 'Agent', 'OEM']),
   contactPerson: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
@@ -74,7 +74,7 @@ export function EditCustomerDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerName: customer.customerName,
-      customerType: customer.customerType as 'Direct' | 'Agent' | 'Dealer',
+      customerType: customer.customerType as 'Direct' | 'Agent' | 'OEM',
       contactPerson: customer.contactPerson || '',
       email: customer.email || '',
       phone: customer.phone || '',
@@ -158,7 +158,7 @@ export function EditCustomerDialog({
                       <SelectContent>
                         <SelectItem value="Direct">Direct Customer</SelectItem>
                         <SelectItem value="Agent">Agent/Distributor</SelectItem>
-                        <SelectItem value="Dealer">Dealer</SelectItem>
+                        <SelectItem value="OEM">OEM</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

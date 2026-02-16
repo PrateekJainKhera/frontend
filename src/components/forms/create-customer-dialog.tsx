@@ -35,7 +35,7 @@ import { customerService } from '@/lib/api/customer'
 
 const formSchema = z.object({
   customerName: z.string().min(2, 'Name must be at least 2 characters'),
-  customerType: z.enum(['Direct', 'Agent', 'Dealer']),
+  customerType: z.enum(['Direct', 'Agent', 'OEM']),
   contactPerson: z.string().optional(),
   email: z.string().email('Invalid email format').optional().or(z.literal('')),
   phone: z.string().optional(),
@@ -152,7 +152,7 @@ export function CreateCustomerDialog({
                       <SelectContent>
                         <SelectItem value="Direct">Direct Customer</SelectItem>
                         <SelectItem value="Agent">Agent/Distributor</SelectItem>
-                        <SelectItem value="Dealer">Dealer</SelectItem>
+                        <SelectItem value="OEM">OEM</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
