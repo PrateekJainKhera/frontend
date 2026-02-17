@@ -10,6 +10,7 @@ export interface CreateComponentRequest {
   leadTimeDays: number
   unit: string
   notes?: string | null
+  minimumStock?: number
   createdBy?: string | null
 }
 
@@ -31,11 +32,24 @@ export interface ComponentResponse {
   leadTimeDays: number
   unit: string
   notes?: string | null
+  minimumStock: number
   isActive: boolean
   createdAt: string
   updatedAt: string
   createdBy?: string | null
   updatedBy?: string | null
+}
+
+export interface ComponentLowStockItem {
+  id: number
+  partNumber: string
+  componentName: string
+  category: string
+  unit: string
+  supplierName?: string | null
+  availableStock: number
+  minimumStock: number
+  shortage: number
 }
 
 class ComponentService {
@@ -145,6 +159,18 @@ class ComponentService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to update component: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getLowStock(): Promise<ComponentLowStockItem[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<ComponentLowStockItem[]>>(`${this.baseUrl}/low-stock`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch low stock: ${error.message}`)
       }
       throw error
     }

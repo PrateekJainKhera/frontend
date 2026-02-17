@@ -20,7 +20,10 @@ import {
   Calendar,
   PackageCheck,
   FileText,
-  Truck
+  Truck,
+  PackageMinus,
+  Store,
+  ClipboardList
 } from 'lucide-react'
 import { warehouseService } from '@/lib/api/warehouses'
 
@@ -47,13 +50,23 @@ const navItems: NavItem[] = [
       { title: 'Materials', href: '/masters/materials', icon: Package },
       { title: 'Processes', href: '/masters/processes', icon: Package },
       { title: 'Drawings', href: '/masters/drawings', icon: Package },
-      { title: 'Machines', href: '/masters/machines', icon: Factory }
+      { title: 'Machines', href: '/masters/machines', icon: Factory },
+      { title: 'Vendors', href: '/masters/vendors', icon: Store }
     ]
   },
   {
     title: 'Orders',
     href: '/orders',
     icon: ShoppingCart
+  },
+  {
+    title: 'Procurement',
+    href: '/procurement',
+    icon: ClipboardList,
+    children: [
+      { title: 'Purchase Requests', href: '/procurement/purchase-requests', icon: FileText },
+      { title: 'Purchase Orders', href: '/procurement/purchase-orders', icon: Truck }
+    ]
   },
   {
     title: 'Drawing Review',
@@ -91,6 +104,7 @@ const navItems: NavItem[] = [
       { title: 'Material Pieces', href: '/inventory/material-pieces', icon: PackageCheck },
       { title: 'Requisitions', href: '/inventory/material-requisitions', icon: FileText },
       { title: 'Receive Components', href: '/inventory/receive-components', icon: PackageCheck },
+      { title: 'Component Issue', href: '/inventory/component-issue', icon: PackageMinus },
       { title: 'Warehouses', href: '/inventory/warehouses', icon: Warehouse }
     ]
   },

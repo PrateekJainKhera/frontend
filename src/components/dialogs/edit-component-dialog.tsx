@@ -44,6 +44,7 @@ const formSchema = z.object({
   leadTimeDays: z.number().min(1, 'Lead time must be at least 1 day'),
   unit: z.string().min(1, 'Unit is required'),
   notes: z.string().optional(),
+  minimumStock: z.number().min(0, 'Minimum stock cannot be negative'),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -75,6 +76,7 @@ export function EditComponentDialog({
       leadTimeDays: component.leadTimeDays,
       unit: component.unit,
       notes: component.notes || '',
+      minimumStock: component.minimumStock ?? 0,
     },
   })
 
@@ -92,6 +94,7 @@ export function EditComponentDialog({
         leadTimeDays: data.leadTimeDays,
         unit: data.unit,
         notes: data.notes || null,
+        minimumStock: data.minimumStock,
       })
       toast.success('Component updated successfully')
       onSuccess()
@@ -251,6 +254,26 @@ export function EditComponentDialog({
                       placeholder="Enter technical specifications"
                       className="min-h-20"
                       {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Minimum Stock */}
+            <FormField
+              control={form.control}
+              name="minimumStock"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Minimum Stock</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />

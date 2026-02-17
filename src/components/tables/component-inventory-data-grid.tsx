@@ -113,22 +113,6 @@ export function ComponentInventoryDataGrid({ inventory }: ComponentInventoryData
                 },
             },
             {
-                accessorKey: 'reservedQuantity',
-                header: 'Reserved',
-                size: 100,
-                Cell: ({ cell, row }) => (
-                    <span className="text-yellow-600 font-medium">
-                        {(cell.getValue<number>() || 0).toFixed(2)} {row.original.uom}
-                    </span>
-                ),
-                muiTableBodyCellProps: {
-                    align: 'right',
-                },
-                muiTableHeadCellProps: {
-                    align: 'right',
-                },
-            },
-            {
                 accessorKey: 'uom',
                 header: 'UOM',
                 size: 80,

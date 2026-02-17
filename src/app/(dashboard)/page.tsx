@@ -1,16 +1,27 @@
 "use client"
 
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import {
   ShoppingCart, Factory, TrendingUp, AlertTriangle,
   CheckCircle, XCircle, TruckIcon, Warehouse, Users,
-  Activity, RefreshCw, Target, Zap
+  Activity, RefreshCw, Target, Zap, PackageMinus, Plus
 } from 'lucide-react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { componentService, ComponentLowStockItem } from '@/lib/api/components'
 
 export default function DashboardPage() {
+  const [lowStockComponents, setLowStockComponents] = useState<ComponentLowStockItem[]>([])
+
+  useEffect(() => {
+    componentService.getLowStock()
+      .then(setLowStockComponents)
+      .catch(() => {}) // silently ignore if endpoint not available
+  }, [])
+
   // Mock data - in real app, this would come from API
   const criticalAlerts = [
     { id: 1, type: 'inventory', message: 'EN8 Rod stock below minimum', severity: 'high', time: '5 min ago' },
@@ -199,6 +210,57 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Low Stock Components Alert */}
+      {lowStockComponents.length > 0 && (
+        <Card className="border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/20">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <CardTitle className="text-amber-800 dark:text-amber-400">
+                  Component Low Stock Alert ({lowStockComponents.length})
+                </CardTitle>
+              </div>
+              <Link href="/inventory/receive-components" className="text-sm text-amber-700 dark:text-amber-400 hover:underline font-medium">
+                Receive Components →
+              </Link>
+            </div>
+            <CardDescription className="text-amber-700 dark:text-amber-500">
+              The following components have fallen below their minimum stock level. Please reorder.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {lowStockComponents.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-3 bg-white dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900 rounded-md shrink-0">
+                      <PackageMinus className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{item.componentName}</p>
+                      <p className="text-xs text-muted-foreground">{item.partNumber}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-red-600">{item.availableStock} {item.unit}</p>
+                      <p className="text-xs text-muted-foreground">Min: {item.minimumStock}</p>
+                    </div>
+                    <Button size="sm" variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-100 h-8 px-2" asChild>
+                      <Link href={`/procurement/purchase-requests/create?itemType=Component&itemId=${item.id}&itemName=${encodeURIComponent(item.componentName)}&qty=${Math.max(0, item.minimumStock - item.availableStock)}&unit=${encodeURIComponent(item.unit)}`}>
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        PR
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Production Status */}
