@@ -12,10 +12,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { formatDate, formatDateTime } from '@/lib/utils/formatters'
-import { Order, OrderStatus, Priority, PlanningStatus, DrawingReviewStatus, OrderSource, SchedulingStrategy } from '@/types'
+import { Order, OrderStatus, Priority, PlanningStatus, DrawingReviewStatus } from '@/types'
 import { orderService, OrderResponse } from '@/lib/api/orders'
 import { productService } from '@/lib/api/products'
-import { customerService } from '@/lib/api/customer'
+
 import { getDelayDays, getOrderProgress } from '@/lib/mock-data/orders'
 import { RescheduleOrderDialog } from '@/components/dialogs/reschedule-order-dialog'
 import { format } from 'date-fns'
@@ -50,10 +50,7 @@ export default function OrderDetailPage() {
     priority: r.priority as Priority,
     planningStatus: r.planningStatus as PlanningStatus,
     drawingReviewStatus: r.drawingReviewStatus as DrawingReviewStatus,
-    orderSource: r.orderSource as OrderSource,
-    agentCustomerId: r.agentCustomerId ? String(r.agentCustomerId) : undefined,
-    agentCommission: r.agentCommission ? Number(r.agentCommission) : undefined,
-    schedulingStrategy: r.schedulingStrategy as SchedulingStrategy,
+    orderSource: r.orderSource as any,
     canReschedule: r.planningStatus !== 'Released',
     createdAt: new Date(r.createdAt),
     updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
@@ -71,14 +68,6 @@ export default function OrderDetailPage() {
         const product = await productService.getById(data.productId)
         mapped.product = product as any
       } catch {}
-
-      // Load agent customer if order is through agent
-      if (data.agentCustomerId) {
-        try {
-          const agent = await customerService.getById(data.agentCustomerId)
-          mapped.agentCustomer = agent as any
-        } catch {}
-      }
 
       setOrder(mapped)
 
@@ -350,55 +339,6 @@ export default function OrderDetailPage() {
                 </div>
                 <span className="font-bold text-blue-900">{order.qtyInProgress}</span>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Order Source & Agent */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Order Source</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Source:</span>
-                <Badge variant={order.orderSource === 'Direct' ? 'default' : 'secondary'}>
-                  {order.orderSource}
-                </Badge>
-              </div>
-              {order.orderSource === 'Through Agent' && order.agentCustomer && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-muted-foreground mb-1">Agent:</p>
-                    <p className="font-semibold">{order.agentCustomer.customerName}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {order.agentCustomer.contactPerson}
-                    </p>
-                  </div>
-                  {order.agentCommission && (
-                    <div className="p-3 bg-green-50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Commission</p>
-                      <p className="text-lg font-bold text-green-700">
-                        ₹{order.agentCommission.toLocaleString('en-IN')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Agent/Distributor
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-              {order.schedulingStrategy && (
-                <>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Scheduling:</span>
-                    <Badge variant="outline" className="text-xs">
-                      {order.schedulingStrategy}
-                    </Badge>
-                  </div>
-                </>
-              )}
             </CardContent>
           </Card>
 

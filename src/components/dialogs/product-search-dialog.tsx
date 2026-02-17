@@ -204,36 +204,37 @@ export function ProductSearchDialog({
                   name="modelId"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Machine Model *</FormLabel>
-                      <div className="flex gap-2">
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Select model" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {machineModels.map((model) => (
-                              <SelectItem key={model.id} value={model.id.toString()}>
-                                {model.modelName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="flex items-center justify-between">
+                        <FormLabel>Machine Model *</FormLabel>
                         <Button
                           type="button"
-                          variant="outline"
-                          size="icon"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => setIsAddModelDialogOpen(true)}
                           title="Add new machine model"
-                          className="shrink-0"
+                          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground -mt-0.5"
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Add
                         </Button>
                       </div>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select model" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {machineModels.map((model) => (
+                            <SelectItem key={model.id} value={model.id.toString()}>
+                              {model.modelName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

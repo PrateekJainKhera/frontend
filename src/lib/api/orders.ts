@@ -95,21 +95,37 @@ export interface OrderResponse {
 
 export interface CreateOrderPayload {
   orderDate?: string
-  dueDate: string
+  dueDate?: string
   customerId: number
-  productId: number
-  quantity: number
-  priority: string
-  orderSource: string
-  agentCustomerId?: number
-  agentCommission?: number
-  schedulingStrategy: string
+  productId?: number
+  quantity?: number
+  priority?: string
   primaryDrawingId?: number
-  drawingSource?: string
   drawingNotes?: string
   linkedProductTemplateId?: number
-  customerMachine?: string
-  materialGradeRemark?: string
+  orderValue?: number
+  advancePayment?: number
+  createdBy?: string
+  items?: {
+    productId: number
+    quantity: number
+    dueDate: string
+    priority: string
+    linkedProductTemplateId?: number
+  }[]
+}
+
+export interface OrderCustomerDrawing {
+  id: number
+  orderId: number
+  originalFileName: string
+  drawingType: string
+  notes?: string | null
+  fileSize?: number | null
+  mimeType?: string | null
+  downloadUrl: string
+  uploadedAt: string
+  uploadedBy?: string | null
 }
 
 export interface UpdateOrderPayload {
@@ -123,15 +139,8 @@ export interface UpdateOrderPayload {
   status?: string
   priority?: string
   planningStatus?: string
-  orderSource?: string
-  agentCustomerId?: number
-  agentCommission?: number
-  schedulingStrategy?: string
   primaryDrawingId?: number
-  drawingSource?: string
   linkedProductTemplateId?: number
-  customerMachine?: string
-  materialGradeRemark?: string
   delayReason?: string
   orderValue?: number
   advancePayment?: number
@@ -273,6 +282,51 @@ class OrderService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to update order: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getCustomerDrawings(orderId: number): Promise<OrderCustomerDrawing[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<OrderCustomerDrawing[]>>(`${this.baseUrl}/${orderId}/customer-drawings`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch drawings: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async uploadCustomerDrawing(orderId: number, file: File, drawingType: string, notes?: string): Promise<OrderCustomerDrawing> {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('drawingType', drawingType)
+      if (notes) formData.append('notes', notes)
+      const response = await apiClient.post<ApiResponse<OrderCustomerDrawing>>(
+        `${this.baseUrl}/${orderId}/customer-drawings`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      if (!response.data.success) throw new Error(response.data.message)
+      return response.data.data!
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to upload drawing: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async deleteCustomerDrawing(orderId: number, drawingId: number): Promise<void> {
+    try {
+      const response = await apiClient.delete<ApiResponse<boolean>>(`${this.baseUrl}/${orderId}/customer-drawings/${drawingId}`)
+      if (!response.data.success) throw new Error(response.data.message)
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to delete drawing: ${error.message}`)
       }
       throw error
     }
