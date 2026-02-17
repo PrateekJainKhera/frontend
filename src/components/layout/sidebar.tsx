@@ -55,6 +55,14 @@ const navItems: NavItem[] = [
     ]
   },
   {
+    title: 'Sales',
+    href: '/sales',
+    icon: FileText,
+    children: [
+      { title: 'Estimations', href: '/sales/estimations', icon: FileText }
+    ]
+  },
+  {
     title: 'Orders',
     href: '/orders',
     icon: ShoppingCart

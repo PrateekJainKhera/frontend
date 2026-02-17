@@ -79,3 +79,59 @@ export interface DispatchItem {
   unit: string
   remarks?: string
 }
+
+// Ready to Dispatch (from API)
+export interface ReadyToDispatchItem {
+  orderItemId: number
+  itemSequence: string
+  productId: number
+  productName: string | null
+  partCode: string | null
+  quantity: number
+  qtyCompleted: number
+  qtyDispatched: number
+  qtyPendingDispatch: number
+  dueDate: string | null
+  orderId: number
+  orderNo: string
+  customerId: number
+  customerName: string | null
+}
+
+// Dispatch challan from backend (real API)
+export interface DeliveryChallanApi {
+  id: number
+  challanNo: string
+  challanDate: string
+  orderId: number
+  orderNo: string
+  customerId: number
+  customerName: string | null
+  productId: number
+  productName: string | null
+  quantityDispatched: number
+  deliveryDate: string | null
+  deliveryAddress: string | null
+  transportMode: string | null
+  vehicleNumber: string | null
+  driverName: string | null
+  driverContact: string | null
+  status: string
+  dispatchedAt: string | null
+  deliveredAt: string | null
+  invoiceNo: string | null
+  invoiceDate: string | null
+  remarks: string | null
+  createdAt: string
+  createdBy: string | null
+}
+
+// Request to dispatch
+export interface SimpleDispatchRequest {
+  orderItemId: number
+  qtyToDispatch: number
+  dispatchDate: string
+  invoiceNo?: string
+  invoiceDate?: string
+  remarks?: string
+}
