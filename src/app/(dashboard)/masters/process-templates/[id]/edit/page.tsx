@@ -403,7 +403,7 @@ export default function EditProcessTemplatePage() {
                                     <CommandGroup>
                                       {processes.map((process) => (
                                         <CommandItem
-                                          value={`${process.processName} ${process.category} ${process.processCode}`}
+                                          value={`${process.processName} ${process.processCategoryName ?? ''} ${process.processCode}`}
                                           key={process.id}
                                           onSelect={() => {
                                             handleStepChange(index, 'processId', process.id.toString())
@@ -422,7 +422,7 @@ export default function EditProcessTemplatePage() {
                                           <div className="flex flex-col">
                                             <span className="font-medium">{process.processName}</span>
                                             <span className="text-xs text-muted-foreground">
-                                              {process.processCode} • {process.category}
+                                              {process.processCode} • {process.processCategoryName}
                                               {process.isOutsourced && " • Outsourced"}
                                             </span>
                                           </div>

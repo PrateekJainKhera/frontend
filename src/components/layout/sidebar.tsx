@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
@@ -22,6 +22,7 @@ import {
   FileText,
   Truck
 } from 'lucide-react'
+import { warehouseService } from '@/lib/api/warehouses'
 
 interface NavItem {
   title: string
@@ -89,7 +90,8 @@ const navItems: NavItem[] = [
       { title: 'Raw Materials', href: '/inventory/raw-materials', icon: Package },
       { title: 'Material Pieces', href: '/inventory/material-pieces', icon: PackageCheck },
       { title: 'Requisitions', href: '/inventory/material-requisitions', icon: FileText },
-      { title: 'Receive Components', href: '/inventory/receive-components', icon: PackageCheck }
+      { title: 'Receive Components', href: '/inventory/receive-components', icon: PackageCheck },
+      { title: 'Warehouses', href: '/inventory/warehouses', icon: Warehouse }
     ]
   },
   {
@@ -141,6 +143,13 @@ export function Sidebar({ isOpen, isExpanded, onClose, onToggle, isMobile = fals
     )
     return activeSection ? [activeSection.href] : []
   })
+  const [lowStockCount, setLowStockCount] = useState(0)
+
+  useEffect(() => {
+    warehouseService.getLowStockStatus()
+      .then(alerts => setLowStockCount(alerts.filter(a => a.isAlert).length))
+      .catch(() => { /* non-critical — silently ignore */ })
+  }, [])
 
   const toggleItem = (href: string) => {
     if (!isExpanded) return // Don't allow dropdown toggling when collapsed
@@ -206,6 +215,11 @@ export function Sidebar({ isOpen, isExpanded, onClose, onToggle, isMobile = fals
                             <div className="flex items-center gap-x-3">
                               <item.icon className="h-5 w-5 shrink-0" />
                               {item.title}
+                              {item.href === '/inventory' && lowStockCount > 0 && (
+                                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none h-4 min-w-[1rem] px-1">
+                                  {lowStockCount}
+                                </span>
+                              )}
                             </div>
                             {expandedItems.includes(item.href) ? (
                               <ChevronDown className="h-4 w-4 shrink-0" />

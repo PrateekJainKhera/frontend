@@ -17,6 +17,7 @@ export interface CreateGRNLineRequest {
   totalWeightKG: number
   numberOfPieces: number
   lengthPerPieceMM?: number
+  warehouseId?: number
   unitPrice?: number
   remarks?: string
 }

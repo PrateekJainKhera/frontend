@@ -87,12 +87,12 @@ export function ProcessesTable({ processes, onUpdate }: ProcessesTableProps) {
                 {process.processName}
               </TableCell>
               <TableCell>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(process.category || '')}`}>
-                  {process.category}
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(process.processCategoryName || '')}`}>
+                  {process.processCategoryName}
                 </span>
               </TableCell>
               <TableCell className="text-sm">
-                {process.defaultMachine || '-'}
+                {'-'}
               </TableCell>
               <TableCell>
                 {process.standardSetupTimeMin ? (

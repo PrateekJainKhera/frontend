@@ -361,7 +361,7 @@ export function MachineProcessCapabilities({
                               {processes.map((process) => (
                                 <CommandItem
                                   key={process.id}
-                                  value={`${process.processName} ${process.category}`}
+                                  value={`${process.processName} ${process.processCategoryName ?? ''}`}
                                   onSelect={() => {
                                     field.onChange(process.id)
                                   }}
@@ -372,7 +372,7 @@ export function MachineProcessCapabilities({
                                       field.value === process.id ? 'opacity-100' : 'opacity-0'
                                     )}
                                   />
-                                  {process.processName} ({process.category})
+                                  {process.processName} ({process.processCategoryName})
                                 </CommandItem>
                               ))}
                             </CommandGroup>

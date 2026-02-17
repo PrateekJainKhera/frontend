@@ -19,6 +19,8 @@ export interface MaterialPieceResponse {
   status: string
   allocatedToRequisitionId?: number
   issuedToJobCardId?: number
+  warehouseId?: number
+  warehouseName?: string
   storageLocation?: string
   binNumber?: string
   rackNumber?: string
@@ -248,6 +250,25 @@ class MaterialPieceService {
   async getAvailableByMaterialId(materialId: number): Promise<MaterialPieceResponse[]> {
     const pieces = await this.getByMaterialId(materialId)
     return pieces.filter(p => p.status === 'Available')
+  }
+
+  async relocate(pieceIds: number[], toWarehouseId: number, relocatedBy?: string): Promise<number> {
+    try {
+      const response = await apiClient.post<ApiResponse<number>>('/warehouses/relocate', {
+        pieceIds,
+        toWarehouseId,
+        relocatedBy: relocatedBy ?? 'Admin',
+      })
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to relocate pieces')
+      }
+      return response.data.data!
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to relocate: ${error.message}`)
+      }
+      throw error
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Package, TrendingDown, AlertTriangle, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
+import { Package, TrendingDown, AlertTriangle, BarChart3, ChevronDown, ChevronUp, MoveRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { formatLength, calculateInventoryValue } from "@/lib/utils/material-usage-calculations";
 import { MaterialUsageStatus } from "@/types/raw-material-inventory";
 import { GRNEntryDialog } from "@/components/forms/grn-entry-dialog";
 import { materialPieceService, MaterialPieceResponse } from "@/lib/api/material-pieces";
+import { warehouseService, WarehouseResponse } from "@/lib/api/warehouses";
 import { toast } from "sonner";
 
 interface AggregatedMaterial {
@@ -52,6 +62,10 @@ export default function RawMaterialInventoryPage() {
   const [selectedForm, setSelectedForm] = useState<string>("all");
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
   const [isGRNOpen, setIsGRNOpen] = useState(false);
+  const [warehouses, setWarehouses] = useState<WarehouseResponse[]>([]);
+  const [relocateMaterial, setRelocateMaterial] = useState<AggregatedMaterial | null>(null);
+  const [relocateTargetWarehouseId, setRelocateTargetWarehouseId] = useState<string>("");
+  const [isRelocating, setIsRelocating] = useState(false);
 
   const toggleCardExpansion = (materialId: number) => {
     setExpandedCards(prev => {
@@ -67,6 +81,9 @@ export default function RawMaterialInventoryPage() {
 
   useEffect(() => {
     loadInventory();
+    warehouseService.getAll()
+      .then(whs => setWarehouses(whs.filter(w => w.isActive)))
+      .catch(() => {});
   }, []);
 
   const loadInventory = async () => {
@@ -240,6 +257,35 @@ export default function RawMaterialInventoryPage() {
     setSelectedMaterial(material);
   };
 
+  const openRelocateDialog = (material: AggregatedMaterial, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRelocateMaterial(material);
+    setRelocateTargetWarehouseId("");
+  };
+
+  const handleBulkRelocate = async () => {
+    if (!relocateMaterial || !relocateTargetWarehouseId) return;
+    const availablePieceIds = relocateMaterial.pieces
+      .filter(p => p.status === "Available" && !p.isWastage)
+      .map(p => p.id);
+    if (availablePieceIds.length === 0) {
+      toast.error("No available pieces to relocate");
+      return;
+    }
+    setIsRelocating(true);
+    try {
+      await materialPieceService.relocate(availablePieceIds, parseInt(relocateTargetWarehouseId));
+      toast.success(`Relocated ${availablePieceIds.length} pieces of ${relocateMaterial.materialName}`);
+      setRelocateMaterial(null);
+      setRelocateTargetWarehouseId("");
+      await loadInventory();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Relocation failed");
+    } finally {
+      setIsRelocating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -269,6 +315,54 @@ export default function RawMaterialInventoryPage() {
         onOpenChange={setIsGRNOpen}
         onSuccess={loadInventory}
       />
+
+      {/* Bulk Relocate Dialog */}
+      <Dialog open={!!relocateMaterial} onOpenChange={(open) => { if (!open) setRelocateMaterial(null); }}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Relocate Material</DialogTitle>
+            <DialogDescription>
+              Move all available pieces of <strong>{relocateMaterial?.materialName}</strong> ({relocateMaterial?.availablePieces} pieces) to a new warehouse/rack.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="space-y-2">
+              <Label>Target Warehouse / Rack *</Label>
+              <Select value={relocateTargetWarehouseId} onValueChange={setRelocateTargetWarehouseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select destination..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses.map(wh => (
+                    <SelectItem key={wh.id} value={wh.id.toString()}>
+                      {wh.name} — {wh.rack}/{wh.rackNo}
+                      <span className="ml-2 text-xs text-muted-foreground">({wh.materialType})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {relocateTargetWarehouseId && (
+              <p className="text-sm text-muted-foreground">
+                {relocateMaterial?.availablePieces} available pieces will be moved to{' '}
+                <strong>{warehouses.find(w => w.id.toString() === relocateTargetWarehouseId)?.name}</strong>.
+                Issued/consumed pieces are not affected.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRelocateMaterial(null)} disabled={isRelocating}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkRelocate}
+              disabled={!relocateTargetWarehouseId || isRelocating}
+            >
+              {isRelocating ? 'Relocating...' : `Relocate ${relocateMaterial?.availablePieces ?? 0} Pieces`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Main Tabs */}
       <Tabs defaultValue="material-list" className="space-y-4">
@@ -398,7 +492,7 @@ export default function RawMaterialInventoryPage() {
 
                             {/* Status & Expand */}
                             <div className="flex items-center justify-between md:justify-end gap-3">
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 flex-wrap">
                                 <Badge className="bg-green-600 text-xs">{material.availablePieces}</Badge>
                                 {material.inUsePieces > 0 && (
                                   <Badge className="bg-blue-600 text-xs">{material.inUsePieces} issued</Badge>
@@ -410,6 +504,18 @@ export default function RawMaterialInventoryPage() {
                                   <Badge variant="destructive" className="text-xs">{material.scrapPieces}</Badge>
                                 )}
                               </div>
+                              {material.availablePieces > 0 && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs h-7 px-2 shrink-0"
+                                  onClick={(e) => openRelocateDialog(material, e)}
+                                  title="Relocate all available pieces"
+                                >
+                                  <MoveRight className="h-3 w-3 mr-1" />
+                                  Relocate
+                                </Button>
+                              )}
                               {isExpanded ? (
                                 <ChevronUp className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                               ) : (

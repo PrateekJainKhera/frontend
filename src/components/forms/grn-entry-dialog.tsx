@@ -11,8 +11,10 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { materialService, MaterialResponse } from "@/lib/api/materials"
+import { warehouseService, WarehouseResponse } from "@/lib/api/warehouses"
 import { toast } from "sonner"
 import { grnService, CreateGRNRequest } from "@/lib/api/grn"
 
@@ -42,36 +44,46 @@ interface MaterialLine {
     calculatedLength: number // Auto-calculated total length in meters
     weightPerMeter: number // Auto-calculated kg/m
     pieces: PieceBreakdown[] // Physical pieces
+    warehouseId: string // Target warehouse
 }
 
 export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialogProps) {
     const [grnNumber, setGrnNumber] = useState("")
     const [grnDate, setGrnDate] = useState("")
     const [vendorName, setVendorName] = useState("")
+    const [invoiceNo, setInvoiceNo] = useState("")
+    const [invoiceDate, setInvoiceDate] = useState("")
+    const [poNo, setPoNo] = useState("")
+    const [poDate, setPoDate] = useState("")
     const [materialLines, setMaterialLines] = useState<MaterialLine[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showWarningDialog, setShowWarningDialog] = useState(false)
     const [warningMessage, setWarningMessage] = useState<string[]>([])
     const [pendingSubmit, setPendingSubmit] = useState(false)
     const [materials, setMaterials] = useState<MaterialResponse[]>([])
+    const [warehouses, setWarehouses] = useState<WarehouseResponse[]>([])
     const [materialsLoading, setMaterialsLoading] = useState(false)
     const [openCombobox, setOpenCombobox] = useState<string | null>(null)
 
-    // Load materials from API
+    // Load materials and warehouses from API
     useEffect(() => {
-        const loadMaterials = async () => {
+        const loadData = async () => {
             try {
                 setMaterialsLoading(true)
-                const data = await materialService.getAll()
-                setMaterials(data)
+                const [mats, whs] = await Promise.all([
+                    materialService.getAll(),
+                    warehouseService.getAll(),
+                ])
+                setMaterials(mats)
+                setWarehouses(whs.filter(w => w.isActive))
             } catch (error) {
-                console.error('Failed to load materials:', error)
-                toast.error('Failed to load materials')
+                console.error('Failed to load data:', error)
+                toast.error('Failed to load materials or warehouses')
             } finally {
                 setMaterialsLoading(false)
             }
         }
-        loadMaterials()
+        loadData()
     }, [])
 
     // Reset form when dialog opens
@@ -81,9 +93,24 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             setGrnNumber(`GRN-${Date.now()}`)
             setGrnDate(today)
             setVendorName("")
+            setInvoiceNo("")
+            setInvoiceDate("")
+            setPoNo("")
+            setPoDate("")
             setMaterialLines([])
         }
     }, [open])
+
+    // Standard densities by material type (g/cm³)
+    const MATERIAL_DENSITIES: Record<string, number> = {
+        'Aluminum': 2.8,
+        'Steel': 7.85,
+        'Stainless Steel': 8.2,
+    }
+
+    const getDensityForMaterial = (materialType: string, fallback: number): number => {
+        return MATERIAL_DENSITIES[materialType] ?? (fallback > 0 ? fallback : 7.85)
+    }
 
     const addMaterialLine = () => {
         const newLine: MaterialLine = {
@@ -95,11 +122,12 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             diameter: 0,
             outerDiameter: 0,
             innerDiameter: 0,
-            materialDensity: 7.85, // Default MS/EN8
+            materialDensity: 7.85,
             weight: 0,
             calculatedLength: 0,
             weightPerMeter: 0,
-            pieces: []
+            pieces: [],
+            warehouseId: "",
         }
         setMaterialLines([...materialLines, newLine])
     }
@@ -142,18 +170,29 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             if (line.id === id) {
                 const updatedLine = { ...line, [field]: value }
 
-                // If material selection changes, update material details
+                // If material selection changes, auto-fill all material fields
                 if (field === 'materialId') {
                     const material = materials.find(m => m.id.toString() === value)
                     if (material) {
                         updatedLine.materialName = material.materialName
                         updatedLine.grade = material.grade
-                        updatedLine.diameter = material.diameter || 0
-                        updatedLine.outerDiameter = material.diameter || 0
 
-                        // Set density from material master
-                        updatedLine.materialDensity = material.density
+                        // Set rod/pipe from shape
+                        const shape = (material.shape || '').toLowerCase()
+                        updatedLine.materialType = shape === 'pipe' ? 'pipe' : 'rod'
+
+                        // Dimensions
+                        updatedLine.diameter      = material.diameter || 0
+                        updatedLine.outerDiameter = material.diameter || 0  // OD for pipe = diameter in master
+                        updatedLine.innerDiameter = material.innerDiameter || 0
+
+                        // Density — use standard value for the material type
+                        updatedLine.materialDensity = getDensityForMaterial(material.materialType, material.density)
                     }
+                    // Recalculate after auto-fill
+                    const { length, weightPerMeter } = calculateLength(updatedLine)
+                    updatedLine.calculatedLength = length
+                    updatedLine.weightPerMeter = weightPerMeter
                 }
 
                 // Recalculate when any dimension or weight changes
@@ -239,6 +278,16 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             return
         }
 
+        if (!invoiceNo.trim()) {
+            toast.error("Please enter invoice number")
+            return
+        }
+
+        if (!invoiceDate) {
+            toast.error("Please select invoice date")
+            return
+        }
+
         if (materialLines.length === 0) {
             toast.error("Please add at least one material")
             return
@@ -255,6 +304,10 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             }
             if (line.weight <= 0) {
                 toast.error("Please enter valid weight for all materials")
+                return
+            }
+            if (!line.warehouseId) {
+                toast.error(`Please select a warehouse for ${line.materialName || 'Material #' + (materialLines.indexOf(line) + 1)}`)
                 return
             }
 
@@ -288,6 +341,8 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             let sequenceNo = 0
 
             for (const line of materialLines) {
+                const warehouseIdNum = line.warehouseId ? parseInt(line.warehouseId) : undefined
+
                 // If no pieces specified, create one line with average length
                 if (line.pieces.length === 0) {
                     sequenceNo++
@@ -304,6 +359,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                         totalWeightKG: Number(line.weight),
                         numberOfPieces: 1,
                         lengthPerPieceMM: Number(line.calculatedLength * 1000),
+                        warehouseId: warehouseIdNum,
                         unitPrice: 0,
                     })
                 } else {
@@ -327,6 +383,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                             totalWeightKG: Number(batchWeight),
                             numberOfPieces: Number(batch.quantity),
                             lengthPerPieceMM: Number(batch.length * 1000), // All pieces in this batch have same length
+                            warehouseId: warehouseIdNum,
                             unitPrice: 0,
                         })
                     }
@@ -337,6 +394,10 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                 grnNo: grnNumber,
                 grnDate: grnDate,
                 supplierName: vendorName,
+                invoiceNo: invoiceNo.trim(),
+                invoiceDate: invoiceDate,
+                poNo: poNo.trim() || undefined,
+                poDate: poDate || undefined,
                 lines: grnLines,
                 createdBy: 'Admin', // TODO: Get from auth context
             }
@@ -387,7 +448,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
 
                 <div className="flex-1 overflow-y-auto px-6 pb-6">
                     <div className="space-y-6 mt-4">
-                    {/* GRN Header */}
+                    {/* GRN Header — Row 1: GRN No, GRN Date, Vendor */}
                     <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label>GRN Number</Label>
@@ -407,6 +468,42 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                 placeholder="Enter vendor name"
                                 value={vendorName}
                                 onChange={(e) => setVendorName(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* GRN Header — Row 2: Invoice No, Invoice Date, PO No, PO Date */}
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                            <Label>Invoice No *</Label>
+                            <Input
+                                placeholder="Enter invoice number"
+                                value={invoiceNo}
+                                onChange={(e) => setInvoiceNo(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Invoice Date *</Label>
+                            <Input
+                                type="date"
+                                value={invoiceDate}
+                                onChange={(e) => setInvoiceDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>PO No <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                            <Input
+                                placeholder="Enter PO number"
+                                value={poNo}
+                                onChange={(e) => setPoNo(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>PO Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                            <Input
+                                type="date"
+                                value={poDate}
+                                onChange={(e) => setPoDate(e.target.value)}
                             />
                         </div>
                     </div>
@@ -445,8 +542,8 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                             </Button>
                                         </div>
 
-                                        {/* Material Selection */}
-                                        <div className="grid grid-cols-2 gap-4">
+                                        {/* Material Selection + Weight + Warehouse */}
+                                        <div className="grid grid-cols-3 gap-4">
                                             <div className="space-y-2">
                                                 <Label>Select Material *</Label>
                                                 <Popover
@@ -514,6 +611,24 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                     onChange={(e) => updateMaterialLine(line.id, 'weight', e.target.value)}
                                                 />
                                             </div>
+                                            <div className="space-y-2">
+                                                <Label>Warehouse / Rack *</Label>
+                                                <Select
+                                                    value={line.warehouseId}
+                                                    onValueChange={(val) => updateMaterialLine(line.id, 'warehouseId', val)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select warehouse..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {warehouses.map(wh => (
+                                                            <SelectItem key={wh.id} value={wh.id.toString()}>
+                                                                {wh.name} — {wh.rack}/{wh.rackNo}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
 
                                         {/* Weight to Length Converter */}
@@ -571,7 +686,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                             placeholder="7.85"
                                                         />
                                                         <p className="text-xs text-muted-foreground">
-                                                            MS/EN8: 7.85 | SS: 7.9
+                                                            Steel: 7.85 | SS: 8.2 | Alum: 2.8
                                                         </p>
                                                     </div>
                                                 </div>
@@ -610,7 +725,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                             placeholder="7.85"
                                                         />
                                                         <p className="text-xs text-muted-foreground">
-                                                            MS: 7.85 | SS: 7.9
+                                                            Steel: 7.85 | SS: 8.2 | Alum: 2.8
                                                         </p>
                                                     </div>
                                                 </div>

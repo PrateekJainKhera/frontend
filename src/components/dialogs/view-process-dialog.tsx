@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils/formatters'
-import { Code, Tag, Settings, Clock, Award, Building2, Calendar } from 'lucide-react'
+import { Code, Tag, Clock, Building2, Calendar } from 'lucide-react'
 
 interface ViewProcessDialogProps {
   process: ProcessResponse
@@ -42,7 +42,7 @@ export function ViewProcessDialog({
               </div>
             </div>
             <div className="flex gap-2">
-              <Badge variant="outline">{process.category}</Badge>
+              <Badge variant="outline">{process.processCategoryName}</Badge>
               {process.isOutsourced && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Building2 className="h-3 w-3" />
@@ -64,21 +64,10 @@ export function ViewProcessDialog({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Category</p>
-                  <p className="font-medium">{process.category}</p>
+                  <p className="font-medium">{process.processCategoryName}</p>
                 </div>
               </div>
 
-              {process.defaultMachine && (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <Settings className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Default Machine</p>
-                    <p className="font-medium">{process.defaultMachine}</p>
-                  </div>
-                </div>
-              )}
 
               {process.standardSetupTimeMin !== null && process.standardSetupTimeMin !== undefined && (
                 <div className="flex items-center gap-3">
