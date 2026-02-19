@@ -10,7 +10,6 @@ import {
   IssueResult,
   SuggestCuttingPlanRequest,
   CuttingPlanOption,
-  FinalizeMultipleDraftsRequest,
 } from '@/types/issue-window'
 
 const BASE = '/stores/issue-window'
@@ -49,18 +48,22 @@ export const issueWindowService = {
     return res.data.data ?? []
   },
 
+  getFinalizedDrafts: async (): Promise<DraftSummary[]> => {
+    const res = await apiClient.get<{ data: DraftSummary[] }>(`${BASE}/issue-list`)
+    return res.data.data ?? []
+  },
+
   getDraftById: async (id: number): Promise<DraftDetail> => {
     const res = await apiClient.get<{ data: DraftDetail }>(`${BASE}/drafts/${id}`)
     return res.data.data
   },
 
-  issueDraft: async (id: number, request: IssueDraftRequest): Promise<IssueResult[]> => {
-    const res = await apiClient.post<{ data: IssueResult[] }>(`${BASE}/drafts/${id}/issue`, request)
-    return res.data.data ?? []
+  finalizeDraft: async (id: number): Promise<void> => {
+    await apiClient.post(`${BASE}/drafts/${id}/finalize`)
   },
 
-  finalizeMultiple: async (request: FinalizeMultipleDraftsRequest): Promise<IssueResult[]> => {
-    const res = await apiClient.post<{ data: IssueResult[] }>(`${BASE}/finalize-multiple`, request)
+  issueDraft: async (id: number, request: IssueDraftRequest): Promise<IssueResult[]> => {
+    const res = await apiClient.post<{ data: IssueResult[] }>(`${BASE}/drafts/${id}/issue`, request)
     return res.data.data ?? []
   },
 

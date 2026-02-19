@@ -24,7 +24,8 @@ import {
   PackageMinus,
   Store,
   ClipboardList,
-  Scissors
+  Scissors,
+  ListChecks
 } from 'lucide-react'
 import { warehouseService } from '@/lib/api/warehouses'
 
@@ -122,7 +123,8 @@ const navItems: NavItem[] = [
     href: '/stores',
     icon: PackageCheck,
     children: [
-      { title: 'Material Issue', href: '/stores/material-issue', icon: Scissors }
+      { title: 'Cutting Planning', href: '/stores/cutting-planning', icon: Scissors },
+      { title: 'Issue List', href: '/stores/issue-list', icon: ListChecks }
     ]
   },
   {

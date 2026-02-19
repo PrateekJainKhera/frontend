@@ -70,6 +70,8 @@ export default function MaterialPiecesPage() {
 
     if (activeTab === "available") {
       filtered = filtered.filter(p => p.status === "Available" && !p.isWastage);
+    } else if (activeTab === "reserved") {
+      filtered = filtered.filter(p => p.status === "Reserved");
     } else if (activeTab === "in-use") {
       filtered = filtered.filter(p =>
         p.status === "Issued" || p.status === "In Use" || p.status === "Allocated" ||
@@ -149,6 +151,7 @@ export default function MaterialPiecesPage() {
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const available = pieces.filter(p => p.status === "Available" && !p.isWastage);
+  const reserved  = pieces.filter(p => p.status === "Reserved");
   const inUse     = pieces.filter(p =>
     p.status === "Issued" || p.status === "In Use" || p.status === "Allocated" ||
     (p.issuedToJobCardId && p.status !== "Consumed")
@@ -159,6 +162,7 @@ export default function MaterialPiecesPage() {
   const stats = {
     totalPieces:     pieces.length,
     availablePieces: available.length,
+    reservedPieces:  reserved.length,
     inUsePieces:     inUse.length,
     consumedPieces:  consumed.length,
     wastagePieces:   wastage.length,
@@ -174,10 +178,10 @@ export default function MaterialPiecesPage() {
     if (piece.isWastage) return <Badge variant="destructive">Wastage</Badge>;
     switch (piece.status) {
       case "Available":  return <Badge className="bg-green-600">Available</Badge>;
+      case "Reserved":   return <Badge className="bg-orange-500">Reserved</Badge>;
       case "In Use":
       case "Issued":     return <Badge className="bg-blue-600">Issued</Badge>;
       case "Consumed":   return <Badge className="bg-gray-500">Consumed</Badge>;
-      case "Reserved":
       case "Allocated":  return <Badge className="bg-yellow-600">Allocated</Badge>;
       case "Scrap":      return <Badge variant="destructive">Scrap</Badge>;
       default:           return <Badge variant="outline">{piece.status}</Badge>;
@@ -312,6 +316,7 @@ export default function MaterialPiecesPage() {
         <TabsList>
           <TabsTrigger value="all">All ({pieces.length})</TabsTrigger>
           <TabsTrigger value="available">Available ({stats.availablePieces})</TabsTrigger>
+          <TabsTrigger value="reserved">Reserved ({stats.reservedPieces})</TabsTrigger>
           <TabsTrigger value="in-use">Issued ({stats.inUsePieces})</TabsTrigger>
           <TabsTrigger value="consumed">Consumed ({stats.consumedPieces})</TabsTrigger>
           <TabsTrigger value="wastage">Wastage ({stats.wastagePieces})</TabsTrigger>

@@ -102,11 +102,12 @@ export interface PlanCutItem {
 export interface DraftSummary {
   id: number
   draftNo: string
-  status: 'Draft' | 'Issued'
+  status: 'Draft' | 'Finalized' | 'Issued'
   requisitionCount: number
   totalBars: number
   totalCuts: number
   createdAt: string
+  finalizedAt?: string
   issuedAt?: string
 }
 
@@ -114,12 +115,13 @@ export interface DraftSummary {
 export interface DraftDetail {
   id: number
   draftNo: string
-  status: 'Draft' | 'Issued'
+  status: 'Draft' | 'Finalized' | 'Issued'
   requisitionIds: string
   issuedBy?: string
   receivedBy?: string
   notes?: string
   createdAt: string
+  finalizedAt?: string
   issuedAt?: string
   barAssignments: DraftBarAssignment[]
 }

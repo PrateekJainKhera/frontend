@@ -377,56 +377,33 @@ function FinalizeDialog({
   open: boolean
   onClose: () => void
   draftCount: number
-  onFinalize: (issuedBy: string, receivedBy: string) => void
+  onFinalize: () => void
   finalizing: boolean
 }) {
-  const [issuedBy, setIssuedBy] = useState('')
-  const [receivedBy, setReceivedBy] = useState('')
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Finalize & Issue Drafts</DialogTitle>
+          <DialogTitle>Finalize Drafts</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="rounded-lg bg-muted p-3 text-sm">
             <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Drafts to issue</span>
+              <span className="text-muted-foreground">Drafts to finalize</span>
               <span className="font-semibold">{draftCount}</span>
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="issuedBy" className="text-xs">Issued By *</Label>
-            <Input
-              id="issuedBy"
-              value={issuedBy}
-              onChange={e => setIssuedBy(e.target.value)}
-              placeholder="Name"
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="receivedBy" className="text-xs">Received By *</Label>
-            <Input
-              id="receivedBy"
-              value={receivedBy}
-              onChange={e => setReceivedBy(e.target.value)}
-              placeholder="Name"
-              className="h-8 text-sm"
-            />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Finalizing locks these drafts and moves them to the <strong>Issue List</strong>.
+            Materials remain reserved. Issuing (with issuer &amp; receiver names) happens from the Issue List.
+          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} size="sm">Cancel</Button>
-          <Button
-            onClick={() => onFinalize(issuedBy, receivedBy)}
-            disabled={finalizing || !issuedBy || !receivedBy}
-            size="sm"
-          >
+          <Button onClick={onFinalize} disabled={finalizing} size="sm">
             {finalizing
-              ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Issuing…</>
-              : <><ClipboardCheck className="h-3.5 w-3.5 mr-1" />Issue {draftCount} Draft{draftCount !== 1 ? 's' : ''}</>}
+              ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Finalizing…</>
+              : <><ClipboardCheck className="h-3.5 w-3.5 mr-1" />Finalize {draftCount} Draft{draftCount !== 1 ? 's' : ''}</>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -828,18 +805,13 @@ export default function MaterialIssuePage() {
     })
   }
 
-  const handleFinalize = async (issuedBy: string, receivedBy: string) => {
+  const handleFinalize = async () => {
     const draftIds = [...selectedDraftIds]
     setFinalizing(true)
     setShowFinalizeDialog(false)
     try {
-      const results = await issueWindowService.finalizeMultiple({ draftIds, issuedBy, receivedBy })
-      const failed = results.filter(r => !r.success)
-      if (!failed.length) {
-        showToast('success', `${results.length} requisition(s) issued successfully`)
-      } else {
-        showToast('error', `${failed.length} failed: ${failed.map(r => r.message).join('; ')}`)
-      }
+      await Promise.all(draftIds.map(id => issueWindowService.finalizeDraft(id)))
+      showToast('success', `${draftIds.length} draft${draftIds.length !== 1 ? 's' : ''} finalized — moved to Issue List`)
       setSelectedDraftIds(new Set())
       await refreshDrafts()
     } catch { showToast('error', 'Failed to finalize drafts') }
@@ -917,9 +889,9 @@ export default function MaterialIssuePage() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-background shrink-0">
           <div>
-            <h1 className="text-xl font-semibold">Material Issue Window</h1>
+            <h1 className="text-xl font-semibold">Cutting Planning</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Select requisitions → tick cuts → suggest plan → save drafts → finalize & issue
+              Select requisitions → tick cuts → suggest plan → save drafts → finalize (moves to Issue List)
             </p>
           </div>
         </div>
@@ -1137,8 +1109,8 @@ export default function MaterialIssuePage() {
                             onClick={() => setShowFinalizeDialog(true)}
                           >
                             {finalizing
-                              ? <><Loader2 className="h-3 w-3 animate-spin" />Issuing…</>
-                              : <><ClipboardCheck className="h-3 w-3" />Finalize & Issue</>}
+                              ? <><Loader2 className="h-3 w-3 animate-spin" />Finalizing…</>
+                              : <><ClipboardCheck className="h-3 w-3" />Finalize</>}
                           </Button>
                         </div>
                       </div>

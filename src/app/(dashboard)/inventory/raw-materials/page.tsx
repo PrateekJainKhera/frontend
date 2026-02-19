@@ -40,6 +40,7 @@ interface AggregatedMaterial {
   diameter: number | null;
   totalPieces: number;
   availablePieces: number;
+  reservedPieces: number;
   inUsePieces: number;
   consumedPieces: number;
   scrapPieces: number;
@@ -161,6 +162,7 @@ export default function RawMaterialInventoryPage() {
     return Object.entries(grouped).map(([materialId, materialPieces]) => {
       const firstPiece = materialPieces[0];
       const availablePieces = materialPieces.filter(p => p.status === "Available" && !p.isWastage);
+      const reservedPieces = materialPieces.filter(p => p.status === "Reserved");
       const inUsePieces = materialPieces.filter(p =>
         p.status === "Issued" || p.status === "In Use" || p.status === "Allocated" ||
         (p.issuedToJobCardId && p.status !== "Consumed")
@@ -190,6 +192,7 @@ export default function RawMaterialInventoryPage() {
         diameter: firstPiece.diameter ?? null,
         totalPieces: materialPieces.length,
         availablePieces: availablePieces.length,
+        reservedPieces: reservedPieces.length,
         inUsePieces: inUsePieces.length,
         consumedPieces: consumedPieces.length,
         scrapPieces: scrapPieces.length,
@@ -243,7 +246,7 @@ export default function RawMaterialInventoryPage() {
       case MaterialUsageStatus.IN_USE:
         return <Badge className="bg-blue-600">In Use</Badge>;
       case MaterialUsageStatus.RESERVED:
-        return <Badge className="bg-yellow-600">Reserved</Badge>;
+        return <Badge className="bg-orange-500">Reserved</Badge>;
       case MaterialUsageStatus.SCRAP:
         return <Badge variant="destructive">Scrap</Badge>;
       case MaterialUsageStatus.CONSUMED:
@@ -494,6 +497,9 @@ export default function RawMaterialInventoryPage() {
                             <div className="flex items-center justify-between md:justify-end gap-3">
                               <div className="flex gap-2 flex-wrap">
                                 <Badge className="bg-green-600 text-xs">{material.availablePieces}</Badge>
+                                {material.reservedPieces > 0 && (
+                                  <Badge className="bg-orange-500 text-xs">{material.reservedPieces} reserved</Badge>
+                                )}
                                 {material.inUsePieces > 0 && (
                                   <Badge className="bg-blue-600 text-xs">{material.inUsePieces} issued</Badge>
                                 )}
@@ -559,6 +565,9 @@ export default function RawMaterialInventoryPage() {
                                 </div>
                                 <div className="flex gap-2 mt-2">
                                   <Badge className="bg-green-600 text-xs">{material.availablePieces} Available</Badge>
+                                  {material.reservedPieces > 0 && (
+                                    <Badge className="bg-orange-500 text-xs">{material.reservedPieces} Reserved</Badge>
+                                  )}
                                   <Badge className="bg-blue-600 text-xs">{material.inUsePieces} Issued</Badge>
                                   {material.consumedPieces > 0 && (
                                     <Badge className="bg-gray-500 text-xs">{material.consumedPieces} Consumed</Badge>
