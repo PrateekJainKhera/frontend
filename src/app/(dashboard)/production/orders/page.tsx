@@ -1,249 +1,234 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
-  CheckCircle2,
   Clock,
-  PackageCheck,
   Search,
-  FileText,
   ArrowRight,
-  User,
+  RefreshCw,
+  Loader2,
   Package,
 } from 'lucide-react'
-import { mockJobCards } from '@/lib/mock-data/job-cards-complete'
-import { groupJobCardsByOrder, calculateOrderProgress } from '@/lib/utils/production-grouping'
+import { productionService, ProductionOrderSummary } from '@/lib/api/production'
+import { format } from 'date-fns'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
-export default function ProductionDashboardPage() {
-  const [searchQuery, setSearchQuery] = useState('')
+function priorityBadge(priority: string) {
+  const p = priority?.toUpperCase()
+  if (p === 'HIGH' || p === 'CRITICAL')
+    return <Badge className="bg-red-100 text-red-700 border border-red-200 text-[10px] h-4 px-1.5">High</Badge>
+  if (p === 'MEDIUM')
+    return <Badge className="bg-amber-100 text-amber-700 border border-amber-200 text-[10px] h-4 px-1.5">Med</Badge>
+  return <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] h-4 px-1.5">Low</Badge>
+}
 
-  // Group job cards by order
-  const orderViews = groupJobCardsByOrder(mockJobCards)
+function statusBadge(status: string) {
+  if (status === 'Completed')
+    return <Badge className="bg-green-100 text-green-700 border border-green-200 text-[10px] h-4 px-1.5">Completed</Badge>
+  if (status === 'InProgress')
+    return <Badge className="bg-blue-100 text-blue-700 border border-blue-200 text-[10px] h-4 px-1.5">In Progress</Badge>
+  return <Badge className="bg-gray-100 text-gray-600 border border-gray-200 text-[10px] h-4 px-1.5">Pending</Badge>
+}
 
-  // Calculate statistics
-  const stats = {
-    totalOrders: orderViews.length,
-    inProgress: orderViews.filter(ov => ov.inProgressSteps > 0).length,
-    completed: orderViews.filter(ov => ov.completedSteps === ov.totalSteps).length,
-    totalSteps: orderViews.reduce((sum, ov) => sum + ov.totalSteps, 0),
-    completedSteps: orderViews.reduce((sum, ov) => sum + ov.completedSteps, 0),
+export default function ProductionOrdersPage() {
+  const [items, setItems] = useState<ProductionOrderSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Pending' | 'InProgress' | 'Completed'>('all')
+
+  useEffect(() => { load() }, [])
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const data = await productionService.getOrderItems()
+      setItems(data)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load production orders')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Filter orders
-  const filteredOrders = orderViews.filter(order => {
-    const matchesSearch =
-      order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.productName.toLowerCase().includes(searchQuery.toLowerCase())
-
-    return matchesSearch
+  const filtered = items.filter(item => {
+    const matchSearch =
+      item.orderNo.toLowerCase().includes(search.toLowerCase()) ||
+      (item.customerName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (item.productName ?? '').toLowerCase().includes(search.toLowerCase())
+    const matchStatus = statusFilter === 'all' || item.productionStatus === statusFilter
+    return matchSearch && matchStatus
   })
 
+  const counts = {
+    all: items.length,
+    Pending: items.filter(i => i.productionStatus === 'Pending').length,
+    InProgress: items.filter(i => i.productionStatus === 'InProgress').length,
+    Completed: items.filter(i => i.productionStatus === 'Completed').length,
+  }
+
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Production Dashboard</h1>
-        <p className="text-muted-foreground">
-          Monitor and execute orders through complete production workflow
-        </p>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <FileText className="h-4 w-4 text-gray-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalOrders}</div>
-            <p className="text-xs text-muted-foreground">Active production orders</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.inProgress}</div>
-            <p className="text-xs text-muted-foreground">Orders with active work</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.completed}</div>
-            <p className="text-xs text-muted-foreground">Finished orders</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Progress</CardTitle>
-            <PackageCheck className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.totalSteps > 0 ? Math.round((stats.completedSteps / stats.totalSteps) * 100) : 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.completedSteps} / {stats.totalSteps} steps
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="px-6 py-4 border-b bg-background shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold">Production Dashboard</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Scheduled orders ready for production execution
             </p>
-          </CardContent>
-        </Card>
+          </div>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={load} disabled={loading}>
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Refresh
+          </Button>
+        </div>
+
+        {/* Stats row */}
+        {!loading && (
+          <div className="flex gap-4 text-xs text-muted-foreground mb-4">
+            <span><span className="font-semibold text-foreground">{counts.all}</span> total</span>
+            <span><span className="font-semibold text-blue-600">{counts.InProgress}</span> in progress</span>
+            <span><span className="font-semibold text-amber-600">{counts.Pending}</span> pending</span>
+            <span><span className="font-semibold text-green-600">{counts.Completed}</span> completed</span>
+          </div>
+        )}
+
+        {/* Filters */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-muted/40 border rounded-lg px-2.5 py-1 flex-1 max-w-xs">
+            <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <Input
+              placeholder="Search orders, customers, products…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="border-0 shadow-none focus-visible:ring-0 h-6 px-0 text-xs bg-transparent"
+            />
+          </div>
+          {(['all', 'Pending', 'InProgress', 'Completed'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
+                statusFilter === s
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border hover:bg-muted/50'
+              }`}
+            >
+              {s === 'all' ? 'All' : s === 'InProgress' ? 'In Progress' : s}
+              {' '}({counts[s]})
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Orders Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Production Orders</CardTitle>
-          <CardDescription>
-            Click on an order to view complete workflow and control processes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Search */}
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search orders, customers, products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {loading ? (
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+            ))}
           </div>
-
-          {/* Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order No</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Child Parts</TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
-                      No orders found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredOrders.map((order) => {
-                    const progress = calculateOrderProgress(order)
-                    const isComplete = progress === 100
-                    const hasInProgress = order.inProgressSteps > 0
-
-                    return (
-                      <TableRow key={order.orderId}>
-                        <TableCell className="font-medium">
-                          <Link
-                            href={`/production/orders/${order.orderId}`}
-                            className="hover:underline text-blue-600"
-                          >
-                            {order.orderNo}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{order.customerName}</p>
-                              <p className="text-xs text-muted-foreground">{order.customerCode}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{order.productName}</p>
-                              <p className="text-xs text-muted-foreground">{order.productCode}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{order.childParts.length} Parts</p>
-                            <p className="text-xs text-muted-foreground">
-                              {order.totalSteps} total steps
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1 min-w-[200px]">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {order.completedSteps} / {order.totalSteps} steps
-                              </span>
-                              <span className="font-medium">{progress}%</span>
-                            </div>
-                            <Progress value={progress} className="h-2" />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {isComplete ? (
-                            <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
-                              <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Completed
-                            </Badge>
-                          ) : hasInProgress ? (
-                            <Badge variant="outline" className="border-blue-500 text-blue-700 bg-blue-50">
-                              <Clock className="mr-1 h-3 w-3" />
-                              In Progress
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-gray-500 text-gray-700 bg-gray-50">
-                              Pending
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Link href={`/production/orders/${order.orderId}`}>
-                            <Button size="sm" variant="ghost">
-                              View Workflow
-                              <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+            {items.length === 0 ? (
+              <>
+                <Package className="h-10 w-10 text-muted-foreground/40" />
+                <p className="text-sm font-medium">No orders in production</p>
+                <p className="text-xs text-center max-w-xs">
+                  Orders appear here once their job cards are scheduled.
+                  Go to <Link href="/scheduling" className="text-primary underline">Scheduling</Link> to schedule job cards.
+                </p>
+              </>
+            ) : (
+              <>
+                <Search className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm font-medium">No results for "{search}"</p>
+              </>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map(item => {
+              const progress = item.totalSteps > 0
+                ? Math.round((item.completedSteps / item.totalSteps) * 100)
+                : 0
+              const detailHref = item.orderItemId
+                ? `/production/order-items/${item.orderItemId}`
+                : `/production/orders/${item.orderId}`
+
+              return (
+                <div
+                  key={item.orderItemId ?? item.orderId}
+                  className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3 hover:bg-muted/20 transition-colors"
+                >
+                  {/* Order info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Link href={detailHref} className="font-semibold text-sm hover:underline text-primary">
+                        {item.orderNo}
+                      </Link>
+                      {priorityBadge(item.priority)}
+                      {statusBadge(item.productionStatus)}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      {item.customerName && <span>{item.customerName}</span>}
+                      {item.productName && (
+                        <>
+                          <span>·</span>
+                          <span className="font-medium text-foreground truncate max-w-[200px]">{item.productName}</span>
+                        </>
+                      )}
+                      {item.dueDate && (
+                        <>
+                          <span>·</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Due {format(new Date(item.dueDate), 'dd MMM')}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Child parts progress */}
+                  <div className="text-xs text-center shrink-0 w-24">
+                    <div className="text-muted-foreground">Parts</div>
+                    <div className="font-semibold">
+                      {item.completedChildParts}/{item.totalChildParts}
+                    </div>
+                  </div>
+
+                  {/* Steps progress bar */}
+                  <div className="w-36 shrink-0">
+                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                      <span>{item.completedSteps}/{item.totalSteps} steps</span>
+                      <span className="font-medium">{progress}%</span>
+                    </div>
+                    <Progress value={progress} className="h-1.5" />
+                    {item.inProgressSteps > 0 && (
+                      <div className="text-[10px] text-blue-600 mt-0.5">{item.inProgressSteps} running</div>
+                    )}
+                  </div>
+
+                  {/* Action */}
+                  <Link href={detailHref}>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0">
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

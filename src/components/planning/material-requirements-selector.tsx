@@ -29,7 +29,7 @@ export function MaterialRequirementsSelector({
       materialGrade: '',
       requiredQuantity: 0,
       unit: 'pcs',
-      wastageMM: 0,
+      wastageMM: 5,
       source: 'Manual',
       confirmedBy: ''
     }

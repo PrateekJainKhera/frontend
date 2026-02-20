@@ -71,7 +71,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
             const delayDays = getDelayDays(order)
 
             return (
-              <TableRow key={order.id}>
+              <TableRow key={order.orderNo}>
                 <TableCell className="font-mono font-semibold">
                   {order.orderNo}
                 </TableCell>

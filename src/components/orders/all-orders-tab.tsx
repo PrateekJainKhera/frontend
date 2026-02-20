@@ -27,41 +27,67 @@ export function AllOrdersTab() {
     loadOrders()
   }, [])
 
-  const mapToOrder = (r: OrderResponse): Order => ({
-    id: String(r.id),
-    orderNo: r.orderNo,
-    customerId: String(r.customerId),
-    customer: r.customerName ? { customerName: r.customerName } as any : undefined,
-    productId: String(r.productId),
-    product: r.productCode ? { partCode: r.productCode, modelName: r.productName } as any : undefined,
-    quantity: r.quantity,
-    originalQuantity: r.originalQuantity,
-    qtyCompleted: r.qtyCompleted,
-    qtyRejected: r.qtyRejected,
-    qtyInProgress: r.qtyInProgress,
-    orderDate: new Date(r.orderDate),
-    dueDate: new Date(r.dueDate),
-    adjustedDueDate: r.adjustedDueDate ? new Date(r.adjustedDueDate) : null,
-    delayReason: r.delayReason as any || null,
-    status: r.status as OrderStatus,
-    priority: r.priority as Priority,
-    planningStatus: r.planningStatus as PlanningStatus,
-    drawingReviewStatus: r.drawingReviewStatus as DrawingReviewStatus,
-    orderSource: r.orderSource as OrderSource,
-    agentCustomerId: r.agentCustomerId ? String(r.agentCustomerId) : undefined,
-    agentCommission: r.agentCommission ? Number(r.agentCommission) : undefined,
-    schedulingStrategy: r.schedulingStrategy as SchedulingStrategy,
-    canReschedule: r.planningStatus !== 'Released',
-    createdAt: new Date(r.createdAt),
-    updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-    createdBy: r.createdBy || '',
-  })
+  const expandOrder = (r: OrderResponse): Order[] => {
+    const baseFields = {
+      id: String(r.id),
+      customerId: String(r.customerId),
+      customer: r.customerName ? { customerName: r.customerName } as any : undefined,
+      orderDate: new Date(r.orderDate),
+      delayReason: r.delayReason as any || null,
+      planningStatus: r.planningStatus as PlanningStatus,
+      drawingReviewStatus: r.drawingReviewStatus as DrawingReviewStatus,
+      orderSource: r.orderSource as OrderSource,
+      agentCustomerId: r.agentCustomerId ? String(r.agentCustomerId) : undefined,
+      agentCommission: r.agentCommission ? Number(r.agentCommission) : undefined,
+      schedulingStrategy: r.schedulingStrategy as SchedulingStrategy,
+      canReschedule: r.planningStatus !== 'Released',
+      createdAt: new Date(r.createdAt),
+      updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+      createdBy: r.createdBy || '',
+    }
+
+    // Multi-product order: expand into one row per item with -A/-B/-C suffix
+    if (r.items && r.items.length > 0) {
+      return r.items.map(item => ({
+        ...baseFields,
+        orderNo: `${r.orderNo}-${item.itemSequence}`,
+        productId: String(item.productId),
+        product: item.partCode ? { partCode: item.partCode, modelName: item.productName } as any : undefined,
+        quantity: item.quantity,
+        originalQuantity: item.originalQuantity,
+        qtyCompleted: item.qtyCompleted,
+        qtyRejected: item.qtyRejected,
+        qtyInProgress: item.qtyInProgress,
+        dueDate: new Date(item.dueDate),
+        adjustedDueDate: item.adjustedDueDate ? new Date(item.adjustedDueDate) : null,
+        status: item.status as OrderStatus,
+        priority: item.priority as Priority,
+      }))
+    }
+
+    // Single-product order
+    return [{
+      ...baseFields,
+      orderNo: r.orderNo,
+      productId: String(r.productId),
+      product: r.productCode ? { partCode: r.productCode, modelName: r.productName } as any : undefined,
+      quantity: r.quantity,
+      originalQuantity: r.originalQuantity,
+      qtyCompleted: r.qtyCompleted,
+      qtyRejected: r.qtyRejected,
+      qtyInProgress: r.qtyInProgress,
+      dueDate: new Date(r.dueDate),
+      adjustedDueDate: r.adjustedDueDate ? new Date(r.adjustedDueDate) : null,
+      status: r.status as OrderStatus,
+      priority: r.priority as Priority,
+    }]
+  }
 
   const loadOrders = async () => {
     setLoading(true)
     try {
       const data = await orderService.getAll()
-      setOrders(data.map(mapToOrder))
+      setOrders(data.flatMap(expandOrder))
     } catch (err) {
       console.error('Failed to load orders:', err)
     }

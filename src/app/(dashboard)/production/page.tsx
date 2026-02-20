@@ -26,39 +26,27 @@ import {
   Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
-
-interface ProductionOrderSummary {
-  orderId: number
-  orderItemId: number | null  // For multi-product orders
-  orderNo: string
-  customerName: string | null
-  productName: string | null
-  priority: string
-  dueDate: string | null
-  totalSteps: number
-  completedSteps: number
-  inProgressSteps: number
-  readySteps: number
-  totalChildParts: number
-  completedChildParts: number
-  productionStatus: string  // Pending | InProgress | Completed
-}
+import { productionService, ProductionOrderSummary } from '@/lib/api/production'
 
 export default function ProductionDashboardPage() {
   const [orders, setOrders] = useState<ProductionOrderSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  useEffect(() => {
-    // Use order-items endpoint for multi-product order support
-    fetch('http://localhost:5217/api/production/order-items')
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) setOrders(data.data)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+  const load = async () => {
+    setLoading(true)
+    try {
+      // order-items endpoint now handles both multi-product (per item) and single-product orders
+      const data = await productionService.getOrderItems()
+      setOrders(data)
+    } catch (err) {
+      console.error('Failed to load production orders:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
 
   const stats = {
     totalOrders: orders.length,

@@ -6,7 +6,10 @@ import {
   CreateScheduleRequest,
   UpdateStatusRequest,
   RescheduleRequest,
-  OrderSchedulingTree
+  OrderSchedulingTree,
+  SchedulableOrder,
+  CrossOrderGroups,
+  BatchScheduleResult,
 } from '@/types/schedule'
 
 class ScheduleService {
@@ -234,6 +237,52 @@ class ScheduleService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to reschedule: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  // ── Child-Part-First Batch Scheduling ──────────────────────────────────────
+
+  async getSchedulableOrders(): Promise<SchedulableOrder[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<SchedulableOrder[]>>(
+        `${this.baseUrl}/schedulable-orders`
+      )
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to load schedulable orders: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getCrossOrderGroups(orderIds: number[]): Promise<CrossOrderGroups> {
+    try {
+      const response = await apiClient.post<ApiResponse<CrossOrderGroups>>(
+        `${this.baseUrl}/cross-order-groups`,
+        { orderIds }
+      )
+      return response.data.data || { childParts: [] }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to load groups: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async batchCreate(schedules: CreateScheduleRequest[]): Promise<BatchScheduleResult[]> {
+    try {
+      const response = await apiClient.post<ApiResponse<BatchScheduleResult[]>>(
+        `${this.baseUrl}/batch`,
+        { schedules }
+      )
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Batch schedule failed: ${error.message}`)
       }
       throw error
     }

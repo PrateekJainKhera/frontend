@@ -15,6 +15,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Loader2,
   Factory,
   Clock,
@@ -28,11 +35,14 @@ import { MachineSuggestion } from '@/types/schedule'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
+const RESCHEDULE_REASONS = ['Machine Breakdown', 'Priority Change', 'Worker Absent', 'Material Delay', 'Other']
+
 interface ScheduleMachineDialogProps {
   jobCardId: number
   isOsp?: boolean
   isManual?: boolean
   minStartTime?: string | null  // end time of previous step — this step cannot start before it
+  existingScheduleId?: number | null  // if set, this is a reschedule (Change mode)
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
@@ -43,6 +53,7 @@ export function ScheduleMachineDialog({
   isOsp = false,
   isManual = false,
   minStartTime = null,
+  existingScheduleId = null,
   open,
   onOpenChange,
   onSuccess,
@@ -58,10 +69,13 @@ export function ScheduleMachineDialog({
   // OSP duration fields
   const [ospDays, setOspDays] = useState('1')
   const [ospHours, setOspHours] = useState('0')
+  // Reschedule reason (required when changing an existing schedule)
+  const [reason, setReason] = useState('')
 
   useEffect(() => {
     if (open) {
       setSubmitError(null)
+      setReason('')
       loadSuggestions()
     }
   }, [open, jobCardId])
@@ -196,11 +210,23 @@ export function ScheduleMachineDialog({
       setSubmitError('Please select a machine before confirming.')
       return
     }
+    if (existingScheduleId && !reason) {
+      setSubmitError('Please select a reason for rescheduling.')
+      return
+    }
 
     try {
       setSubmitting(true)
 
-      if (isOsp || isManual) {
+      // If changing an existing schedule, use reschedule endpoint
+      if (existingScheduleId) {
+        await scheduleService.reschedule(existingScheduleId, {
+          newStartTime: new Date(scheduledStart),
+          newEndTime: new Date(scheduledEnd),
+          reason,
+          rescheduledBy: 'User',
+        })
+      } else if (isOsp || isManual) {
         const totalMins = (parseInt(ospDays) * 24 * 60) + (parseInt(ospHours) * 60)
         await scheduleService.create({
           jobCardId,
@@ -217,7 +243,6 @@ export function ScheduleMachineDialog({
       } else {
         const selectedSuggestion = suggestions.find(s => s.machineId === selectedMachineId)
         if (!selectedSuggestion) return
-        // Calculate duration from start and end times if totalEstimatedMinutes is not available
         const durationMinutes = selectedSuggestion.totalEstimatedMinutes ||
           Math.round((new Date(scheduledEnd).getTime() - new Date(scheduledStart).getTime()) / (1000 * 60))
         await scheduleService.create({
@@ -248,10 +273,12 @@ export function ScheduleMachineDialog({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isOsp ? 'OSP Lead Time' : isManual ? 'Manual Process — Set Time' : 'Schedule Machine'} — {jobCardNo}
+            {existingScheduleId ? 'Change Schedule' : isOsp ? 'OSP Lead Time' : isManual ? 'Manual Process — Set Time' : 'Schedule Machine'} — {jobCardNo}
           </DialogTitle>
           <DialogDescription>
-            {isOsp
+            {existingScheduleId
+              ? 'Update the machine and time for this job card. A reason is required.'
+              : isOsp
               ? 'Set the vendor lead time for this outside service process. No machine is required.'
               : isManual
               ? 'This is a manual process — no machine is required. Set the estimated time for the operator.'
@@ -571,6 +598,23 @@ export function ScheduleMachineDialog({
           </div>
         )}
 
+        {/* ── Reason for change (reschedule only) ── */}
+        {existingScheduleId && (
+          <div className="space-y-1.5 pt-2 border-t">
+            <Label className="text-xs font-semibold">Reason for Change <span className="text-red-500">*</span></Label>
+            <Select value={reason} onValueChange={setReason}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Select reason…" />
+              </SelectTrigger>
+              <SelectContent>
+                {RESCHEDULE_REASONS.map(r => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* ── Inline error banner ── */}
         {submitError && (() => {
           const [title, detail] = submitError.includes('||')
@@ -597,10 +641,10 @@ export function ScheduleMachineDialog({
           </Button>
           <Button
             onClick={handleSchedule}
-            disabled={(!isOsp && !selectedMachineId) || !scheduledStart || !scheduledEnd || submitting}
+            disabled={(!isOsp && !isManual && !selectedMachineId) || !scheduledStart || !scheduledEnd || (!!existingScheduleId && !reason) || submitting}
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isOsp ? 'Confirm OSP Lead Time' : 'Confirm Schedule'}
+            {existingScheduleId ? 'Save Changes' : isOsp ? 'Confirm OSP Lead Time' : 'Confirm Schedule'}
           </Button>
         </DialogFooter>
       </DialogContent>

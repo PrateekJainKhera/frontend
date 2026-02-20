@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { toast } from 'sonner'
-import { RollerType } from '@/types'
 import {
   Select,
   SelectContent,
@@ -21,12 +21,16 @@ import {
 
 export function ProductTemplatesTab() {
   const [templates, setTemplates] = useState<ProductTemplateResponse[]>([])
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
   useEffect(() => {
     loadTemplates()
+    rollerTypeService.getAll()
+      .then(data => setRollerTypes(data.filter(t => t.isActive)))
+      .catch(() => {})
   }, [])
 
   const loadTemplates = async () => {
@@ -127,8 +131,9 @@ export function ProductTemplatesTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value={RollerType.MAGNETIC}>Magnetic Roller</SelectItem>
-                <SelectItem value={RollerType.PRINTING}>Printing Roller</SelectItem>
+                {rollerTypes.map(t => (
+                  <SelectItem key={t.id} value={t.typeName}>{t.typeName}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

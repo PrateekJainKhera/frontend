@@ -676,7 +676,7 @@ export default function GenerateJobCardsPage() {
       materialGrade: '',
       requiredQuantity: 0,
       unit: 'pcs',
-      wastageMM: 0,
+      wastageMM: 5,
       source: 'Manual',
       confirmedBy: 'Admin'
     }
@@ -1674,7 +1674,7 @@ export default function GenerateJobCardsPage() {
                                       <td className="p-2">
                                         <input
                                           type="number"
-                                          value={material.wastageMM || 0}
+                                          value={material.wastageMM ?? 0}
                                           onChange={(e) => updateMaterial(item.childPartTemplate!.id, material.tempId, { wastageMM: parseFloat(e.target.value) || 0 })}
                                           className="w-14 px-2 py-1 text-xs border rounded text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         />

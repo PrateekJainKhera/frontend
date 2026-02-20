@@ -219,3 +219,60 @@ export interface ScheduleApiResponse<T> {
   data?: T;
   errors?: string[];
 }
+
+// ── Child-Part-First Batch Scheduling types ─────────────────────────────────
+
+export interface SchedulableOrder {
+  orderId: number
+  orderNo: string
+  customerName?: string | null
+  dueDate?: string | null
+  priority: string
+  pendingJobCardCount: number
+  totalJobCardCount: number
+}
+
+export interface CrossOrderJobCard {
+  jobCardId: number
+  jobCardNo: string
+  orderId: number
+  orderNo: string
+  customerName?: string | null
+  quantity: number
+  priority: string
+  dueDate?: string | null
+  scheduleId?: number | null
+  assignedMachineName?: string | null
+  scheduledStartTime?: string | null
+  scheduledEndTime?: string | null
+}
+
+export interface CrossOrderProcessStep {
+  stepNo: number
+  processId: number
+  processName: string
+  processCode?: string | null
+  isOsp: boolean
+  isManual: boolean
+  processCategoryId?: number | null
+  processCategoryName?: string | null
+  jobCards: CrossOrderJobCard[]
+}
+
+export interface CrossOrderChildPart {
+  childPartName: string
+  creationType: string
+  steps: CrossOrderProcessStep[]
+}
+
+export interface CrossOrderGroups {
+  childParts: CrossOrderChildPart[]
+}
+
+export interface BatchScheduleResult {
+  jobCardId: number
+  jobCardNo: string
+  success: boolean
+  scheduleId?: number | null
+  error?: string | null
+}

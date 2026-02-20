@@ -50,8 +50,8 @@ const formSchema = z.object({
   processName: z.string().min(2, 'Process name must be at least 2 characters'),
   processCategoryId: z.number().min(1, 'Process category is required'),
   standardSetupTimeMin: z.number().min(0, 'Setup time cannot be negative'),
-  cycleTimePerPieceHours: z.number().min(0.001, 'Cycle time must be greater than 0'),
-  restTimeHours: z.number().min(0, 'Rest time cannot be negative').optional(),
+  cycleTimeMin: z.number().min(0.1, 'Cycle time must be greater than 0'),
+  restTimeMin: z.number().min(0, 'Rest time cannot be negative').optional(),
   description: z.string().optional(),
   isOutsourced: z.boolean(),
 })
@@ -104,8 +104,8 @@ export function EditProcessDialog({
       processName: process.processName,
       processCategoryId: process.processCategoryId || 0,
       standardSetupTimeMin: process.standardSetupTimeMin || 0,
-      cycleTimePerPieceHours: process.cycleTimePerPieceHours || 0.5,
-      restTimeHours: process.restTimeHours || 0,
+      cycleTimeMin: (process.cycleTimePerPieceHours || 0.5) * 60,
+      restTimeMin: (process.restTimeHours || 0) * 60,
       description: process.description || '',
       isOutsourced: process.isOutsourced,
     },
@@ -153,8 +153,8 @@ export function EditProcessDialog({
         processName: data.processName,
         processCategoryId: data.processCategoryId,
         standardSetupTimeMin: data.standardSetupTimeMin,
-        cycleTimePerPieceHours: data.cycleTimePerPieceHours,
-        restTimeHours: data.restTimeHours || null,
+        cycleTimePerPieceHours: data.cycleTimeMin / 60,
+        restTimeHours: (data.restTimeMin || 0) / 60 || null,
         description: data.description || null,
         isOutsourced: data.isOutsourced,
         isActive: process.isActive,
@@ -314,15 +314,15 @@ export function EditProcessDialog({
 
               <FormField
                 control={form.control}
-                name="cycleTimePerPieceHours"
+                name="cycleTimeMin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cycle Time/Piece (hrs) *</FormLabel>
+                    <FormLabel>Cycle Time/Piece (min) *</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        step="0.01"
-                        placeholder="e.g. 2.5"
+                        step="1"
+                        placeholder="e.g. 30"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
@@ -335,14 +335,14 @@ export function EditProcessDialog({
 
               <FormField
                 control={form.control}
-                name="restTimeHours"
+                name="restTimeMin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rest Time (hrs)</FormLabel>
+                    <FormLabel>Rest Time (min)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        step="0.1"
+                        step="1"
                         placeholder="0"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}

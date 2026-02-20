@@ -17,10 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { RollerType } from '@/types'
 import { productTemplateService, ProductTemplateBOMItemRequest } from '@/lib/api/product-templates'
 import { processTemplateService, ProcessTemplateResponse } from '@/lib/api/process-templates'
 import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { toast } from 'sonner'
 
 interface BOMItemForm {
@@ -38,6 +38,7 @@ export default function CreateProductTemplatePage() {
   const [loadingChildPartTemplates, setLoadingChildPartTemplates] = useState(false)
 
   // API Data
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
   const [processTemplates, setProcessTemplates] = useState<ProcessTemplateResponse[]>([])
   const [childPartTemplates, setChildPartTemplates] = useState<ChildPartTemplateResponse[]>([])
 
@@ -66,6 +67,13 @@ export default function CreateProductTemplatePage() {
 
   // Auto-generate template code based on roller type
   const templateCode = rollerType ? `PT-${rollerType.substring(0, 3)}-${Date.now().toString().slice(-6)}` : ''
+
+  // Load roller types from master on mount
+  useEffect(() => {
+    rollerTypeService.getAll()
+      .then(data => setRollerTypes(data.filter(t => t.isActive)))
+      .catch(() => toast.error('Failed to load roller types'))
+  }, [])
 
   // Load Assembly Process Templates when roller type changes
   useEffect(() => {
@@ -278,8 +286,11 @@ export default function CreateProductTemplatePage() {
                     <SelectValue placeholder="Select roller type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Magnetic Roller">Magnetic Roller</SelectItem>
-                    <SelectItem value="Printing Roller">Printing Roller</SelectItem>
+                    {rollerTypes.map(t => (
+                      <SelectItem key={t.id} value={t.typeName}>
+                        {t.typeName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
