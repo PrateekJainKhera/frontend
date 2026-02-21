@@ -188,14 +188,13 @@ export default function DrawingUploadPage() {
 
     setUploading(true)
     try {
-      // Update product status to Approved (self-approve for now)
       await productService.updateDrawingReviewStatus(productId, {
-        drawingReviewStatus: 'Approved',
-        drawingReviewNotes: 'All drawings uploaded and verified',
-        drawingReviewedBy: 'Admin' // TODO: From auth context
+        drawingReviewStatus: 'UnderReview',
+        drawingReviewNotes: 'Drawings uploaded by drawing team, pending admin review',
+        drawingReviewedBy: 'Drawing Team'
       })
 
-      toast.success('Drawings submitted and approved successfully')
+      toast.success('Drawings submitted for review. Awaiting admin approval.')
       router.push('/drawing-review')
     } catch (err) {
       console.error('Failed to submit for review:', err)
@@ -571,7 +570,7 @@ export default function DrawingUploadPage() {
           ) : (
             <>
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              Submit & Approve
+              Submit for Review
             </>
           )}
         </Button>

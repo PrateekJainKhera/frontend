@@ -31,14 +31,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { toast } from 'sonner'
 import { generatePartCode } from '@/lib/utils/part-code-generator'
 import { ChildPartType, Product } from '@/types'
 import { Customer } from '@/types/customer'
-import { Upload, FileImage, Check, ChevronsUpDown, Plus, SendHorizontal } from 'lucide-react'
+import { Upload, FileImage, Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { productService } from '@/lib/api/products'
 import { customerService } from '@/lib/api/customer'
 import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
@@ -100,7 +99,6 @@ export function CreateProductDialog({
   const [isAddModelDialogOpen, setIsAddModelDialogOpen] = useState(false)
   const [newModelName, setNewModelName] = useState('')
   const [isCreatingModel, setIsCreatingModel] = useState(false)
-  const [requestDrawing, setRequestDrawing] = useState(true) // Default checked - mandatory per client requirement
 
   // Roller types from master
   const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
@@ -306,12 +304,6 @@ export function CreateProductDialog({
   }
 
   const onSubmit = async (data: FormData) => {
-    // Validate that drawing request is checked (mandatory per client requirement)
-    if (!requestDrawing) {
-      toast.error('Please check "Request Drawing from Team" - this is required for all products')
-      return
-    }
-
     setIsSubmitting(true)
     const loadingToast = toast.loading('Creating product...')
 
@@ -328,7 +320,7 @@ export function CreateProductDialog({
         hardness: data.hardness,
         productTemplateId: data.productTemplateId,
         processTemplateId: data.processTemplateId,
-        requestDrawing: requestDrawing,
+        requestDrawing: false,
       })
 
       // Fetch the created product to pass back to parent
@@ -675,26 +667,6 @@ export function CreateProductDialog({
               />
             </div>
 
-            {/* Request Drawing Checkbox - MANDATORY */}
-            <div className={`flex items-center space-x-2 p-4 border rounded-lg ${
-              requestDrawing ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-300'
-            }`}>
-              <Checkbox
-                id="requestDrawing"
-                checked={requestDrawing}
-                onCheckedChange={(checked) => setRequestDrawing(checked as boolean)}
-              />
-              <label
-                htmlFor="requestDrawing"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-              >
-                <SendHorizontal className={`h-4 w-4 ${requestDrawing ? 'text-blue-600' : 'text-red-600'}`} />
-                <span>Request Drawing from Team immediately after creating product <span className="text-red-600">*</span></span>
-              </label>
-            </div>
-            {!requestDrawing && (
-              <p className="text-sm text-red-600 -mt-2">⚠️ This checkbox is required - you cannot create a product without requesting drawing</p>
-            )}
 
             {/* Child Parts Section - Loaded from template */}
             {watchedTemplateId && watchedTemplateId > 0 && (

@@ -202,7 +202,7 @@ export default function DrawingReviewDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <Link href={`/drawing-review/products/${product.id}`}>
+                  <Link href={`/drawing-review/products/${product.id}/upload-drawings`}>
                     <Button>
                       <Upload className="mr-2 h-4 w-4" />
                       Upload Drawing
@@ -260,10 +260,10 @@ export default function DrawingReviewDashboardPage() {
                       )}
                     </div>
                   </div>
-                  <Link href={`/drawing-review/products/${product.id}/upload-drawings`}>
+                  <Link href={`/drawing-review/products/${product.id}`}>
                     <Button variant="outline">
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Drawings
+                      <Eye className="mr-2 h-4 w-4" />
+                      Review & Approve
                     </Button>
                   </Link>
                 </div>

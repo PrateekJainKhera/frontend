@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { productService, ProductChildPartDrawingResponse } from '@/lib/api/products'
 import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 import { Product } from '@/types/product'
@@ -30,7 +29,6 @@ export default function ProductDrawingReviewPage() {
   const [childPartDrawings, setChildPartDrawings] = useState<ProductChildPartDrawingResponse[]>([])
 
   // Form state
-  const [reviewStatus, setReviewStatus] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
 
   useEffect(() => {
@@ -42,7 +40,6 @@ export default function ProductDrawingReviewPage() {
     try {
       const data = await productService.getById(productId)
       setProduct(data)
-      setReviewStatus(data.drawingReviewStatus || 'Pending')
       setReviewNotes(data.drawingReviewNotes || '')
 
       // Load assembly drawing if exists
@@ -69,18 +66,19 @@ export default function ProductDrawingReviewPage() {
     setLoading(false)
   }
 
-  const handleUpdateReviewStatus = async () => {
+  const handleReviewAction = async (status: string) => {
     if (!product) return
-
     setSubmitting(true)
     try {
       await productService.updateDrawingReviewStatus(productId, {
-        drawingReviewStatus: reviewStatus,
+        drawingReviewStatus: status,
         drawingReviewNotes: reviewNotes,
-        drawingReviewedBy: 'Admin' // TODO: Should come from auth context
+        drawingReviewedBy: 'Admin'
       })
-
-      toast.success('Drawing review status updated successfully')
+      const msg = status === 'Approved' ? 'Drawing approved successfully'
+        : status === 'Rejected' ? 'Drawing rejected'
+        : 'Revision requested'
+      toast.success(msg)
       router.push('/drawing-review')
     } catch (err) {
       console.error('Failed to update review status:', err)
@@ -408,105 +406,92 @@ export default function ProductDrawingReviewPage() {
             </CardContent>
           </Card>
 
-          {/* Update Review Status */}
+          {/* Review Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Update Review Status</CardTitle>
-              <CardDescription>Change the drawing review status</CardDescription>
+              <CardTitle>Review Actions</CardTitle>
+              <CardDescription>
+                {product.drawingReviewStatus === 'UnderReview'
+                  ? 'Drawings uploaded — review and take action'
+                  : product.drawingReviewStatus === 'Pending'
+                  ? 'Waiting for drawing team to upload'
+                  : 'Review completed'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>New Status</Label>
-                <Select value={reviewStatus} onValueChange={setReviewStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="UnderReview">Under Review</SelectItem>
-                    <SelectItem value="Approved">Approved</SelectItem>
-                    <SelectItem value="Rejected">Rejected</SelectItem>
-                    <SelectItem value="RevisionRequired">Revision Required</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Review Notes</Label>
-                <Textarea
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  placeholder="Add notes about the review decision..."
-                  rows={4}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={handleUpdateReviewStatus}
-                  disabled={submitting || !reviewStatus}
-                  className="w-full"
-                >
-                  {submitting ? (
-                    'Updating...'
-                  ) : (
-                    <>
+              {product.drawingReviewStatus === 'UnderReview' ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Review Notes</Label>
+                    <Textarea
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      placeholder="Add notes about your review decision..."
+                      rows={4}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      onClick={() => handleReviewAction('Approved')}
+                      disabled={submitting}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
                       <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Update Review Status
-                    </>
-                  )}
-                </Button>
-
-                {reviewStatus === 'Approved' && (
+                      {submitting ? 'Processing...' : 'Approve Drawing'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleReviewAction('RevisionRequired')}
+                      disabled={submitting}
+                      className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
+                    >
+                      <AlertTriangle className="mr-2 h-4 w-4" />
+                      Request Revision
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleReviewAction('Rejected')}
+                      disabled={submitting}
+                      className="w-full border-red-300 text-red-700 hover:bg-red-50"
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Reject Drawing
+                    </Button>
+                  </div>
                   <p className="text-xs text-muted-foreground text-center">
                     Approving will allow job card generation for this product
                   </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {product.drawingReviewStatus === 'Pending' && (
-                <Button
-                  variant="default"
-                  className="w-full justify-start"
-                  onClick={handleRequestDrawing}
-                  disabled={submitting}
-                >
-                  <SendHorizontal className="mr-2 h-4 w-4" />
-                  {submitting ? 'Requesting...' : 'Request Drawing from Team'}
-                </Button>
+                </>
+              ) : product.drawingReviewStatus === 'Pending' ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                    <AlertTriangle className="h-5 w-5 text-gray-400 shrink-0" />
+                    <p className="text-sm text-muted-foreground">
+                      Drawings have not been uploaded yet. The drawing team needs to upload drawings first.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={handleRequestDrawing}
+                    disabled={submitting}
+                  >
+                    <SendHorizontal className="mr-2 h-4 w-4" />
+                    {submitting ? 'Requesting...' : 'Request Drawing from Team'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    {product.drawingReviewStatus === 'Approved'
+                      ? 'Drawing approved. Product is ready for planning.'
+                      : product.drawingReviewStatus === 'Rejected'
+                      ? 'Drawing rejected. Drawing team must re-upload.'
+                      : 'Revision required. Drawing team must re-upload.'}
+                  </p>
+                </div>
               )}
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => setReviewStatus('Approved')}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                Approve Drawing
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => setReviewStatus('RevisionRequired')}
-              >
-                <AlertTriangle className="mr-2 h-4 w-4 text-orange-600" />
-                Request Revision
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => setReviewStatus('Rejected')}
-              >
-                <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                Reject Drawing
-              </Button>
             </CardContent>
           </Card>
         </div>

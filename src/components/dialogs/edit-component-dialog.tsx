@@ -39,9 +39,8 @@ const formSchema = z.object({
   componentName: z.string().min(2, 'Component name is required'),
   category: z.string(),
   manufacturer: z.string().optional(),
-  supplierName: z.string().optional(),
   specifications: z.string().optional(),
-  leadTimeDays: z.number().min(1, 'Lead time must be at least 1 day'),
+  leadTimeDays: z.number().min(0).optional(),
   unit: z.string().min(1, 'Unit is required'),
   notes: z.string().optional(),
   minimumStock: z.number().min(0, 'Minimum stock cannot be negative'),
@@ -71,9 +70,8 @@ export function EditComponentDialog({
       componentName: component.componentName,
       category: component.category,
       manufacturer: component.manufacturer || '',
-      supplierName: component.supplierName || '',
       specifications: component.specifications || '',
-      leadTimeDays: component.leadTimeDays,
+      leadTimeDays: component.leadTimeDays || undefined,
       unit: component.unit,
       notes: component.notes || '',
       minimumStock: component.minimumStock ?? 0,
@@ -89,9 +87,9 @@ export function EditComponentDialog({
         componentName: data.componentName,
         category: data.category,
         manufacturer: data.manufacturer || null,
-        supplierName: data.supplierName || null,
+        supplierName: null,
         specifications: data.specifications || null,
-        leadTimeDays: data.leadTimeDays,
+        leadTimeDays: data.leadTimeDays ?? 0,
         unit: data.unit,
         notes: data.notes || null,
         minimumStock: data.minimumStock,
@@ -175,36 +173,20 @@ export function EditComponentDialog({
               )}
             />
 
-            {/* Manufacturer & Supplier */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="manufacturer"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Manufacturer</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter manufacturer" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="supplierName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Supplier Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter supplier" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            {/* Manufacturer/Brand */}
+            <FormField
+              control={form.control}
+              name="manufacturer"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Manufacturer/Brand</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter manufacturer or brand" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Lead Time & Unit */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -213,13 +195,14 @@ export function EditComponentDialog({
                 name="leadTimeDays"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Lead Time (days) *</FormLabel>
+                    <FormLabel>Lead Time (days)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         placeholder="7"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
