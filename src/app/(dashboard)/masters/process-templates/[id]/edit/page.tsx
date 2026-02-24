@@ -13,16 +13,17 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { ProcessTemplateStep, RollerType } from '@/types'
+import { ProcessTemplateStep } from '@/types'
 import { toast } from 'sonner'
 import { processTemplateService } from '@/lib/api/process-templates'
 import { processService, ProcessResponse } from '@/lib/api/processes'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { cn } from '@/lib/utils'
 
 interface TemplateFormData {
   templateName: string
   description: string
-  applicableTypes: RollerType[]
+  applicableTypes: string[]
   steps: ProcessTemplateStep[]
 }
 
@@ -42,20 +43,17 @@ export default function EditProcessTemplatePage() {
   const [loadingTemplate, setLoadingTemplate] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [processSearchOpen, setProcessSearchOpen] = useState<{ [key: number]: boolean }>({})
-
-  const allRollerTypes: RollerType[] = [
-    RollerType.PRINTING,
-    RollerType.MAGNETIC,
-  ]
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
 
   // Load template data
   useEffect(() => {
     loadTemplate()
   }, [templateId])
 
-  // Load processes from API
+  // Load processes + roller types from API
   useEffect(() => {
     loadProcesses()
+    rollerTypeService.getAll().then(setRollerTypes).catch(console.error)
   }, [])
 
   const loadTemplate = async () => {
@@ -67,7 +65,7 @@ export default function EditProcessTemplatePage() {
       setFormData({
         templateName: templateData.templateName,
         description: templateData.description || '',
-        applicableTypes: templateData.applicableTypes as RollerType[],
+        applicableTypes: templateData.applicableTypes as string[],
         steps: steps.map(step => ({
           id: step.id,
           templateId: step.templateId,
@@ -157,7 +155,7 @@ export default function EditProcessTemplatePage() {
     setFormData({ ...formData, steps: renumberedSteps })
   }
 
-  const toggleRollerType = (type: RollerType) => {
+  const toggleRollerType = (type: string) => {
     if (formData.applicableTypes.includes(type)) {
       setFormData({
         ...formData,
@@ -280,18 +278,18 @@ export default function EditProcessTemplatePage() {
             <div className="space-y-2">
               <Label>Applicable Roller Types *</Label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {allRollerTypes.map((type) => (
-                  <div key={type} className="flex items-center space-x-2">
+                {rollerTypes.map((rt) => (
+                  <div key={rt.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={type}
-                      checked={formData.applicableTypes.includes(type)}
-                      onCheckedChange={() => toggleRollerType(type)}
+                      id={rt.typeName}
+                      checked={formData.applicableTypes.includes(rt.typeName)}
+                      onCheckedChange={() => toggleRollerType(rt.typeName)}
                     />
                     <label
-                      htmlFor={type}
+                      htmlFor={rt.typeName}
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                     >
-                      {type}
+                      {rt.typeName}
                     </label>
                   </div>
                 ))}

@@ -6,8 +6,8 @@ export interface CreateProductRequest {
   customerName?: string
   modelId: number
   rollerType: string
-  diameter: number
-  length: number
+  diameter?: number
+  length?: number
   materialGrade?: string
   drawingNo?: string
   revisionNo?: string

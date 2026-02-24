@@ -60,6 +60,9 @@ const pageTitles: Record<string, string> = {
   '/inventory/receive-components': 'Receive Components',
   // Stores
   '/stores': 'Stores',
+  '/stores/cutting-planning': 'Cutting Planning',
+  '/stores/cutting-lists': 'Cutting Lists',
+  '/stores/issue-list': 'Issue List',
   // Dispatch
   '/dispatch': 'Dispatch',
   // Quality
@@ -85,6 +88,8 @@ const pageDescriptions: Record<string, string> = {
   '/planning': 'Generate job cards for approved orders and monitor material availability. Track planning progress and manage job card generation workflow.',
   '/scheduling': 'Review planned job cards and release them to production. Monitor material availability, dependencies, and send ready job cards to the shop floor.',
   '/stores': 'Manage material requisitions and issues from stores to production. Allocate materials, track issued quantities, and monitor inventory movements.',
+  '/stores/cutting-planning': 'Select approved requisitions → tick cuts → suggest an optimised cutting plan → save as draft → finalize → issue to shop floor.',
+  '/stores/cutting-lists': 'Create cutting lists from job card material requirements, finalize to issue materials, then reconcile leftover pieces back to stock.',
 }
 
 interface TopHeaderProps {

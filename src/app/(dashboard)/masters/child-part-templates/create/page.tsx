@@ -14,8 +14,8 @@ import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { RollerType } from '@/types'
 import { childPartTemplateService } from '@/lib/api/child-part-templates'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { processTemplateService, ProcessTemplateResponse } from '@/lib/api/process-templates'
 import { childPartTypeService, ChildPartTypeResponse } from '@/lib/api/child-part-types'
 import { toast } from 'sonner'
@@ -40,7 +40,7 @@ export default function CreateChildPartTemplatePage() {
   // Form fields
   const [templateName, setTemplateName] = useState('')
   const [childPartType, setChildPartType] = useState('')
-  const [applicableTypes, setApplicableTypes] = useState<RollerType[]>([])
+  const [applicableTypes, setApplicableTypes] = useState<string[]>([])
   const [description, setDescription] = useState('')
   const [processTemplateId, setProcessTemplateId] = useState<number | null>(null)
 
@@ -53,15 +53,13 @@ export default function CreateChildPartTemplatePage() {
   // Purchase info
   const [isPurchased, setIsPurchased] = useState(false)
 
-  const allRollerTypes: RollerType[] = [
-    RollerType.PRINTING,
-    RollerType.MAGNETIC,
-  ]
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
 
-  // Load Process Templates + Child Part Types
+  // Load Process Templates + Child Part Types + Roller Types
   useEffect(() => {
     loadProcessTemplates()
     loadChildPartTypes()
+    rollerTypeService.getAll().then(setRollerTypes).catch(console.error)
   }, [])
 
   const loadChildPartTypes = async () => {
@@ -109,7 +107,7 @@ export default function CreateChildPartTemplatePage() {
     }
   }
 
-  const toggleRollerType = (type: RollerType) => {
+  const toggleRollerType = (type: string) => {
     if (applicableTypes.includes(type)) {
       setApplicableTypes(applicableTypes.filter(t => t !== type))
     } else {
@@ -249,18 +247,18 @@ export default function CreateChildPartTemplatePage() {
             <div className="space-y-2">
               <Label>Applicable Roller Types *</Label>
               <div className="flex gap-6">
-                {allRollerTypes.map((type) => (
-                  <div key={type} className="flex items-center space-x-2">
+                {rollerTypes.map((rt) => (
+                  <div key={rt.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`roller-${type}`}
-                      checked={applicableTypes.includes(type)}
-                      onCheckedChange={() => toggleRollerType(type)}
+                      id={`roller-${rt.typeName}`}
+                      checked={applicableTypes.includes(rt.typeName)}
+                      onCheckedChange={() => toggleRollerType(rt.typeName)}
                     />
                     <label
-                      htmlFor={`roller-${type}`}
+                      htmlFor={`roller-${rt.typeName}`}
                       className="text-sm font-medium leading-none cursor-pointer"
                     >
-                      {type}
+                      {rt.typeName}
                     </label>
                   </div>
                 ))}

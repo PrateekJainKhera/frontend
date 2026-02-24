@@ -9,6 +9,7 @@ export interface CreateMachineRequest {
   status?: string
   notes?: string
   dailyCapacityHours?: number
+  maxLengthMM?: number
   processCategoryIds?: number[]
 }
 
@@ -28,6 +29,7 @@ export interface MachineResponse {
   notes: string | null
   isActive: boolean
   dailyCapacityHours: number
+  maxLengthMM: number | null
   processCategoryIds: number[]
   processCategoryNames: string[]
   createdAt: string

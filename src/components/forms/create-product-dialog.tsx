@@ -51,8 +51,8 @@ const formSchema = z.object({
   modelId: z.number().min(1, 'Machine model is required'),
   rollerType: z.string().min(1, 'Roller type is required'),
   productTemplateId: z.number().min(1, 'Product template is required'),
-  diameter: z.number().min(1, 'Diameter must be greater than 0'),
-  length: z.number().min(1, 'Length must be greater than 0'),
+  diameter: z.number().positive('Diameter must be greater than 0').optional(),
+  length: z.number().positive('Length must be greater than 0').optional(),
   numberOfTeeth: z.number().min(1, 'Number of teeth is required'),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
@@ -113,8 +113,8 @@ export function CreateProductDialog({
       modelId: initialModelId || 0,
       rollerType: initialRollerType || undefined,
       productTemplateId: 0,
-      diameter: 0,
-      length: 0,
+      diameter: undefined,
+      length: undefined,
       numberOfTeeth: initialNumberOfTeeth || 0,
       surfaceFinish: '',
       hardness: '',
@@ -580,14 +580,15 @@ export function CreateProductDialog({
                 name="diameter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Diameter (mm) *</FormLabel>
+                    <FormLabel>Diameter (mm)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        min="1"
+                        min="0"
+                        step="any"
                         placeholder="250"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -601,14 +602,15 @@ export function CreateProductDialog({
                 name="length"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Length (mm) *</FormLabel>
+                    <FormLabel>Length (mm)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        min="1"
+                        min="0"
+                        step="any"
                         placeholder="1200"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />

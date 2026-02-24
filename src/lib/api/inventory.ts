@@ -30,6 +30,8 @@ export interface InventoryResponse {
   createdAt: Date
   updatedAt?: Date
   updatedBy?: string
+  sourceRef?: string  // e.g. "OS-202602-001" or "GRN-202602-001"
+  warehouseId?: number
 }
 
 export interface ReceiveComponentRequest {
@@ -46,7 +48,7 @@ export interface ReceiveComponentRequest {
   poNo?: string
   poDate?: Date
   receiptDate: Date
-  storageLocation?: string
+  warehouseId?: number
   remarks?: string
   receivedBy: string
 }

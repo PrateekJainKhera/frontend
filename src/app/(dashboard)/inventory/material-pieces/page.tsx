@@ -174,6 +174,13 @@ export default function MaterialPiecesPage() {
     wastageWeight:   wastage.reduce((s, p) => s + p.currentWeightKG, 0),
   };
 
+  const getSourceBadge = (grnNo: string | null | undefined) => {
+    if (!grnNo) return <Badge variant="outline" className="text-xs">Unknown</Badge>;
+    if (grnNo.startsWith("OS-"))
+      return <Badge className="text-xs bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100">Opening Stock</Badge>;
+    return <Badge className="text-xs bg-green-100 text-green-700 border-green-200 hover:bg-green-100">GRN Inward</Badge>;
+  };
+
   const getStatusBadge = (piece: MaterialPieceResponse) => {
     if (piece.isWastage) return <Badge variant="destructive">Wastage</Badge>;
     switch (piece.status) {
@@ -403,7 +410,12 @@ export default function MaterialPiecesPage() {
                         </TableCell>
                         <TableCell className="text-sm">{piece.currentWeightKG.toFixed(2)}</TableCell>
                         <TableCell>{getStatusBadge(piece)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{piece.grnNo}</TableCell>
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            {getSourceBadge(piece.grnNo)}
+                            <p className="text-xs text-muted-foreground">{piece.grnNo}</p>
+                          </div>
+                        </TableCell>
                         <TableCell className="text-sm">
                           {piece.warehouseName ? (
                             <span className="text-foreground font-medium">{piece.warehouseName}</span>

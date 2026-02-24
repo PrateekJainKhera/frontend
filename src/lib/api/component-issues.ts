@@ -19,6 +19,7 @@ export interface ComponentWithStock {
   availableStock: number
   currentStock: number
   stockLocation: string
+  sourceRef?: string  // e.g. "OS-202602-001" or "GRN-202602-001"
 }
 
 export interface ComponentIssueResponse {

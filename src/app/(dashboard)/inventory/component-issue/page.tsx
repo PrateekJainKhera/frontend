@@ -206,6 +206,28 @@ export default function ComponentIssuePage() {
                     <span className="text-muted-foreground">Location</span>
                     <span>{selectedComponent.stockLocation || '—'}</span>
                   </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Source</span>
+                    {selectedComponent.sourceRef ? (
+                      selectedComponent.sourceRef.startsWith("OS-") ? (
+                        <Badge className="text-xs bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-100">
+                          Opening Stock
+                        </Badge>
+                      ) : (
+                        <Badge className="text-xs bg-green-100 text-green-700 border-green-300 hover:bg-green-100">
+                          GRN Inward
+                        </Badge>
+                      )
+                    ) : (
+                      <Badge variant="outline" className="text-xs">Unknown</Badge>
+                    )}
+                  </div>
+                  {selectedComponent.sourceRef && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Ref No</span>
+                      <span className="font-mono text-muted-foreground">{selectedComponent.sourceRef}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-sm font-semibold border-t pt-1 mt-1">
                     <span>Available Stock</span>
                     <span className="text-green-600">

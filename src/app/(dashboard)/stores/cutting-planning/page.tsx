@@ -35,8 +35,15 @@ import {
   FileText,
   X,
   Trash2,
+  Eye,
+  PackageCheck,
+  ClipboardList,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+
+type TabType = 'planning' | 'drafts' | 'issue-list'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -411,6 +418,85 @@ function FinalizeDialog({
   )
 }
 
+// ── Issue Dialog ──────────────────────────────────────────────────────────────
+
+function IssueDialog({
+  open, draft, onClose, onIssue, issuing,
+}: {
+  open: boolean
+  draft: DraftSummary | null
+  onClose: () => void
+  onIssue: (issuedBy: string, receivedBy: string) => void
+  issuing: boolean
+}) {
+  const [issuedBy, setIssuedBy] = useState('')
+  const [receivedBy, setReceivedBy] = useState('')
+
+  useEffect(() => {
+    if (open) { setIssuedBy(''); setReceivedBy('') }
+  }, [open])
+
+  if (!draft) return null
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Issue Materials — {draft.draftNo}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Bars</span>
+              <span className="font-semibold">{draft.totalBars}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Cuts</span>
+              <span className="font-semibold">{draft.totalCuts}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Requisitions</span>
+              <span className="font-semibold">{draft.requisitionCount}</span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="issuedBy" className="text-xs">Issued By *</Label>
+            <Input
+              id="issuedBy"
+              value={issuedBy}
+              onChange={e => setIssuedBy(e.target.value)}
+              placeholder="Issuer name"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="receivedBy" className="text-xs">Received By *</Label>
+            <Input
+              id="receivedBy"
+              value={receivedBy}
+              onChange={e => setReceivedBy(e.target.value)}
+              placeholder="Receiver name"
+              className="h-8 text-sm"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} size="sm">Cancel</Button>
+          <Button
+            onClick={() => onIssue(issuedBy, receivedBy)}
+            disabled={issuing || !issuedBy.trim() || !receivedBy.trim()}
+            size="sm"
+          >
+            {issuing
+              ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Issuing…</>
+              : <><PackageCheck className="h-3.5 w-3.5 mr-1" />Issue Materials</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── View Draft Modal ──────────────────────────────────────────────────────────
 
 function ViewDraftModal({
@@ -419,7 +505,7 @@ function ViewDraftModal({
   open: boolean
   draft: DraftDetail | null
   onClose: () => void
-  onPrint: () => void
+  onPrint?: () => void
 }) {
   if (!draft) return null
   return (
@@ -502,10 +588,12 @@ function ViewDraftModal({
 
         <DialogFooter className="px-4 py-2 border-t shrink-0">
           <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button variant="outline" onClick={onPrint} className="gap-1.5">
-            <Printer className="h-3.5 w-3.5" />
-            Print Slip
-          </Button>
+          {onPrint && (
+            <Button variant="outline" onClick={onPrint} className="gap-1.5">
+              <Printer className="h-3.5 w-3.5" />
+              Print Slip
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -576,6 +664,10 @@ function PrintSlip({ drafts }: { drafts: DraftDetail[] }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function MaterialIssuePage() {
+  const [activeTab, setActiveTab] = useState<TabType>('planning')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // ── Planning tab state ──────────────────────────────────────────────────────
   const [requisitions, setRequisitions] = useState<IssueWindowRequisition[]>([])
   const [selectedReqIds, setSelectedReqIds] = useState<Set<number>>(new Set())
   const [loadingReqs, setLoadingReqs] = useState(true)
@@ -584,9 +676,7 @@ export default function MaterialIssuePage() {
   const [loadingGroups, setLoadingGroups] = useState(false)
   const [groupsLoaded, setGroupsLoaded] = useState(false)
 
-  // cutKey → already assigned to a draft
   const [draftedCutKeys, setDraftedCutKeys] = useState<Set<string>>(new Set())
-  // matKey → Set of selected cutKeys (for suggest)
   const [selectedCuts, setSelectedCuts] = useState<Map<string, Set<string>>>(new Map())
 
   // Suggest plan state
@@ -596,20 +686,23 @@ export default function MaterialIssuePage() {
   const [showPlanModal, setShowPlanModal] = useState(false)
   const [savingDraft, setSavingDraft] = useState(false)
 
-  // Drafts
+  // ── Drafts tab state ────────────────────────────────────────────────────────
   const [allDrafts, setAllDrafts] = useState<DraftSummary[]>([])
   const [loadingDrafts, setLoadingDrafts] = useState(true)
   const [selectedDraftIds, setSelectedDraftIds] = useState<Set<number>>(new Set())
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false)
   const [finalizing, setFinalizing] = useState(false)
 
-  // Print slips
-  const [printDrafts, setPrintDrafts] = useState<DraftDetail[]>([])
+  // ── Issue List tab state ────────────────────────────────────────────────────
+  const [issueDrafts, setIssueDrafts] = useState<DraftSummary[]>([])
+  const [loadingIssueDrafts, setLoadingIssueDrafts] = useState(false)
+  const [issuingDraft, setIssuingDraft] = useState<DraftSummary | null>(null)
+  const [issuing, setIssuing] = useState(false)
 
-  // View draft modal
+  // ── Shared state ────────────────────────────────────────────────────────────
+  const [printDrafts, setPrintDrafts] = useState<DraftDetail[]>([])
   const [viewingDraft, setViewingDraft] = useState<DraftDetail | null>(null)
   const [loadingViewDraft, setLoadingViewDraft] = useState(false)
-
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   const showToast = (type: 'success' | 'error', msg: string) => {
@@ -624,6 +717,19 @@ export default function MaterialIssuePage() {
     } catch { /* silent */ }
   }, [])
 
+  const loadIssueDrafts = useCallback(async () => {
+    setLoadingIssueDrafts(true)
+    try {
+      const data = await issueWindowService.getFinalizedDrafts()
+      setIssueDrafts(data)
+    } catch {
+      showToast('error', 'Failed to load issue list')
+    } finally {
+      setLoadingIssueDrafts(false)
+    }
+  }, [])
+
+  // Initial load
   useEffect(() => {
     issueWindowService.getApprovedRequisitions()
       .then(setRequisitions).finally(() => setLoadingReqs(false))
@@ -631,13 +737,19 @@ export default function MaterialIssuePage() {
       .then(setAllDrafts).finally(() => setLoadingDrafts(false))
   }, [])
 
+  // Load issue list when tab is activated
+  useEffect(() => {
+    if (activeTab === 'issue-list') {
+      loadIssueDrafts()
+    }
+  }, [activeTab, loadIssueDrafts])
+
   const toggleReq = (id: number) => {
     setSelectedReqIds(prev => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-    // Reset right panel
     setGroupsLoaded(false)
     setMaterialGroups([])
     setSelectedCuts(new Map())
@@ -655,7 +767,6 @@ export default function MaterialIssuePage() {
       setMaterialGroups(groups)
       setAllDrafts(drafts)
 
-      // Pre-populate draftedCutKeys from all pending drafts
       const pendingList = drafts.filter(d => d.status === 'Draft')
       if (pendingList.length > 0) {
         const details = await Promise.all(pendingList.map(d => issueWindowService.getDraftById(d.id)))
@@ -713,7 +824,6 @@ export default function MaterialIssuePage() {
     const selectedKeys = selectedCuts.get(gk) ?? new Set()
     if (!selectedKeys.size) return
 
-    // Build the cut items to send
     const cuts = group.cuts
       .filter(c => selectedKeys.has(cutKey(c)))
       .map(c => ({
@@ -748,10 +858,8 @@ export default function MaterialIssuePage() {
     try {
       const group = currentSuggestingGroup
 
-      // Unique requisition IDs from all cuts in plan
       const reqIds = [...new Set(plan.bars.flatMap(b => b.cuts.map(c => c.requisitionId).filter(Boolean) as number[]))]
       if (!reqIds.length) {
-        // Fall back to all selected requisitions
         reqIds.push(...selectedReqIds)
       }
 
@@ -778,12 +886,10 @@ export default function MaterialIssuePage() {
 
       const saved = await issueWindowService.saveDraft({ requisitionIds: reqIds, barAssignments })
 
-      // Mark the cuts as drafted
       const newDrafted = new Set(draftedCutKeys)
       plan.bars.forEach(b => b.cuts.forEach(c => newDrafted.add(`${c.requisitionItemId}_${c.cutIndex}`)))
       setDraftedCutKeys(newDrafted)
 
-      // Clear selection for this group
       clearGroup(matKey(group))
 
       showToast('success', `Draft ${saved.draftNo} saved (${plan.bars.length} bar${plan.bars.length !== 1 ? 's' : ''})`)
@@ -814,6 +920,9 @@ export default function MaterialIssuePage() {
       showToast('success', `${draftIds.length} draft${draftIds.length !== 1 ? 's' : ''} finalized — moved to Issue List`)
       setSelectedDraftIds(new Set())
       await refreshDrafts()
+      // Refresh issue list since finalized drafts appear there
+      const issued = await issueWindowService.getFinalizedDrafts()
+      setIssueDrafts(issued)
     } catch { showToast('error', 'Failed to finalize drafts') }
     finally { setFinalizing(false) }
   }
@@ -855,6 +964,40 @@ export default function MaterialIssuePage() {
     } catch { showToast('error', 'Failed to load drafts for printing') }
   }
 
+  const handleViewDraft = async (id: number) => {
+    setLoadingViewDraft(true)
+    try {
+      const detail = await issueWindowService.getDraftById(id)
+      setViewingDraft(detail)
+    } catch { showToast('error', 'Failed to load draft') }
+    finally { setLoadingViewDraft(false) }
+  }
+
+  const handleIssue = async (issuedBy: string, receivedBy: string) => {
+    if (!issuingDraft) return
+    setIssuing(true)
+    try {
+      const results = await issueWindowService.issueDraft(issuingDraft.id, { issuedBy, receivedBy })
+      const failed = results.filter(r => !r.success)
+      if (!failed.length) {
+        showToast('success', `${results.length} requisition(s) issued successfully`)
+      } else {
+        showToast('error', `${failed.length} failed: ${failed.map(r => r.message).join('; ')}`)
+      }
+      setIssuingDraft(null)
+      const [drafts, issued] = await Promise.all([
+        issueWindowService.getDrafts(),
+        issueWindowService.getFinalizedDrafts(),
+      ])
+      setAllDrafts(drafts)
+      setIssueDrafts(issued)
+    } catch (e: unknown) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to issue materials')
+    } finally {
+      setIssuing(false)
+    }
+  }
+
   const priorityBadge = (p: string) => {
     const cls = p === 'High'
       ? 'bg-red-50 text-red-700 border-red-200'
@@ -865,10 +1008,19 @@ export default function MaterialIssuePage() {
   }
 
   const pendingDrafts = allDrafts.filter(d => d.status === 'Draft')
-  const issuedDrafts = allDrafts.filter(d => d.status === 'Issued')
-
-  // Check if all cuts across all groups are drafted
+  const finalizedDrafts = allDrafts.filter(d => d.status === 'Finalized')
   const totalAvailableCuts = materialGroups.reduce((s, g) => s + g.cuts.filter(c => !draftedCutKeys.has(cutKey(c))).length, 0)
+
+  const q = searchQuery.toLowerCase().trim()
+  const filteredRequisitions = q ? requisitions.filter(r => r.requisitionNo.toLowerCase().includes(q)) : requisitions
+  const filteredAllDrafts = q ? allDrafts.filter(d => d.draftNo.toLowerCase().includes(q)) : allDrafts
+  const filteredIssueDrafts = q ? issueDrafts.filter(d => d.draftNo.toLowerCase().includes(q)) : issueDrafts
+
+  const searchPlaceholders: Record<TabType, string> = {
+    planning: 'Search requisitions…',
+    drafts: 'Search drafts…',
+    'issue-list': 'Search issue list…',
+  }
 
   return (
     <>
@@ -886,251 +1038,381 @@ export default function MaterialIssuePage() {
       )}
 
       <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-background shrink-0">
-          <div>
-            <h1 className="text-xl font-semibold">Cutting Planning</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Select requisitions → tick cuts → suggest plan → save drafts → finalize (moves to Issue List)
-            </p>
+        {/* Tab bar */}
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-background shrink-0 gap-4">
+          {/* Tabs — left */}
+          <div className="flex gap-1 bg-muted rounded-lg p-1">
+            {([
+              { key: 'planning' as TabType, label: 'Cutting Planning', count: null },
+              { key: 'drafts' as TabType, label: 'Cutting Drafts', count: pendingDrafts.length },
+              { key: 'issue-list' as TabType, label: 'Issue List', count: finalizedDrafts.length + issueDrafts.length > 0 ? (activeTab === 'issue-list' ? issueDrafts.length : finalizedDrafts.length) : 0 },
+            ]).map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => { setActiveTab(key); setSearchQuery('') }}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
+                  activeTab === key
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {label}
+                {count !== null && count > 0 && (
+                  <span className="text-[10px] font-semibold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 leading-none">
+                    {count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Search — right */}
+          <div className="relative w-56 shrink-0">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={searchPlaceholders[activeTab]}
+              className="h-8 pl-8 text-xs"
+            />
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left panel — requisition list */}
-          <div className="w-64 shrink-0 flex flex-col border-r bg-background">
-            <div className="px-4 py-3 border-b bg-muted/20">
-              <h2 className="text-sm font-semibold">Requisitions</h2>
-              <p className="text-[11px] text-muted-foreground">{selectedReqIds.size} selected</p>
+        {/* ── Tab: Cutting Planning ──────────────────────────────────────────── */}
+        {activeTab === 'planning' && (
+          <div className="flex flex-1 overflow-hidden">
+            {/* Left panel — requisition list */}
+            <div className="w-64 shrink-0 flex flex-col border-r bg-background">
+              <div className="px-4 py-3 border-b bg-muted/20">
+                <h2 className="text-sm font-semibold">Requisitions</h2>
+                <p className="text-[11px] text-muted-foreground">{selectedReqIds.size} selected</p>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {loadingReqs ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : requisitions.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    No approved requisitions
+                  </div>
+                ) : (
+                  filteredRequisitions.map(req => (
+                    <label key={req.id} className={cn(
+                      'flex items-start gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors border-b border-border/50 last:border-0',
+                      selectedReqIds.has(req.id) && 'bg-blue-50'
+                    )}>
+                      <Checkbox
+                        checked={selectedReqIds.has(req.id)}
+                        onCheckedChange={() => toggleReq(req.id)}
+                        className="mt-0.5 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 justify-between">
+                          <span className="text-xs font-semibold truncate">{req.requisitionNo}</span>
+                          {priorityBadge(req.priority)}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 flex gap-2">
+                          {req.dueDate && <span>{new Date(req.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
+                          <span>{req.itemCount} items</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+              <div className="px-3 py-2.5 border-t bg-background">
+                <Button
+                  className="w-full"
+                  size="sm"
+                  disabled={selectedReqIds.size === 0 || loadingGroups}
+                  onClick={loadGroups}
+                >
+                  {loadingGroups
+                    ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Loading…</>
+                    : <>Load Groups <ChevronRight className="h-3.5 w-3.5 ml-1" /></>}
+                </Button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              {loadingReqs ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+
+            {/* Right panel — material groups */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-muted/5">
+              {!groupsLoaded ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
+                  <Package className="h-16 w-16 opacity-10" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium">No groups loaded</p>
+                    <p className="text-xs mt-1 text-muted-foreground">Select requisitions and click "Load Groups"</p>
+                  </div>
                 </div>
-              ) : requisitions.length === 0 ? (
-                <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-                  No approved requisitions
+              ) : materialGroups.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-muted-foreground">No raw material requirements found</p>
                 </div>
               ) : (
-                requisitions.map(req => (
-                  <label key={req.id} className={cn(
-                    'flex items-start gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors border-b border-border/50 last:border-0',
-                    selectedReqIds.has(req.id) && 'bg-blue-50'
-                  )}>
-                    <Checkbox
-                      checked={selectedReqIds.has(req.id)}
-                      onCheckedChange={() => toggleReq(req.id)}
-                      className="mt-0.5 shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 justify-between">
-                        <span className="text-xs font-semibold truncate">{req.requisitionNo}</span>
-                        {priorityBadge(req.priority)}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 flex gap-2">
-                        {req.dueDate && <span>{new Date(req.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
-                        <span>{req.itemCount} items</span>
-                      </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {/* Instruction banner */}
+                  {totalAvailableCuts > 0 && (
+                    <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">
+                      <Lightbulb className="h-4 w-4 shrink-0 mt-0.5 text-amber-500" />
+                      <span>
+                        Tick the cuts you want to plan, then click <strong>Suggest Cutting Plan</strong> per material group.
+                        The system will show 3 optimized bar options. Pick the best plan to create a draft.
+                      </span>
                     </div>
-                  </label>
-                ))
+                  )}
+
+                  {/* Material group cards */}
+                  {materialGroups.map(group => {
+                    const gk = matKey(group)
+                    return (
+                      <MaterialGroupCard
+                        key={gk}
+                        group={group}
+                        draftedCutKeys={draftedCutKeys}
+                        selectedCutKeys={selectedCuts.get(gk) ?? new Set()}
+                        onToggleCut={ck => toggleCut(gk, ck)}
+                        onSelectAll={() => selectAllInGroup(group)}
+                        onClearAll={() => clearGroup(gk)}
+                        onSuggest={() => handleSuggest(group)}
+                        suggesting={suggestingGroupKey === gk}
+                      />
+                    )
+                  })}
+
+                  {totalAvailableCuts === 0 && allDrafts.length > 0 && (
+                    <div className="text-center py-6 text-xs text-muted-foreground">
+                      All cuts drafted. Switch to <strong>Cutting Drafts</strong> tab to finalize.
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-            <div className="px-3 py-2.5 border-t bg-background">
-              <Button
-                className="w-full"
-                size="sm"
-                disabled={selectedReqIds.size === 0 || loadingGroups}
-                onClick={loadGroups}
-              >
-                {loadingGroups
-                  ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Loading…</>
-                  : <>Load Groups <ChevronRight className="h-3.5 w-3.5 ml-1" /></>}
-              </Button>
-            </div>
           </div>
+        )}
 
-          {/* Right panel */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-muted/5">
-            {!groupsLoaded ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
-                <Package className="h-16 w-16 opacity-10" />
-                <div className="text-center">
-                  <p className="text-sm font-medium">No groups loaded</p>
-                  <p className="text-xs mt-1 text-muted-foreground">Select requisitions and click "Load Groups"</p>
-                </div>
+        {/* ── Tab: Cutting Drafts ───────────────────────────────────────────── */}
+        {activeTab === 'drafts' && (
+          <div className="flex-1 overflow-y-auto p-6">
+            {loadingDrafts ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : materialGroups.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="text-sm text-muted-foreground">No raw material requirements found</p>
+            ) : allDrafts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+                <FileText className="h-10 w-10 opacity-30" />
+                <p className="text-sm">No drafts yet.</p>
+                <p className="text-xs">Go to Cutting Planning to create drafts from requisitions.</p>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Instruction banner */}
-                {totalAvailableCuts > 0 && (
-                  <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">
-                    <Lightbulb className="h-4 w-4 shrink-0 mt-0.5 text-amber-500" />
-                    <span>
-                      Tick the cuts you want to plan, then click <strong>Suggest Cutting Plan</strong> per material group.
-                      The system will show 3 optimized bar options. Pick the best plan to create a draft.
-                    </span>
+              <div className="max-w-4xl space-y-2">
+                {/* Actions bar for Draft-status items */}
+                {pendingDrafts.length > 0 && (
+                  <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-muted/40 border mb-1">
+                    <div className="flex items-center gap-2.5 text-xs">
+                      <Checkbox
+                        checked={selectedDraftIds.size === pendingDrafts.length && pendingDrafts.length > 0}
+                        onCheckedChange={checked => {
+                          if (checked) setSelectedDraftIds(new Set(pendingDrafts.map(d => d.id)))
+                          else setSelectedDraftIds(new Set())
+                        }}
+                      />
+                      <span className="text-muted-foreground">
+                        {selectedDraftIds.size > 0
+                          ? `${selectedDraftIds.size} draft${selectedDraftIds.size !== 1 ? 's' : ''} selected`
+                          : `${pendingDrafts.length} pending draft${pendingDrafts.length !== 1 ? 's' : ''}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                        disabled={selectedDraftIds.size === 0}
+                        onClick={handlePrintSlips}
+                      >
+                        <Printer className="h-3 w-3" />
+                        Print Slip{selectedDraftIds.size !== 1 ? 's' : ''}
+                      </Button>
+                      <Button
+                        size="sm" className="h-7 text-xs gap-1.5"
+                        disabled={selectedDraftIds.size === 0 || finalizing}
+                        onClick={() => setShowFinalizeDialog(true)}
+                      >
+                        {finalizing
+                          ? <><Loader2 className="h-3 w-3 animate-spin" />Finalizing…</>
+                          : <><ClipboardCheck className="h-3 w-3" />Finalize Selected</>}
+                      </Button>
+                    </div>
                   </div>
                 )}
 
-                {/* Material group cards */}
-                {materialGroups.map(group => {
-                  const gk = matKey(group)
+                {/* Draft rows */}
+                {filteredAllDrafts.map(d => {
+                  const isFinalized = d.status === 'Finalized'
+                  const isDraft = d.status === 'Draft'
+                  const isIssued = d.status === 'Issued'
                   return (
-                    <MaterialGroupCard
-                      key={gk}
-                      group={group}
-                      draftedCutKeys={draftedCutKeys}
-                      selectedCutKeys={selectedCuts.get(gk) ?? new Set()}
-                      onToggleCut={ck => toggleCut(gk, ck)}
-                      onSelectAll={() => selectAllInGroup(group)}
-                      onClearAll={() => clearGroup(gk)}
-                      onSuggest={() => handleSuggest(group)}
-                      suggesting={suggestingGroupKey === gk}
-                    />
+                    <div
+                      key={d.id}
+                      className={cn(
+                        'flex items-center gap-3 px-4 py-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors',
+                        isIssued && 'opacity-60'
+                      )}
+                    >
+                      {isDraft ? (
+                        <Checkbox
+                          checked={selectedDraftIds.has(d.id)}
+                          onCheckedChange={() => toggleDraftSelect(d.id)}
+                          className="shrink-0"
+                        />
+                      ) : isIssued ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <div className="h-4 w-4 shrink-0" />
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-semibold">{d.draftNo}</span>
+                          {isDraft && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">Draft</Badge>
+                          )}
+                          {isFinalized && (
+                            <span className="rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] px-2 py-0.5 font-medium">
+                              Finalized → Issue List
+                            </span>
+                          )}
+                          {isIssued && (
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-emerald-600">Issued</Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5 flex gap-2">
+                          <span>{d.totalBars} bar{d.totalBars !== 1 ? 's' : ''}</span>
+                          <span>·</span>
+                          <span>{d.totalCuts} cuts</span>
+                          <span>·</span>
+                          <span>{d.requisitionCount} requisition{d.requisitionCount !== 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost" size="sm" className="h-7 text-xs gap-1.5"
+                          disabled={loadingViewDraft}
+                          onClick={() => handleViewDraft(d.id)}
+                        >
+                          <FileText className="h-3 w-3" />View
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm" className="h-7 w-7 p-0"
+                          onClick={async () => {
+                            const detail = await issueWindowService.getDraftById(d.id)
+                            setPrintDrafts([detail])
+                            setTimeout(() => window.print(), 300)
+                          }}
+                          title="Print slip"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </Button>
+                        {isDraft && (
+                          <Button
+                            variant="ghost" size="sm"
+                            className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteDraft(d.id)}
+                            title="Delete draft"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   )
                 })}
-
-                {/* Drafts section */}
-                {(pendingDrafts.length > 0 || issuedDrafts.length > 0) && (
-                  <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
-                    <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-semibold text-sm">Cutting Drafts</span>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {allDrafts.length} total
-                      </Badge>
-                    </div>
-
-                    <div className="divide-y">
-                      {allDrafts.map(d => (
-                        <div key={d.id} className={cn(
-                          'flex items-center gap-3 px-4 py-2.5 text-xs',
-                          d.status === 'Issued' && 'opacity-60'
-                        )}>
-                          {d.status === 'Draft' && (
-                            <Checkbox
-                              checked={selectedDraftIds.has(d.id)}
-                              onCheckedChange={() => toggleDraftSelect(d.id)}
-                              className="shrink-0"
-                            />
-                          )}
-                          {d.status === 'Issued' && (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                          )}
-                          <span className="font-semibold">{d.draftNo}</span>
-                          <span className="text-muted-foreground">{d.totalBars} bars · {d.totalCuts} cuts</span>
-                          <Badge
-                            variant={d.status === 'Issued' ? 'default' : 'outline'}
-                            className={cn('text-[10px] px-1.5 py-0', d.status === 'Issued' && 'bg-emerald-600')}
-                          >
-                            {d.status}
-                          </Badge>
-                          <div className="ml-auto flex items-center gap-1">
-                            <Button
-                              variant="ghost" size="sm" className="h-6 px-2 text-[11px] gap-1"
-                              disabled={loadingViewDraft}
-                              onClick={async () => {
-                                setLoadingViewDraft(true)
-                                try {
-                                  const detail = await issueWindowService.getDraftById(d.id)
-                                  setViewingDraft(detail)
-                                } catch { showToast('error', 'Failed to load draft') }
-                                finally { setLoadingViewDraft(false) }
-                              }}
-                              title="View draft"
-                            >
-                              <FileText className="h-3 w-3" />
-                              View
-                            </Button>
-                            <Button
-                              variant="ghost" size="sm" className="h-6 px-1.5 text-[11px]"
-                              onClick={async () => {
-                                const detail = await issueWindowService.getDraftById(d.id)
-                                setPrintDrafts([detail])
-                                setTimeout(() => window.print(), 300)
-                              }}
-                              title="Print slip"
-                            >
-                              <Printer className="h-3 w-3" />
-                            </Button>
-                            {d.status === 'Draft' && (
-                              <Button
-                                variant="ghost" size="sm"
-                                className="h-6 px-1.5 text-[11px] text-red-500 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleDeleteDraft(d.id)}
-                                title="Delete draft"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Finalize bar */}
-                    {pendingDrafts.length > 0 && (
-                      <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/20 border-t">
-                        <div className="flex items-center gap-2 text-xs">
-                          <Checkbox
-                            checked={selectedDraftIds.size === pendingDrafts.length && pendingDrafts.length > 0}
-                            onCheckedChange={checked => {
-                              if (checked) setSelectedDraftIds(new Set(pendingDrafts.map(d => d.id)))
-                              else setSelectedDraftIds(new Set())
-                            }}
-                          />
-                          <span className="text-muted-foreground">
-                            {selectedDraftIds.size > 0
-                              ? `${selectedDraftIds.size} draft${selectedDraftIds.size !== 1 ? 's' : ''} selected`
-                              : `Select drafts to finalize`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline" size="sm" className="h-7 text-xs gap-1"
-                            disabled={selectedDraftIds.size === 0}
-                            onClick={handlePrintSlips}
-                          >
-                            <Printer className="h-3 w-3" />
-                            Print Slip{selectedDraftIds.size !== 1 ? 's' : ''}
-                          </Button>
-                          <Button
-                            size="sm" className="h-7 text-xs gap-1"
-                            disabled={selectedDraftIds.size === 0 || finalizing}
-                            onClick={() => setShowFinalizeDialog(true)}
-                          >
-                            {finalizing
-                              ? <><Loader2 className="h-3 w-3 animate-spin" />Finalizing…</>
-                              : <><ClipboardCheck className="h-3 w-3" />Finalize</>}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Empty draft state prompt */}
-                {!loadingDrafts && allDrafts.length === 0 && totalAvailableCuts === 0 && (
-                  <div className="text-center py-6 text-xs text-muted-foreground">
-                    No drafts yet. Select cuts and suggest a plan to create one.
-                  </div>
-                )}
               </div>
             )}
           </div>
-        </div>
+        )}
+
+        {/* ── Tab: Issue List ───────────────────────────────────────────────── */}
+        {activeTab === 'issue-list' && (
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4 max-w-4xl">
+              <p className="text-xs text-muted-foreground">
+                Finalized cutting drafts ready for physical material issue
+              </p>
+              <Button variant="outline" size="sm" onClick={loadIssueDrafts} disabled={loadingIssueDrafts}>
+                {loadingIssueDrafts ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
+              </Button>
+            </div>
+
+            {loadingIssueDrafts ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : issueDrafts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+                <ClipboardList className="h-10 w-10 opacity-30" />
+                <p className="text-sm">No finalized drafts yet.</p>
+                <p className="text-xs">Finalize drafts in Cutting Drafts tab to see them here.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-w-4xl">
+                {filteredIssueDrafts.map(draft => (
+                  <div
+                    key={draft.id}
+                    className="flex items-center gap-4 rounded-lg border bg-background px-4 py-3 hover:bg-muted/20 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-semibold">{draft.draftNo}</span>
+                        <span className="rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] px-2 py-0.5 font-medium">
+                          Finalized
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span>{draft.requisitionCount} requisition{draft.requisitionCount !== 1 ? 's' : ''}</span>
+                        <span>·</span>
+                        <span>{draft.totalBars} bar{draft.totalBars !== 1 ? 's' : ''}</span>
+                        <span>·</span>
+                        <span>{draft.totalCuts} cut{draft.totalCuts !== 1 ? 's' : ''}</span>
+                        {draft.finalizedAt && (
+                          <>
+                            <span>·</span>
+                            <span>Finalized {format(new Date(draft.finalizedAt), 'dd MMM HH:mm')}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => handleViewDraft(draft.id)}
+                        disabled={loadingViewDraft}
+                      >
+                        <Eye className="h-3 w-3" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => setIssuingDraft(draft)}
+                      >
+                        <PackageCheck className="h-3 w-3" />
+                        Issue
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* View draft modal */}
+      {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <ViewDraftModal
         open={viewingDraft !== null}
         draft={viewingDraft}
@@ -1142,7 +1424,6 @@ export default function MaterialIssuePage() {
         }}
       />
 
-      {/* Plan modal */}
       <PlanModal
         open={showPlanModal}
         plans={planOptions}
@@ -1151,13 +1432,20 @@ export default function MaterialIssuePage() {
         saving={savingDraft}
       />
 
-      {/* Finalize dialog */}
       <FinalizeDialog
         open={showFinalizeDialog}
         onClose={() => setShowFinalizeDialog(false)}
         draftCount={selectedDraftIds.size}
         onFinalize={handleFinalize}
         finalizing={finalizing}
+      />
+
+      <IssueDialog
+        open={issuingDraft !== null}
+        draft={issuingDraft}
+        onClose={() => setIssuingDraft(null)}
+        onIssue={handleIssue}
+        issuing={issuing}
       />
 
       <style jsx global>{`

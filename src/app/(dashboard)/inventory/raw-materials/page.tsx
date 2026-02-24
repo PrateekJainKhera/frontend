@@ -51,6 +51,8 @@ interface AggregatedMaterial {
   totalWastageLength: number;
   wastageMMage: number;
   totalWastageValue: number;
+  openingStockPieces: number;
+  grnPieces: number;
   pieces: MaterialPieceResponse[];
 }
 
@@ -203,6 +205,8 @@ export default function RawMaterialInventoryPage() {
         totalWastageLength,
         wastageMMage,
         totalWastageValue,
+        openingStockPieces: materialPieces.filter(p => p.grnNo?.startsWith("OS-")).length,
+        grnPieces: materialPieces.filter(p => p.grnNo && !p.grnNo.startsWith("OS-")).length,
         pieces: materialPieces,
       };
     });
@@ -467,6 +471,18 @@ export default function RawMaterialInventoryPage() {
                                 <span>Grade: <span className="font-medium text-foreground">{material.grade}</span></span>
                                 {material.diameter && (
                                   <span className="ml-3">• Ø{material.diameter}mm</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                {material.openingStockPieces > 0 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                                    Opening Stock: {material.openingStockPieces}
+                                  </span>
+                                )}
+                                {material.grnPieces > 0 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                                    GRN Inward: {material.grnPieces}
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -735,7 +751,14 @@ export default function RawMaterialInventoryPage() {
                                 <div>Diameter: <span className="font-medium">Ø{piece.diameter}mm</span></div>
                               )}
                               <div>Location: <span className="font-medium">{piece.storageLocation}</span></div>
-                              <div>GRN: <span className="font-medium">{piece.grnNo}</span></div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span>Source:</span>
+                                {piece.grnNo?.startsWith("OS-")
+                                  ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">Opening Stock</span>
+                                  : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">GRN Inward</span>
+                                }
+                                <span className="font-medium text-xs text-muted-foreground">{piece.grnNo}</span>
+                              </div>
                             </div>
                           </div>
 

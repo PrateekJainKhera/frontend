@@ -25,6 +25,7 @@ import { Settings, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { machineService } from '@/lib/api/machines'
 import { processCategoryService } from '@/lib/api/process-categories'
+import { machineTypeService, MachineTypeResponse } from '@/lib/api/machine-types'
 import { ProcessCategory } from '@/types/process-category'
 
 interface AddMachineDialogProps {
@@ -37,6 +38,10 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [processCategories, setProcessCategories] = useState<ProcessCategory[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
+  const [machineTypes, setMachineTypes] = useState<MachineTypeResponse[]>([])
+  const [showAddTypeDialog, setShowAddTypeDialog] = useState(false)
+  const [newTypeName, setNewTypeName] = useState('')
+  const [isAddingType, setIsAddingType] = useState(false)
   const [formData, setFormData] = useState({
     machineName: '',
     type: '',
@@ -45,21 +50,40 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
     status: 'Idle',
     notes: '',
     dailyCapacityHours: 8.0,
+    maxLengthMM: '' as string | number,
   })
 
   useEffect(() => {
-    const loadProcessCategories = async () => {
-      try {
-        const categories = await processCategoryService.getAll()
-        setProcessCategories(categories.filter(c => c.isActive))
-      } catch (error) {
-        console.error('Failed to load process categories:', error)
-      }
-    }
     if (open) {
-      loadProcessCategories()
+      processCategoryService.getAll()
+        .then(categories => setProcessCategories(categories.filter(c => c.isActive)))
+        .catch(error => console.error('Failed to load process categories:', error))
+      machineTypeService.getAll()
+        .then(setMachineTypes)
+        .catch(error => console.error('Failed to load machine types:', error))
     }
   }, [open])
+
+  const handleAddType = async () => {
+    if (!newTypeName.trim()) {
+      toast.error('Type name is required')
+      return
+    }
+    setIsAddingType(true)
+    try {
+      await machineTypeService.create({ name: newTypeName.trim(), createdBy: 'Admin' })
+      toast.success(`Machine type '${newTypeName.trim()}' added`)
+      const updated = await machineTypeService.getAll()
+      setMachineTypes(updated)
+      setFormData(prev => ({ ...prev, type: newTypeName.trim() }))
+      setNewTypeName('')
+      setShowAddTypeDialog(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add machine type')
+    } finally {
+      setIsAddingType(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,6 +111,7 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
         status: formData.status,
         notes: formData.notes || undefined,
         dailyCapacityHours: formData.dailyCapacityHours,
+        maxLengthMM: formData.maxLengthMM !== '' ? Number(formData.maxLengthMM) : undefined,
         processCategoryIds: selectedCategoryIds,
       })
 
@@ -102,6 +127,7 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
         status: 'Idle',
         notes: '',
         dailyCapacityHours: 8.0,
+        maxLengthMM: '',
       })
       setSelectedCategoryIds([])
 
@@ -115,6 +141,7 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -152,31 +179,30 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
                   <Label htmlFor="type">
                     Machine Type <span className="text-red-500">*</span>
                   </Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, type: value })
-                    }
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Lathe">Lathe</SelectItem>
-                      <SelectItem value="CNC_Lathe">CNC Lathe</SelectItem>
-                      <SelectItem value="Milling">Milling</SelectItem>
-                      <SelectItem value="CNC_Mill">CNC Mill</SelectItem>
-                      <SelectItem value="CNC Machining">CNC Machining</SelectItem>
-                      <SelectItem value="Drilling">Drilling</SelectItem>
-                      <SelectItem value="Grinding">Grinding</SelectItem>
-                      <SelectItem value="Boring">Boring</SelectItem>
-                      <SelectItem value="Welding">Welding</SelectItem>
-                      <SelectItem value="Cutting">Cutting</SelectItem>
-                      <SelectItem value="Heat Treatment">Heat Treatment</SelectItem>
-                      <SelectItem value="Finishing">Finishing</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 mt-1">
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) => setFormData({ ...formData, type: value })}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {machineTypes.map((t) => (
+                          <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowAddTypeDialog(true)}
+                      title="Add new machine type"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div>
@@ -262,6 +288,25 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
                 </div>
 
                 <div>
+                  <Label htmlFor="maxLengthMM">Max Material Length (mm)</Label>
+                  <Input
+                    id="maxLengthMM"
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="e.g., 3000 (leave blank if no limit)"
+                    value={formData.maxLengthMM}
+                    onChange={(e) =>
+                      setFormData({ ...formData, maxLengthMM: e.target.value })
+                    }
+                    className="mt-1 max-w-xs"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Maximum length of material this machine can process (optional)
+                  </p>
+                </div>
+
+                <div>
                   <Label>Process Categories</Label>
                   <div className="mt-2 grid grid-cols-2 gap-3 max-h-48 overflow-y-auto border rounded-md p-3">
                     {processCategories.length === 0 ? (
@@ -329,5 +374,46 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Quick Add Machine Type Dialog */}
+    <Dialog open={showAddTypeDialog} onOpenChange={setShowAddTypeDialog}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle>Add Machine Type</DialogTitle>
+          <DialogDescription>Enter a name for the new machine type</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="newTypeName">Type Name *</Label>
+            <Input
+              id="newTypeName"
+              placeholder="e.g., CNC Lathe"
+              value={newTypeName}
+              onChange={(e) => setNewTypeName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleAddType()
+                }
+              }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => { setShowAddTypeDialog(false); setNewTypeName('') }}
+            disabled={isAddingType}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleAddType} disabled={isAddingType || !newTypeName.trim()}>
+            {isAddingType ? 'Adding...' : 'Add Type'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   )
 }

@@ -129,6 +129,33 @@ export function ComponentInventoryDataGrid({ inventory }: ComponentInventoryData
                 ),
             },
             {
+                accessorKey: 'sourceRef',
+                header: 'Source',
+                size: 140,
+                Cell: ({ cell }) => {
+                    const ref = cell.getValue<string | undefined>()
+                    if (!ref) return <Badge variant="outline" className="text-xs">Unknown</Badge>
+                    if (ref.startsWith('OS-')) {
+                        return (
+                            <div className="flex flex-col gap-0.5">
+                                <Badge className="text-xs bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-100 w-fit">
+                                    Opening Stock
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground font-mono">{ref}</span>
+                            </div>
+                        )
+                    }
+                    return (
+                        <div className="flex flex-col gap-0.5">
+                            <Badge className="text-xs bg-green-100 text-green-700 border-green-300 hover:bg-green-100 w-fit">
+                                GRN Inward
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground font-mono">{ref}</span>
+                        </div>
+                    )
+                },
+            },
+            {
                 id: 'status',
                 header: 'Status',
                 size: 110,

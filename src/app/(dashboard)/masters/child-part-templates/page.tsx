@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { toast } from 'sonner'
-import { ChildPartType, RollerType } from '@/types'
+import { ChildPartType } from '@/types'
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ export default function ChildPartTemplatesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [rollerTypeFilter, setRollerTypeFilter] = useState<string>('all')
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
 
   const loadTemplates = async () => {
     setLoading(true)
@@ -42,6 +44,7 @@ export default function ChildPartTemplatesPage() {
 
   useEffect(() => {
     loadTemplates()
+    rollerTypeService.getAll().then(setRollerTypes).catch(console.error)
   }, [])
 
   const filteredTemplates = templates.filter((template) => {
@@ -179,8 +182,9 @@ export default function ChildPartTemplatesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Rollers</SelectItem>
-                <SelectItem value={RollerType.MAGNETIC}>Magnetic Roller</SelectItem>
-                <SelectItem value={RollerType.PRINTING}>Printing Roller</SelectItem>
+                {rollerTypes.map(rt => (
+                  <SelectItem key={rt.id} value={rt.typeName}>{rt.typeName}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

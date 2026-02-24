@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { toast } from 'sonner'
-import { RollerType } from '@/types'
 import {
   Select,
   SelectContent,
@@ -24,9 +24,11 @@ export default function ProductTemplatesPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
 
   useEffect(() => {
     loadTemplates()
+    rollerTypeService.getAll().then(setRollerTypes).catch(console.error)
   }, [])
 
   const loadTemplates = async () => {
@@ -138,8 +140,9 @@ export default function ProductTemplatesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value={RollerType.MAGNETIC}>Magnetic Roller</SelectItem>
-                <SelectItem value={RollerType.PRINTING}>Printing Roller</SelectItem>
+                {rollerTypes.map(rt => (
+                  <SelectItem key={rt.id} value={rt.typeName}>{rt.typeName}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

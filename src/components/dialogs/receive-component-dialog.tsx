@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { componentService, ComponentResponse } from '@/lib/api/components'
 import { inventoryService } from '@/lib/api/inventory'
+import { warehouseService, WarehouseResponse } from '@/lib/api/warehouses'
 import {
   Dialog,
   DialogContent,
@@ -39,13 +40,13 @@ const formSchema = z.object({
   componentId: z.number().min(1, 'Please select a component'),
   quantity: z.number().min(0.001, 'Quantity must be greater than 0'),
   unitCost: z.number().optional(),
+  warehouseId: z.number().optional(),
   supplierName: z.string().optional(),
   invoiceNo: z.string().optional(),
   invoiceDate: z.string().optional(),
   poNo: z.string().optional(),
   poDate: z.string().optional(),
   receiptDate: z.string(),
-  storageLocation: z.string().optional(),
   remarks: z.string().optional(),
   receivedBy: z.string().min(2, 'Received by is required'),
 })
@@ -68,6 +69,7 @@ export function ReceiveComponentDialog({
   const [loadingComponents, setLoadingComponents] = useState(false)
   const [selectedComponent, setSelectedComponent] = useState<ComponentResponse | null>(null)
   const [componentSearchQuery, setComponentSearchQuery] = useState('')
+  const [warehouses, setWarehouses] = useState<WarehouseResponse[]>([])
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -75,13 +77,13 @@ export function ReceiveComponentDialog({
       componentId: 0,
       quantity: 0,
       unitCost: undefined,
+      warehouseId: undefined,
       supplierName: '',
       invoiceNo: '',
       invoiceDate: '',
       poNo: '',
       poDate: '',
       receiptDate: format(new Date(), 'yyyy-MM-dd'),
-      storageLocation: 'Main Warehouse',
       remarks: '',
       receivedBy: '',
     },
@@ -90,6 +92,9 @@ export function ReceiveComponentDialog({
   useEffect(() => {
     if (open) {
       loadComponents()
+      warehouseService.getAll()
+        .then(data => setWarehouses(data.filter(w => w.materialType === 'Component' && w.isActive)))
+        .catch(() => {})
     }
   }, [open])
 
@@ -135,13 +140,13 @@ export function ReceiveComponentDialog({
         quantity: data.quantity,
         unit: selectedComponent.unit,
         unitCost: data.unitCost || undefined,
+        warehouseId: data.warehouseId || undefined,
         supplierName: data.supplierName || undefined,
         invoiceNo: data.invoiceNo || undefined,
         invoiceDate: data.invoiceDate ? new Date(data.invoiceDate) : undefined,
         poNo: data.poNo || undefined,
         poDate: data.poDate ? new Date(data.poDate) : undefined,
         receiptDate: new Date(data.receiptDate),
-        storageLocation: data.storageLocation || 'Main Warehouse',
         remarks: data.remarks || undefined,
         receivedBy: data.receivedBy,
       }
@@ -305,16 +310,36 @@ export function ReceiveComponentDialog({
                 )}
               />
 
-              {/* Storage Location */}
+              {/* Warehouse */}
               <FormField
                 control={form.control}
-                name="storageLocation"
+                name="warehouseId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Storage Location</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Main Warehouse" {...field} />
-                    </FormControl>
+                    <FormLabel>Warehouse / Location</FormLabel>
+                    <Select
+                      value={field.value?.toString() ?? ''}
+                      onValueChange={(val) => field.onChange(val ? parseInt(val) : undefined)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select warehouse..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {warehouses.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground text-center">
+                            No component warehouses configured
+                          </div>
+                        ) : (
+                          warehouses.map((w) => (
+                            <SelectItem key={w.id} value={w.id.toString()}>
+                              {w.name} — {w.rack}/{w.rackNo}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
