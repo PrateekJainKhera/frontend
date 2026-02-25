@@ -73,7 +73,7 @@ export function ViewProductDialog({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Dimensions</p>
-                  <p className="font-medium">⌀{product.diameter} × {product.length} mm</p>
+                  <p className="font-medium">⌀{product.diameter ?? '—'} mm × {product.length != null ? `${product.length} mm (${product.length / 1000} m)` : '—'}</p>
                 </div>
               </div>
 

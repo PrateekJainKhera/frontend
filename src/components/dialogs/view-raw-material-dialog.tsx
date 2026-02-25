@@ -110,7 +110,7 @@ export function ViewRawMaterialDialog({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Length</p>
-                  <p className="font-medium">{material.lengthInMM} mm</p>
+                  <p className="font-medium">{material.lengthInMM} mm ({material.lengthInMM / 1000} m)</p>
                 </div>
               </div>
 

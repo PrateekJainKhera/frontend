@@ -83,7 +83,7 @@ export function ProductsTable({ products, onUpdate }: ProductsTableProps) {
                 <Badge variant="outline">{product.rollerType}</Badge>
               </TableCell>
               <TableCell className="text-sm">
-                ⌀{product.diameter} × {product.length}mm
+                ⌀{product.diameter ?? '—'} mm × {product.length != null ? `${product.length} mm (${product.length / 1000} m)` : '—'}
               </TableCell>
               <TableCell className="text-sm">
                 {product.materialGrade}

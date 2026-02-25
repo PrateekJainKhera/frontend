@@ -212,6 +212,31 @@
   }
 }
 
+/* Sonner toast — move close button to right side, centered */
+[data-sonner-toast] {
+  padding-right: 2.5rem !important;
+}
+
+[data-sonner-toast] [data-close-button] {
+  inset-inline-start: auto !important;
+  inset-inline-end: 8px !important;
+  left: auto !important;
+  right: 8px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  opacity: 0.7 !important;
+  background: var(--muted) !important;
+  border: 1px solid var(--border) !important;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  opacity: 1 !important;
+  background: var(--destructive) !important;
+  border-color: var(--destructive) !important;
+  color: white !important;
+}
+
 /* Custom Scrollbar Styles */
 @layer utilities {
   /* Hide scrollbar for Chrome, Safari and Opera */

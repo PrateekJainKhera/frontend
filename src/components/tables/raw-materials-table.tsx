@@ -69,7 +69,7 @@ export function RawMaterialsTable({ materials, onUpdate }: RawMaterialsTableProp
               </TableCell>
               <TableCell>{material.shape}</TableCell>
               <TableCell className="text-sm">⌀{material.diameter}mm</TableCell>
-              <TableCell className="text-sm">{material.lengthInMM}mm</TableCell>
+              <TableCell className="text-sm">{material.lengthInMM} mm ({material.lengthInMM / 1000} m)</TableCell>
               <TableCell className="font-mono text-sm">
                 {material.weightKG.toFixed(2)} kg
               </TableCell>

@@ -126,6 +126,17 @@ export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridP
                 ),
             },
             {
+                accessorKey: 'maxLengthMM',
+                header: 'Max Length',
+                size: 160,
+                Cell: ({ cell }) => {
+                    const val = cell.getValue<number | null>()
+                    return val != null
+                        ? <span className="text-sm">{val} mm ({val / 1000} m)</span>
+                        : <span className="text-muted-foreground text-sm">—</span>
+                },
+            },
+            {
                 accessorKey: 'status',
                 header: 'Status',
                 size: 130,

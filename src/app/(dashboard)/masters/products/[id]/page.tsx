@@ -99,7 +99,7 @@ export default function ProductDetailPage() {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Length</p>
-            <p className="font-semibold">{product.length} mm</p>
+            <p className="font-semibold">{product.length != null ? `${product.length} mm (${product.length / 1000} m)` : '—'}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Drawing No</p>
