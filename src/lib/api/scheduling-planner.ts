@@ -22,9 +22,9 @@ class SchedulingPlannerService {
     }
   }
 
-  async getJobCardsForOrders(orderIds: number[]): Promise<ChildPartJobGroup[]> {
+  async getJobCardsForOrders(orderIds: number[], orderItemIds?: number[]): Promise<ChildPartJobGroup[]> {
     try {
-      const r = await apiClient.post<ApiResponse<ChildPartJobGroup[]>>(`${this.base}/job-cards`, { orderIds })
+      const r = await apiClient.post<ApiResponse<ChildPartJobGroup[]>>(`${this.base}/job-cards`, { orderIds, orderItemIds })
       return r.data.data || []
     } catch (e) {
       if (axios.isAxiosError(e)) throw new Error(e.response?.data?.message || e.message)

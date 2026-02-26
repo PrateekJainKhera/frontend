@@ -3,6 +3,8 @@ import { MachineSuggestion } from './schedule'
 // ── Step 1 ────────────────────────────────────────────────────────────────────
 export interface SchedulableOrderV2 {
   orderId: number
+  orderItemId?: number | null   // null for legacy single-product orders
+  itemSequence?: string | null  // "A", "B", "C" etc.
   orderNo: string
   customerName?: string | null
   dueDate?: string | null

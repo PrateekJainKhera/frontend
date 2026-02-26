@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { apiClient } from '@/lib/api/axios-config'
 
 // ── Types matching the backend ProductionResponse DTOs ────────────────────────
 interface ProductionStepItem {
@@ -189,48 +190,52 @@ export default function OrderItemProductionPage() {
 
   const [order, setOrder] = useState<ProductionOrderDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [expandedParts, setExpandedParts] = useState<Set<string>>(new Set())
   const [assemblyExpanded, setAssemblyExpanded] = useState(false)
 
-  const loadOrder = useCallback((silent = false) => {
-    if (!silent) setLoading(true)
-    fetch(`http://localhost:5217/api/production/order-items/${orderItemId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          const detail: ProductionOrderDetail = data.data
-          setOrder(detail)
-          // Only reset expanded state on initial load
-          if (!silent) {
-            setExpandedParts(new Set(detail.childParts.map(cp =>
-              String(cp.childPartId ?? cp.childPartName)
-            )))
-            setAssemblyExpanded(true)
-          }
+  const loadOrder = useCallback(async (silent = false) => {
+    if (!silent) { setLoading(true); setErrorMsg(null) }
+    try {
+      const res = await apiClient.get<{ success: boolean; data: ProductionOrderDetail; message?: string }>(
+        `/production/order-items/${orderItemId}`
+      )
+      const data = res.data
+      if (data.success) {
+        setOrder(data.data)
+        if (!silent) {
+          setExpandedParts(new Set(data.data.childParts.map(cp =>
+            String(cp.childPartId ?? cp.childPartName)
+          )))
+          setAssemblyExpanded(true)
         }
-      })
-      .catch(console.error)
-      .finally(() => { if (!silent) setLoading(false) })
+      } else {
+        setErrorMsg(data.message ?? 'Failed to load order item')
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Failed to load order item'
+      if (!silent) setErrorMsg(msg)
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }, [orderItemId])
 
   useEffect(() => { loadOrder() }, [loadOrder])
 
   const handleAction = async (jobCardId: number, action: string) => {
     try {
-      const res = await fetch(`http://localhost:5217/api/production/job-cards/${jobCardId}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, completedQty: 0, rejectedQty: 0 }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        toast.success(data.message ?? `Action '${action}' successful`)
-        loadOrder(true)   // silent refresh — no spinner, expanded state preserved
+      const res = await apiClient.post<{ success: boolean; message?: string }>(
+        `/production/job-cards/${jobCardId}/action`,
+        { action, completedQty: 0, rejectedQty: 0 }
+      )
+      if (res.data.success) {
+        toast.success(res.data.message ?? `Action '${action}' successful`)
+        loadOrder(true)
       } else {
-        toast.error(data.message ?? 'Action failed')
+        toast.error(res.data.message ?? 'Action failed')
       }
-    } catch {
-      toast.error('Network error')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Network error')
     }
   }
 
@@ -251,6 +256,7 @@ export default function OrderItemProductionPage() {
   }
 
   if (!order) {
+    const isNotScheduled = errorMsg?.toLowerCase().includes('no job cards')
     return (
       <div className="p-6">
         <Link href="/production">
@@ -259,7 +265,17 @@ export default function OrderItemProductionPage() {
         <Card className="mt-4">
           <CardContent className="py-12 text-center">
             <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="font-medium">Order Item Not Found</p>
+            <p className="font-medium">
+              {isNotScheduled ? 'No job cards scheduled yet' : 'Order Item Not Found'}
+            </p>
+            {isNotScheduled && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Go to <Link href="/scheduling" className="underline text-blue-600">Scheduling</Link> to assign machines to job cards first.
+              </p>
+            )}
+            {errorMsg && !isNotScheduled && (
+              <p className="text-xs text-muted-foreground mt-2">{errorMsg}</p>
+            )}
           </CardContent>
         </Card>
       </div>

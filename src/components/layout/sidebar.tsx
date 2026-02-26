@@ -101,9 +101,7 @@ const navItems: NavItem[] = [
     icon: Factory,
     children: [
       { title: 'Dashboard', href: '/production', icon: Factory },
-      { title: 'Job Cards', href: '/production/job-cards', icon: Factory },
-      { title: 'Child Parts', href: '/production/child-parts', icon: Factory },
-      { title: 'Machines', href: '/production/machines', icon: Factory },
+      { title: 'Execution', href: '/production/execution', icon: Factory },
       { title: 'OSP Tracking', href: '/production/osp', icon: Factory }
     ]
   },

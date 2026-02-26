@@ -602,59 +602,118 @@ function ViewDraftModal({
 
 // ── Print Slip ────────────────────────────────────────────────────────────────
 
+/** Extract "ORD-202602-0004-A" from "JC-ORD-202602-0004-A-CPT-SHAFT-..." */
+function extractOrderItem(jobCardNo?: string): string {
+  if (!jobCardNo) return '—'
+  const withoutJC = jobCardNo.startsWith('JC-') ? jobCardNo.slice(3) : jobCardNo
+  const parts = withoutJC.split('-')
+  return parts.slice(0, 4).join('-') // e.g. "ORD-202602-0004-A"
+}
+
 function PrintSlip({ drafts }: { drafts: DraftDetail[] }) {
   if (!drafts.length) return null
   return (
     <div className="print-slip">
       {drafts.map(draft => (
-        <div key={draft.id} style={{ fontFamily: 'monospace', fontSize: '12px', padding: '20px', pageBreakAfter: 'always' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div key={draft.id} style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '24px', pageBreakAfter: 'always' }}>
+
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>
             <div>
-              <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>MATERIAL ISSUE SLIP</h1>
-              <p style={{ margin: '4px 0 0', color: '#666', fontSize: '11px' }}>Draft No: {draft.draftNo}</p>
+              <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>MATERIAL ISSUE SLIP</h1>
+              <p style={{ margin: '4px 0 0', color: '#555', fontSize: '11px' }}>Draft No: <strong>{draft.draftNo}</strong></p>
             </div>
-            <div style={{ textAlign: 'right', fontSize: '11px', color: '#666' }}>
-              <p style={{ margin: 0 }}>Date: {new Date(draft.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-              <p style={{ margin: '2px 0 0' }}>Status: {draft.status}</p>
+            <div style={{ textAlign: 'right', fontSize: '11px', color: '#555' }}>
+              <p style={{ margin: 0 }}>Date: <strong>{new Date(draft.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>
+              <p style={{ margin: '3px 0 0' }}>Status: {draft.status}</p>
             </div>
           </div>
-          {draft.barAssignments.map(bar => (
-            <div key={bar.id} style={{ marginBottom: '16px', border: '1px solid #ccc', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ background: '#f0f0f0', padding: '6px 10px', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                <strong>{bar.materialName}{bar.grade ? ` · ${bar.grade}` : ''}{bar.diameterMM ? ` · ∅${bar.diameterMM}mm` : ''}</strong>
-                <span>Bar: {bar.pieceNo} ({bar.pieceCurrentLengthMM}mm) → Cut: {bar.totalCutMM}mm · Left: {bar.remainingMM}mm{bar.willBeScrap ? ' (scrap)' : ' → stock'}</span>
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                <thead>
-                  <tr style={{ background: '#f8f8f8' }}>
-                    {['S.No', 'Cut (mm)', 'Job Card / Part', 'Requisition'].map(h => (
-                      <th key={h} style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'left' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {bar.cuts.map((cut, i) => (
-                    <tr key={cut.id}>
-                      <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}>{i + 1}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '4px 8px', fontWeight: 'bold' }}>{cut.cutLengthMM}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}>{cut.jobCardNo ?? cut.partName ?? '—'}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}>{cut.requisitionNo}</td>
+
+          {/* Bar sections */}
+          {draft.barAssignments.map((bar, bi) => {
+            // Group by cutLengthMM — all same-length cuts merge into one row
+            const groupMap = new Map<number, { count: number; orderItems: Set<string>; partNames: Set<string> }>()
+            bar.cuts.forEach(cut => {
+              const existing = groupMap.get(cut.cutLengthMM)
+              const orderItem = extractOrderItem(cut.jobCardNo)
+              if (existing) {
+                existing.count++
+                existing.orderItems.add(orderItem)
+                if (cut.partName) existing.partNames.add(cut.partName)
+              } else {
+                groupMap.set(cut.cutLengthMM, {
+                  count: 1,
+                  orderItems: new Set([orderItem]),
+                  partNames: new Set(cut.partName ? [cut.partName] : []),
+                })
+              }
+            })
+            // Sort longest first
+            const rows = Array.from(groupMap.entries())
+              .sort((a, b) => b[0] - a[0])
+              .map(([cutLengthMM, g]) => ({ cutLengthMM, ...g }))
+
+            return (
+              <div key={bar.id} style={{ marginBottom: '18px', border: '1px solid #bbb', borderRadius: '4px', overflow: 'hidden' }}>
+                {/* Bar header */}
+                <div style={{ background: '#ececec', padding: '6px 10px', borderBottom: '1px solid #bbb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                  <strong style={{ fontSize: '12px' }}>
+                    Bar {bi + 1}: {bar.pieceNo}
+                    {bar.materialName ? `  ·  ${bar.materialName}` : ''}
+                    {bar.grade ? ` · ${bar.grade}` : ''}
+                    {bar.diameterMM ? ` · ∅${bar.diameterMM}mm` : ''}
+                  </strong>
+                  <span style={{ color: '#444' }}>
+                    {bar.pieceCurrentLengthMM}mm bar → Cut: {bar.totalCutMM}mm · Left:{' '}
+                    <strong style={{ color: bar.willBeScrap ? '#c00' : '#060' }}>
+                      {bar.remainingMM}mm {bar.willBeScrap ? '(scrap)' : '→ stock'}
+                    </strong>
+                  </span>
+                </div>
+
+                {/* Grouped cuts table */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                  <thead>
+                    <tr style={{ background: '#f5f5f5' }}>
+                      <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left', width: '40px' }}>S.No</th>
+                      <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left', width: '130px' }}>Length × Pcs</th>
+                      <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left' }}>Order Item</th>
+                      <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left' }}>Child Part</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-          <div style={{ marginTop: '32px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, i) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                        <td style={{ border: '1px solid #ddd', padding: '5px 8px', color: '#777' }}>{i + 1}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '5px 8px', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '12px' }}>
+                          {row.cutLengthMM}mm × {row.count}
+                        </td>
+                        <td style={{ border: '1px solid #ddd', padding: '5px 8px' }}>
+                          {[...row.orderItems].join(', ')}
+                        </td>
+                        <td style={{ border: '1px solid #ddd', padding: '5px 8px' }}>
+                          {[...row.partNames].join(', ') || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
+
+          {/* Signatures */}
+          <div style={{ marginTop: '40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px' }}>
             <div>
-              <div style={{ borderBottom: '1px solid #000', paddingBottom: '28px', marginBottom: '4px' }}>{draft.issuedBy ?? ''}</div>
+              <div style={{ borderBottom: '1px solid #000', paddingBottom: '32px', marginBottom: '5px' }}>{draft.issuedBy ?? ''}</div>
               <div style={{ fontSize: '10px', color: '#666' }}>Issued By / Signature</div>
             </div>
             <div>
-              <div style={{ borderBottom: '1px solid #000', paddingBottom: '28px', marginBottom: '4px' }}>{draft.receivedBy ?? ''}</div>
+              <div style={{ borderBottom: '1px solid #000', paddingBottom: '32px', marginBottom: '5px' }}>{draft.receivedBy ?? ''}</div>
               <div style={{ fontSize: '10px', color: '#666' }}>Received By / Signature</div>
             </div>
           </div>
+
         </div>
       ))}
     </div>

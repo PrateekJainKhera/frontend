@@ -68,6 +68,11 @@ import Link from 'next/link'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
+/** Unique selection key for an order/order-item row */
+function getOrderKey(o: SchedulableOrderV2): string {
+  return o.orderItemId ? `I:${o.orderItemId}` : `O:${o.orderId}`
+}
+
 function priorityBadge(priority: string) {
   const p = priority?.toUpperCase()
   if (p === 'HIGH' || p === 'CRITICAL')
@@ -122,8 +127,8 @@ function StepIndicator({ current }: { current: number }) {
 
 interface Step1Props {
   orders: SchedulableOrderV2[]
-  selectedOrderIds: Set<number>
-  onToggle: (id: number) => void
+  selectedOrderIds: Set<string>
+  onToggle: (key: string) => void
   loading: boolean
   loadingNext: boolean
   onRefresh: () => void
@@ -183,11 +188,12 @@ function Step1({ orders, selectedOrderIds, onToggle, loading, loadingNext, onRef
           </div>
         ) : (
           filtered.map(order => {
-            const selected = selectedOrderIds.has(order.orderId)
+            const key = getOrderKey(order)
+            const selected = selectedOrderIds.has(key)
             return (
               <div
-                key={order.orderId}
-                onClick={() => onToggle(order.orderId)}
+                key={key}
+                onClick={() => onToggle(key)}
                 className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
                   selected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'hover:bg-muted/30 bg-card'
                 }`}
@@ -1190,7 +1196,12 @@ function OldOrderCard({ order, expandedGroups, selectedScheduleIds, onToggleSche
           : pending !== null && pending > 0
             ? <Badge variant="outline" className="border-orange-300 text-orange-600 bg-orange-50 text-[10px] h-4 px-1.5 shrink-0">{pending} pending</Badge>
             : null}
-        <Link href={`/production/orders/${order.orderId}`} onClick={e => e.stopPropagation()}>
+        <Link
+          href={order.orderItemId
+            ? `/production/order-items/${order.orderItemId}`
+            : `/production/orders/${order.orderId}`}
+          onClick={e => e.stopPropagation()}
+        >
           <Button size="sm" variant={done ? 'default' : 'outline'}
             className={`h-6 px-2 text-[11px] gap-1 shrink-0 ${done ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-blue-300 text-blue-600 hover:bg-blue-50'}`}>
             <ArrowRight className="h-3 w-3" /> Production
@@ -1323,7 +1334,7 @@ export default function SchedulingPage() {
   // Step 1
   const [orders, setOrders] = useState<SchedulableOrderV2[]>([])
   const [loadingOrders, setLoadingOrders] = useState(true)
-  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number>>(new Set())
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
 
   // Step 2
   const [jobGroups, setJobGroups] = useState<ChildPartJobGroup[]>([])
@@ -1373,7 +1384,10 @@ export default function SchedulingPage() {
   const handleStep1Next = async () => {
     setLoadingGroups(true)
     try {
-      const groups = await schedulingPlannerService.getJobCardsForOrders(Array.from(selectedOrderIds))
+      const selectedRows = orders.filter(o => selectedOrderIds.has(getOrderKey(o)))
+      const orderItemIds = selectedRows.filter(o => o.orderItemId).map(o => o.orderItemId!)
+      const orderIds = selectedRows.filter(o => !o.orderItemId).map(o => o.orderId)
+      const groups = await schedulingPlannerService.getJobCardsForOrders(orderIds, orderItemIds.length > 0 ? orderItemIds : undefined)
       setJobGroups(groups)
       // Auto-select all materialIssued & not yet scheduled
       const autoSelect = new Set<number>()
@@ -1556,8 +1570,8 @@ export default function SchedulingPage() {
             <Step1
               orders={orders}
               selectedOrderIds={selectedOrderIds}
-              onToggle={id => setSelectedOrderIds(prev => {
-                const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
+              onToggle={key => setSelectedOrderIds(prev => {
+                const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n
               })}
               loading={loadingOrders}
               loadingNext={loadingGroups}

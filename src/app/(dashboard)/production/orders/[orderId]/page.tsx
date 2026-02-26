@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { apiClient } from '@/lib/api/axios-config'
 
 // ── Types matching the backend ProductionResponse DTOs ────────────────────────
 interface ProductionStepItem {
@@ -192,40 +193,37 @@ export default function OrderProductionPage() {
   const [expandedParts, setExpandedParts] = useState<Set<string>>(new Set())
   const [assemblyExpanded, setAssemblyExpanded] = useState(false)
 
-  const loadOrder = useCallback((silent = false) => {
+  const loadOrder = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
-    fetch(`http://localhost:5217/api/production/orders/${orderId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          const detail: ProductionOrderDetail = data.data
-          setOrder(detail)
-          // Only reset expanded state on initial load
-          if (!silent) {
-            setExpandedParts(new Set(detail.childParts.map(cp =>
-              String(cp.childPartId ?? cp.childPartName)
-            )))
-            setAssemblyExpanded(true)
-          }
+    try {
+      const res = await apiClient.get(`/production/orders/${orderId}`)
+      const data = res.data
+      if (data.success) {
+        const detail: ProductionOrderDetail = data.data
+        setOrder(detail)
+        if (!silent) {
+          setExpandedParts(new Set(detail.childParts.map(cp =>
+            String(cp.childPartId ?? cp.childPartName)
+          )))
+          setAssemblyExpanded(true)
         }
-      })
-      .catch(console.error)
-      .finally(() => { if (!silent) setLoading(false) })
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }, [orderId])
 
   useEffect(() => { loadOrder() }, [loadOrder])
 
   const handleAction = async (jobCardId: number, action: string) => {
     try {
-      const res = await fetch(`http://localhost:5217/api/production/job-cards/${jobCardId}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, completedQty: 0, rejectedQty: 0 }),
-      })
-      const data = await res.json()
+      const res = await apiClient.post(`/production/job-cards/${jobCardId}/action`, { action, completedQty: 0, rejectedQty: 0 })
+      const data = res.data
       if (data.success) {
         toast.success(data.message ?? `Action '${action}' successful`)
-        loadOrder(true)   // silent refresh — no spinner, expanded state preserved
+        loadOrder(true)
       } else {
         toast.error(data.message ?? 'Action failed')
       }
