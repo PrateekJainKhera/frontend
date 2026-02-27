@@ -101,16 +101,6 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
         }
     }, [open])
 
-    // Standard densities by material type (g/cm³)
-    const MATERIAL_DENSITIES: Record<string, number> = {
-        'Aluminum': 2.8,
-        'Steel': 7.85,
-        'Stainless Steel': 8.2,
-    }
-
-    const getDensityForMaterial = (materialType: string, fallback: number): number => {
-        return MATERIAL_DENSITIES[materialType] ?? (fallback > 0 ? fallback : 7.85)
-    }
 
     const addMaterialLine = () => {
         const newLine: MaterialLine = {
@@ -186,8 +176,8 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                         updatedLine.outerDiameter = material.diameter || 0  // OD for pipe = diameter in master
                         updatedLine.innerDiameter = material.innerDiameter || 0
 
-                        // Density — use standard value for the material type
-                        updatedLine.materialDensity = getDensityForMaterial(material.materialType, material.density)
+                        // Density — always from Raw Material Master
+                        updatedLine.materialDensity = material.density > 0 ? material.density : 7.85
                     }
                     // Recalculate after auto-fill
                     const { length, weightPerMeter } = calculateLength(updatedLine)
@@ -682,11 +672,11 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                             type="number"
                                                             step="0.01"
                                                             value={line.materialDensity || ''}
-                                                            onChange={(e) => updateMaterialLine(line.id, 'materialDensity', e.target.value)}
-                                                            placeholder="7.85"
+                                                            readOnly
+                                                            className="bg-muted cursor-not-allowed"
                                                         />
                                                         <p className="text-xs text-muted-foreground">
-                                                            Steel: 7.85 | SS: 8.2 | Alum: 2.8
+                                                            Set in Raw Material Master
                                                         </p>
                                                     </div>
                                                 </div>
@@ -721,11 +711,11 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                                                             type="number"
                                                             step="0.01"
                                                             value={line.materialDensity || ''}
-                                                            onChange={(e) => updateMaterialLine(line.id, 'materialDensity', e.target.value)}
-                                                            placeholder="7.85"
+                                                            readOnly
+                                                            className="bg-muted cursor-not-allowed"
                                                         />
                                                         <p className="text-xs text-muted-foreground">
-                                                            Steel: 7.85 | SS: 8.2 | Alum: 2.8
+                                                            Set in Raw Material Master
                                                         </p>
                                                     </div>
                                                 </div>
