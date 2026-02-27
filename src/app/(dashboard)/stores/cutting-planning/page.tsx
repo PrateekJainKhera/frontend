@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { issueWindowService } from '@/lib/api/issue-window'
 import {
   IssueWindowRequisition,
@@ -612,111 +613,109 @@ function extractOrderItem(jobCardNo?: string): string {
 
 function PrintSlip({ drafts }: { drafts: DraftDetail[] }) {
   if (!drafts.length) return null
-  return (
-    <div className="print-slip">
-      {drafts.map(draft => (
-        <div key={draft.id} style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '24px', pageBreakAfter: 'always' }}>
 
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>
-            <div>
-              <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>MATERIAL ISSUE SLIP</h1>
-              <p style={{ margin: '4px 0 0', color: '#555', fontSize: '11px' }}>Draft No: <strong>{draft.draftNo}</strong></p>
-            </div>
-            <div style={{ textAlign: 'right', fontSize: '11px', color: '#555' }}>
-              <p style={{ margin: 0 }}>Date: <strong>{new Date(draft.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>
-              <p style={{ margin: '3px 0 0' }}>Status: {draft.status}</p>
-            </div>
-          </div>
+  // Merge all drafts into one slip
+  const allDraftNos = drafts.map(d => d.draftNo).join(', ')
+  const allOrderItems = new Set<string>()
+  drafts.forEach(d => d.barAssignments.forEach(bar =>
+    bar.cuts.forEach(cut => allOrderItems.add(extractOrderItem(cut.jobCardNo)))
+  ))
+  const allBars = drafts.flatMap(d => d.barAssignments)
 
-          {/* Bar sections */}
-          {draft.barAssignments.map((bar, bi) => {
-            // Group by cutLengthMM — all same-length cuts merge into one row
-            const groupMap = new Map<number, { count: number; orderItems: Set<string>; partNames: Set<string> }>()
-            bar.cuts.forEach(cut => {
-              const existing = groupMap.get(cut.cutLengthMM)
-              const orderItem = extractOrderItem(cut.jobCardNo)
-              if (existing) {
-                existing.count++
-                existing.orderItems.add(orderItem)
-                if (cut.partName) existing.partNames.add(cut.partName)
-              } else {
-                groupMap.set(cut.cutLengthMM, {
-                  count: 1,
-                  orderItems: new Set([orderItem]),
-                  partNames: new Set(cut.partName ? [cut.partName] : []),
-                })
-              }
-            })
-            // Sort longest first
-            const rows = Array.from(groupMap.entries())
-              .sort((a, b) => b[0] - a[0])
-              .map(([cutLengthMM, g]) => ({ cutLengthMM, ...g }))
+  return createPortal(
+    <div id="cutting-print-slip" style={{ position: 'fixed', top: 0, left: '-9999px', width: '210mm', background: 'white' }}>
+      <style>{`
+        @media print {
+          body > *:not(#cutting-print-slip) { display: none !important; }
+          #cutting-print-slip { position: static !important; width: 100% !important; left: 0 !important; }
+        }
+      `}</style>
 
-            return (
-              <div key={bar.id} style={{ marginBottom: '18px', border: '1px solid #bbb', borderRadius: '4px', overflow: 'hidden' }}>
-                {/* Bar header */}
-                <div style={{ background: '#ececec', padding: '6px 10px', borderBottom: '1px solid #bbb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
-                  <strong style={{ fontSize: '12px' }}>
-                    Bar {bi + 1}: {bar.pieceNo}
-                    {bar.materialName ? `  ·  ${bar.materialName}` : ''}
-                    {bar.grade ? ` · ${bar.grade}` : ''}
-                    {bar.diameterMM ? ` · ∅${bar.diameterMM}mm` : ''}
-                  </strong>
-                  <span style={{ color: '#444' }}>
-                    {bar.pieceCurrentLengthMM}mm bar → Cut: {bar.totalCutMM}mm · Left:{' '}
-                    <strong style={{ color: bar.willBeScrap ? '#c00' : '#060' }}>
-                      {bar.remainingMM}mm {bar.willBeScrap ? '(scrap)' : '→ stock'}
-                    </strong>
-                  </span>
-                </div>
+      <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '24px' }}>
 
-                {/* Grouped cuts table */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                  <thead>
-                    <tr style={{ background: '#f5f5f5' }}>
-                      <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left', width: '40px' }}>S.No</th>
-                      <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left', width: '130px' }}>Length × Pcs</th>
-                      <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left' }}>Order Item</th>
-                      <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left' }}>Child Part</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, i) => (
-                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                        <td style={{ border: '1px solid #ddd', padding: '5px 8px', color: '#777' }}>{i + 1}</td>
-                        <td style={{ border: '1px solid #ddd', padding: '5px 8px', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '12px' }}>
-                          {row.cutLengthMM}mm × {row.count}
-                        </td>
-                        <td style={{ border: '1px solid #ddd', padding: '5px 8px' }}>
-                          {[...row.orderItems].join(', ')}
-                        </td>
-                        <td style={{ border: '1px solid #ddd', padding: '5px 8px' }}>
-                          {[...row.partNames].join(', ') || '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          })}
-
-          {/* Signatures */}
-          <div style={{ marginTop: '40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px' }}>
-            <div>
-              <div style={{ borderBottom: '1px solid #000', paddingBottom: '32px', marginBottom: '5px' }}>{draft.issuedBy ?? ''}</div>
-              <div style={{ fontSize: '10px', color: '#666' }}>Issued By / Signature</div>
-            </div>
-            <div>
-              <div style={{ borderBottom: '1px solid #000', paddingBottom: '32px', marginBottom: '5px' }}>{draft.receivedBy ?? ''}</div>
-              <div style={{ fontSize: '10px', color: '#666' }}>Received By / Signature</div>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>
+          <div>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>MATERIAL CUTTING SLIP</h1>
+            <p style={{ margin: '4px 0 0', color: '#555', fontSize: '11px' }}>
+              Draft No: <strong>{allDraftNos}</strong>
+            </p>
+            <div style={{ marginTop: '5px', fontSize: '11px' }}>
+              <strong>Order(s):</strong>
+              <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '4px', marginLeft: '6px' }}>
+                {[...allOrderItems].sort().map(o => (
+                  <span key={o} style={{ background: '#e8ecf8', border: '1px solid #c5d0f5', borderRadius: '3px', padding: '1px 6px', fontFamily: 'monospace', fontSize: '10px' }}>{o}</span>
+                ))}
+              </span>
             </div>
           </div>
-
+          <div style={{ textAlign: 'right', fontSize: '11px', color: '#555' }}>
+            <p style={{ margin: 0 }}>Date: <strong>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></p>
+            <p style={{ margin: '3px 0 0' }}>Total Bars: <strong>{allBars.length}</strong></p>
+          </div>
         </div>
-      ))}
-    </div>
+
+        {/* All bars sequentially across all drafts */}
+        {allBars.map((bar, bi) => {
+          const groupMap = new Map<number, number>()
+          bar.cuts.forEach(cut => {
+            groupMap.set(cut.cutLengthMM, (groupMap.get(cut.cutLengthMM) ?? 0) + 1)
+          })
+          const rows = Array.from(groupMap.entries()).sort((a, b) => b[0] - a[0])
+
+          return (
+            <div key={bar.id} style={{ marginBottom: '14px', border: '1px solid #bbb', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ background: '#ececec', padding: '6px 10px', borderBottom: '1px solid #bbb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                <strong style={{ fontSize: '12px' }}>
+                  Bar {bi + 1}: {bar.pieceNo}
+                  {bar.materialName ? `  ·  ${bar.materialName}` : ''}
+                  {bar.grade ? ` · ${bar.grade}` : ''}
+                  {bar.diameterMM ? ` · ∅${bar.diameterMM}mm` : ''}
+                </strong>
+                <span style={{ color: '#444' }}>
+                  {bar.pieceCurrentLengthMM}mm → Cut: {bar.totalCutMM}mm · Left:{' '}
+                  <strong style={{ color: bar.willBeScrap ? '#c00' : '#060' }}>
+                    {bar.remainingMM}mm {bar.willBeScrap ? '(scrap)' : '→ stock'}
+                  </strong>
+                </span>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ background: '#f5f5f5' }}>
+                    <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left', width: '50px' }}>S.No</th>
+                    <th style={{ border: '1px solid #ddd', padding: '5px 8px', textAlign: 'left' }}>Length × Pcs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(([cutLengthMM, count], i) => (
+                    <tr key={i}>
+                      <td style={{ border: '1px solid #ddd', padding: '6px 8px', color: '#777' }}>{i + 1}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '6px 8px', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '14px' }}>
+                        {cutLengthMM}mm × {count}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        })}
+
+        {/* Single signature block at the bottom */}
+        <div style={{ marginTop: '40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px' }}>
+          <div>
+            <div style={{ borderBottom: '1px solid #000', paddingBottom: '32px', marginBottom: '5px' }} />
+            <div style={{ fontSize: '10px', color: '#666' }}>Issued By / Signature</div>
+          </div>
+          <div>
+            <div style={{ borderBottom: '1px solid #000', paddingBottom: '32px', marginBottom: '5px' }} />
+            <div style={{ fontSize: '10px', color: '#666' }}>Received By / Signature</div>
+          </div>
+        </div>
+
+      </div>
+    </div>,
+    document.body
   )
 }
 
@@ -1507,31 +1506,6 @@ export default function MaterialIssuePage() {
         issuing={issuing}
       />
 
-      <style jsx global>{`
-        .print-slip {
-          position: fixed;
-          top: 0;
-          left: 0;
-          visibility: hidden;
-          pointer-events: none;
-          z-index: -1;
-        }
-        @media print {
-          body { visibility: hidden; }
-          .print-slip {
-            visibility: visible !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            min-height: 100vh !important;
-            background: white !important;
-            z-index: 9999 !important;
-            pointer-events: auto;
-          }
-          .print-slip * { visibility: visible !important; }
-        }
-      `}</style>
     </>
   )
 }

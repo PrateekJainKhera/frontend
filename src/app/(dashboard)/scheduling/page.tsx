@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +44,7 @@ import {
   RotateCcw,
   RotateCw,
   MoveRight,
+  Printer,
 } from 'lucide-react'
 import { schedulingPlannerService } from '@/lib/api/scheduling-planner'
 import { shiftService } from '@/lib/api/shifts'
@@ -544,13 +546,13 @@ function Step4({ suggestions, categoryMachineMap, onSelectMachine, shiftHours, o
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {suggestions.map(cat => {
+        {suggestions.map((cat, idx) => {
           const selectedMachineId = categoryMachineMap.get(cat.categoryKey)
           const machineMinutesForCat = machineMinutes.get(selectedMachineId ?? 0) ?? cat.totalEstimatedMinutes
           const overCapacity = !cat.isOsp && !cat.isManual && machineMinutesForCat > shiftHours * 60
 
           return (
-            <div key={cat.categoryKey} className={`rounded-lg border-2 bg-card overflow-hidden ${overCapacity ? 'border-red-200' : 'border-border'}`}>
+            <div key={`${cat.categoryKey}-${idx}`} className={`rounded-lg border-2 bg-card overflow-hidden ${overCapacity ? 'border-red-200' : 'border-border'}`}>
               {/* Category header */}
               <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/20 border-b">
                 <Cpu className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -619,14 +621,209 @@ function Step4({ suggestions, categoryMachineMap, onSelectMachine, shiftHours, o
 
 // ─── Step 5: Results ───────────────────────────────────────────────────────
 
+interface SchedulePrintRow {
+  sNo: number
+  orderItem: string
+  machineModel: string
+  childPartName: string
+  materialSize: string
+  materialLength: string
+  quantity: number
+}
+
+function SchedulePrintSlip({ rows, scheduledDate }: { rows: SchedulePrintRow[]; scheduledDate: string }) {
+  const fmtDate = (d: string) => {
+    try { return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }
+    catch { return d }
+  }
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div id="schedule-print-slip" style={{ position: 'fixed', top: 0, left: '-9999px', width: '210mm', background: 'white' }}>
+      <style>{`
+        @media print {
+          body > *:not(#schedule-print-slip) { display: none !important; }
+          #schedule-print-slip {
+            position: static !important;
+            width: 100% !important;
+            background: white !important;
+            font-family: Arial, sans-serif !important;
+          }
+        }
+        #schedule-print-slip { padding: 24px; font-family: Arial, sans-serif; font-size: 11px; color: #111; }
+        #schedule-print-slip table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        #schedule-print-slip th, #schedule-print-slip td { border: 1px solid #555; padding: 5px 7px; text-align: left; vertical-align: top; }
+        #schedule-print-slip th { background: #222; color: #fff; font-size: 10px; font-weight: 600; }
+        #schedule-print-slip tr:nth-child(even) td { background: #f5f5f5; }
+      `}</style>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <div>
+          <p style={{ fontWeight: 700, fontSize: 16, margin: 0 }}>MultiHitech ERP</p>
+          <p style={{ fontWeight: 600, fontSize: 13, margin: '4px 0 0 0' }}>Production Schedule Slip</p>
+        </div>
+        <div style={{ textAlign: 'right', fontSize: 11 }}>
+          <p style={{ margin: 0 }}>Date: <strong>{fmtDate(scheduledDate)}</strong></p>
+          <p style={{ margin: '2px 0 0 0' }}>Total: <strong>{rows.length} job card{rows.length !== 1 ? 's' : ''}</strong></p>
+          <p style={{ margin: '2px 0 0 0' }}>Printed: {new Date().toLocaleString('en-IN')}</p>
+        </div>
+      </div>
+      <hr style={{ borderTop: '2px solid #333', marginBottom: 0 }} />
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: 32 }}>S.No</th>
+            <th>Order No (Item)</th>
+            <th>Machine Model</th>
+            <th>Child Part Name</th>
+            <th>Raw Material</th>
+            <th>RM Length</th>
+            <th style={{ width: 48, textAlign: 'center' }}>Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(() => {
+            // Sort rows so all job cards for the same order → machine → child part are consecutive
+            const sorted = [...rows].sort((a, b) =>
+              a.orderItem.localeCompare(b.orderItem) ||
+              a.machineModel.localeCompare(b.machineModel) ||
+              a.childPartName.localeCompare(b.childPartName)
+            )
+            // Re-number S.No after sort
+            sorted.forEach((r, i) => { r.sNo = i + 1 })
+
+            // Count consecutive rows starting at startIdx where match() is true
+            const span = (startIdx: number, match: (r: SchedulePrintRow) => boolean) => {
+              let n = 1
+              for (let j = startIdx + 1; j < sorted.length; j++) {
+                if (match(sorted[j])) n++; else break
+              }
+              return n
+            }
+            return sorted.map((row, i) => {
+              const prev = i > 0 ? sorted[i - 1] : null
+              const orderChanged  = !prev || prev.orderItem    !== row.orderItem
+              const machineChanged = orderChanged  || prev!.machineModel  !== row.machineModel
+              const childChanged   = machineChanged || prev!.childPartName !== row.childPartName
+
+              const orderSpan   = orderChanged   ? span(i, r => r.orderItem    === row.orderItem)  : 0
+              const machineSpan = machineChanged ? span(i, r => r.orderItem === row.orderItem && r.machineModel  === row.machineModel)  : 0
+              const childSpan   = childChanged   ? span(i, r => r.orderItem === row.orderItem && r.machineModel === row.machineModel && r.childPartName === row.childPartName) : 0
+
+              return (
+                <tr key={row.sNo}>
+                  <td style={{ textAlign: 'center' }}>{row.sNo}</td>
+                  {orderSpan > 0 && (
+                    <td rowSpan={orderSpan} style={{ fontWeight: 600, verticalAlign: 'middle' }}>{row.orderItem}</td>
+                  )}
+                  {machineSpan > 0 && (
+                    <td rowSpan={machineSpan} style={{ verticalAlign: 'middle' }}>{row.machineModel}</td>
+                  )}
+                  {childSpan > 0 && (
+                    <td rowSpan={childSpan} style={{ fontWeight: 600, verticalAlign: 'middle', background: '#f0f4ff' }}>{row.childPartName}</td>
+                  )}
+                  <td>{row.materialSize}</td>
+                  <td>{row.materialLength}</td>
+                  <td style={{ textAlign: 'center' }}>{row.quantity}</td>
+                </tr>
+              )
+            })
+          })()}
+        </tbody>
+      </table>
+    </div>,
+    document.body
+  )
+}
+
 interface Step5Props {
   results: BatchScheduleV2Result[]
   onReset: () => void
+  jobGroups: ChildPartJobGroup[]
+  scheduledDate: string
 }
 
-function Step5({ results, onReset }: Step5Props) {
+function Step5({ results, onReset, jobGroups, scheduledDate }: Step5Props) {
+  const [printRows, setPrintRows] = useState<SchedulePrintRow[] | null>(null)
+  const [loadingPrint, setLoadingPrint] = useState(false)
+
+  // Trigger print after React commits the SchedulePrintSlip to DOM
+  useEffect(() => {
+    if (printRows) {
+      window.print()
+    }
+  }, [printRows])
+
   const ok = results.filter(r => r.success)
   const failed = results.filter(r => !r.success)
+
+  const extractOrderItem = (jobCardNo: string): string => {
+    // JC-ORD-202602-0004-A-... → ORD-202602-0004-A
+    const withoutJC = jobCardNo.startsWith('JC-') ? jobCardNo.slice(3) : jobCardNo
+    const parts = withoutJC.split('-')
+    return parts.slice(0, 4).join('-')
+  }
+
+  const handlePrint = async () => {
+    setLoadingPrint(true)
+    try {
+      const okResults = results.filter(r => r.success)
+
+      // Build job card lookup from jobGroups
+      const jcMap = new Map<number, { childPartName: string; quantity: number }>()
+      for (const g of jobGroups) {
+        for (const jc of g.jobCards) {
+          jcMap.set(jc.jobCardId, {
+            childPartName: g.childPartName,
+            quantity: jc.quantity,
+          })
+        }
+      }
+
+      // Fetch job card details in parallel for material requirements
+      const details = await Promise.all(
+        okResults.map(r => jobCardService.getById(r.jobCardId).catch(() => null))
+      )
+
+      // One row per child part (not per process step) — group by orderItem + childPartName
+      const rowMap = new Map<string, SchedulePrintRow>()
+      okResults.forEach((r, i) => {
+        const jcInfo = jcMap.get(r.jobCardId)
+        const detail = details[i]
+        const matReq = detail?.materialRequirements?.[0]
+        const orderItem = extractOrderItem(r.jobCardNo)
+        const childPartName = jcInfo?.childPartName ?? '—'
+        const key = `${orderItem}||${childPartName}`
+
+        if (!rowMap.has(key)) {
+          rowMap.set(key, {
+            sNo: 0,
+            orderItem,
+            machineModel: detail?.machineModelName ?? '—',
+            childPartName,
+            materialSize: matReq?.rawMaterialName ?? '—',
+            materialLength: matReq && matReq.requiredQuantity > 0
+              ? `${Math.round(matReq.requiredQuantity / (jcInfo?.quantity || 1))} ${matReq.unit}`
+              : '—',
+            quantity: jcInfo?.quantity ?? 0,
+          })
+        } else {
+          // Fill in material info from whichever step has it
+          const existing = rowMap.get(key)!
+          if (existing.materialSize === '—' && matReq?.rawMaterialName) existing.materialSize = matReq.rawMaterialName
+          if (existing.materialLength === '—' && matReq && matReq.requiredQuantity > 0)
+            existing.materialLength = `${Math.round(matReq.requiredQuantity / (existing.quantity || 1))} ${matReq.unit}`
+          if (existing.machineModel === '—' && detail?.machineModelName) existing.machineModel = detail.machineModelName
+        }
+      })
+
+      const rows: SchedulePrintRow[] = Array.from(rowMap.values()).map((r, i) => ({ ...r, sNo: i + 1 }))
+
+      setPrintRows(rows)
+    } catch {
+      toast.error('Failed to prepare print data')
+    } finally {
+      setLoadingPrint(false)
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -640,9 +837,23 @@ function Step5({ results, onReset }: Step5Props) {
             {ok.length} scheduled{failed.length > 0 ? `, ${failed.length} failed` : ''}
           </span>
         </div>
-        <Button size="sm" variant="outline" onClick={onReset} className="h-7 text-xs gap-1">
-          <RotateCcw className="h-3.5 w-3.5" /> Schedule More
-        </Button>
+        <div className="flex items-center gap-2">
+          {ok.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handlePrint}
+              disabled={loadingPrint}
+              className="h-7 text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              {loadingPrint ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+              Print Schedule
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={onReset} className="h-7 text-xs gap-1">
+            <RotateCcw className="h-3.5 w-3.5" /> Schedule More
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
@@ -686,6 +897,10 @@ function Step5({ results, onReset }: Step5Props) {
           </div>
         )}
       </div>
+
+      {printRows && (
+        <SchedulePrintSlip rows={printRows} scheduledDate={scheduledDate} />
+      )}
     </div>
   )
 }
@@ -971,10 +1186,89 @@ function ViewScheduledTab() {
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<Set<number>>(new Set())
   const [batchRescheduleOpen, setBatchRescheduleOpen] = useState(false)
   const [shifts, setShifts] = useState<Shift[]>([])
+  // Print
+  const [printRows, setPrintRows] = useState<SchedulePrintRow[] | null>(null)
+  const [loadingPrint, setLoadingPrint] = useState(false)
 
   useEffect(() => {
     shiftService.getActive().then(setShifts).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (printRows) window.print()
+  }, [printRows])
+
+  const handlePrint = async () => {
+    setLoadingPrint(true)
+    try {
+      // Load trees for any orders that haven't been expanded yet
+      const needsTree = orders.filter(o => !o.tree)
+      const newTrees = await Promise.all(
+        needsTree.map(o =>
+          (o.orderItemId
+            ? scheduleService.getOrderItemSchedulingTree(o.orderItemId)
+            : scheduleService.getOrderSchedulingTree(o.orderId)
+          ).catch(() => null)
+        )
+      )
+      const allWithTrees = orders.map(o => {
+        if (o.tree) return o
+        const idx = needsTree.findIndex(t => t.orderId === o.orderId && t.orderItemId === o.orderItemId)
+        return { ...o, tree: idx >= 0 ? newTrees[idx] : null }
+      })
+
+      // Collect all assigned steps
+      const scheduled: Array<{ step: ProcessStepSchedulingItem; orderNo: string; groupName: string }> = []
+      for (const order of allWithTrees) {
+        if (!order.tree) continue
+        for (const group of order.tree.groups) {
+          for (const step of group.steps) {
+            if (step.scheduleId) scheduled.push({ step, orderNo: order.orderNo, groupName: group.groupName })
+          }
+        }
+      }
+
+      // Fetch job card details for material requirements
+      const details = await Promise.all(
+        scheduled.map(s => jobCardService.getById(s.step.jobCardId).catch(() => null))
+      )
+
+      // One row per child part — group by orderNo + groupName (child part)
+      const rowMap = new Map<string, SchedulePrintRow>()
+      scheduled.forEach((s, i) => {
+        const matReq = details[i]?.materialRequirements?.[0]
+        const key = `${s.orderNo}||${s.groupName}`
+
+        if (!rowMap.has(key)) {
+          rowMap.set(key, {
+            sNo: 0,
+            orderItem: s.orderNo,
+            machineModel: details[i]?.machineModelName ?? '—',
+            childPartName: s.groupName,
+            materialSize: matReq?.rawMaterialName ?? '—',
+            materialLength: matReq && matReq.requiredQuantity > 0
+              ? `${Math.round(matReq.requiredQuantity / (s.step.quantity || 1))} ${matReq.unit}`
+              : '—',
+            quantity: s.step.quantity,
+          })
+        } else {
+          const existing = rowMap.get(key)!
+          if (existing.materialSize === '—' && matReq?.rawMaterialName) existing.materialSize = matReq.rawMaterialName
+          if (existing.materialLength === '—' && matReq && matReq.requiredQuantity > 0)
+            existing.materialLength = `${Math.round(matReq.requiredQuantity / (existing.quantity || 1))} ${matReq.unit}`
+          if (existing.machineModel === '—' && details[i]?.machineModelName) existing.machineModel = details[i]!.machineModelName!
+        }
+      })
+
+      const rows: SchedulePrintRow[] = Array.from(rowMap.values()).map((r, i) => ({ ...r, sNo: i + 1 }))
+
+      setPrintRows(rows)
+    } catch {
+      toast.error('Failed to prepare print data')
+    } finally {
+      setLoadingPrint(false)
+    }
+  }
 
   const loadOrders = useCallback(async () => {
     setLoading(true)
@@ -1084,6 +1378,16 @@ function ViewScheduledTab() {
         <div className="flex items-center gap-3 text-xs text-muted-foreground ml-auto">
           <span><span className="font-semibold text-orange-500">{totalPending}</span> pending</span>
           <span><span className="font-semibold text-green-600">{totalScheduled}</span> assigned</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePrint}
+            disabled={loadingPrint || orders.length === 0}
+            className="h-7 text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+          >
+            {loadingPrint ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+            Print Schedule
+          </Button>
         </div>
       </div>
 
@@ -1148,6 +1452,10 @@ function ViewScheduledTab() {
           loadOrders()
         }}
       />
+
+      {printRows && (
+        <SchedulePrintSlip rows={printRows} scheduledDate={new Date().toISOString().split('T')[0]} />
+      )}
     </div>
   )
 }
@@ -1626,7 +1934,7 @@ export default function SchedulingPage() {
               submitting={submitting}
             />
           ) : (
-            <Step5 results={results} onReset={resetWizard} />
+            <Step5 results={results} onReset={resetWizard} jobGroups={jobGroups} scheduledDate={targetDate} />
           )
         ) : activeTab === 'rework' ? (
           <div className="p-6 h-full overflow-y-auto">

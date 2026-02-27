@@ -39,6 +39,7 @@ export interface JobCardResponse {
   orderNo?: string | null
   orderItemId?: number | null
   itemSequence?: string | null
+  machineModelName?: string | null
 
   drawingId?: number | null
   drawingNumber?: string | null
