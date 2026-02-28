@@ -487,8 +487,8 @@ export default function GenerateJobCardsPage() {
 
       const itemQuantity = currentOrderItem ? currentOrderItem.quantity : order.quantity
       const requiredQty = material.requiredQuantity * (itemQuantity * childPart.bomItem.quantity)
-      // Wastage is now in mm, not percentage
-      const totalWithWastage = requiredQty + (material.wastageMM || 0)
+      // Wastage is now in mm, not percentage — multiply by piece count
+      const totalWithWastage = requiredQty + (material.wastageMM || 0) * itemQuantity * childPart.bomItem.quantity
 
       // Convert inventory quantity to length if stored as weight
       let availableQty = inventory.availableQuantity
@@ -720,8 +720,8 @@ export default function GenerateJobCardsPage() {
       materials.forEach(material => {
         const piecesCount = itemQuantity * item.bomItem.quantity
         const scaledQty = material.requiredQuantity * piecesCount
-        // Wastage is now in mm, not percentage
-        const totalWithWastage = scaledQty + (material.wastageMM || 0)
+        // Wastage is now in mm, not percentage — multiply by piece count
+        const totalWithWastage = scaledQty + (material.wastageMM || 0) * piecesCount
         const pieceLengthMM = material.requiredQuantity + (material.wastageMM || 0)
 
         const key = `${material.rawMaterialId || material.rawMaterialName}-${material.materialGrade || 'NoGrade'}`
@@ -1591,8 +1591,8 @@ export default function GenerateJobCardsPage() {
                                 {materials.map((material) => {
                                   const itemQuantity = currentOrderItem ? currentOrderItem.quantity : (order?.quantity || 1)
                                   const scaledQty = material.requiredQuantity * itemQuantity * item.bomItem.quantity
-                                  // Wastage is now in mm, not percentage
-                                  const totalWithWastage = scaledQty + (material.wastageMM || 0)
+                                  // Wastage is now in mm, not percentage — multiply by piece count
+                                  const totalWithWastage = scaledQty + (material.wastageMM || 0) * itemQuantity * item.bomItem.quantity
 
                                   return (
                                     <tr key={material.tempId} className="border-b border-blue-100 bg-white">
@@ -1678,6 +1678,7 @@ export default function GenerateJobCardsPage() {
                                           onChange={(e) => updateMaterial(item.childPartTemplate!.id, material.tempId, { wastageMM: parseFloat(e.target.value) || 0 })}
                                           className="w-14 px-2 py-1 text-xs border rounded text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         />
+                                        <div className="text-gray-500 text-xs mt-0.5">× {itemQuantity} × {item.bomItem.quantity}</div>
                                       </td>
                                       <td className="p-2 text-right">
                                         <div className="font-semibold text-gray-900">
