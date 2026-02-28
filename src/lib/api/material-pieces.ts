@@ -270,6 +270,24 @@ class MaterialPieceService {
       throw error
     }
   }
+
+  async adjustLength(id: number, newLengthMM: number, remark: string, adjustedBy = 'Admin'): Promise<void> {
+    try {
+      const response = await apiClient.patch<ApiResponse<object>>(`/material-pieces/${id}/adjust-length`, {
+        newLengthMM,
+        remark,
+        adjustedBy,
+      })
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to adjust length')
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to adjust length: ${error.message}`)
+      }
+      throw error
+    }
+  }
 }
 
 export interface SuggestedPiece extends MaterialPieceResponse {

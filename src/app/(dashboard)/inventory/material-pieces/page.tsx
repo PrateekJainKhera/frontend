@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Package, AlertTriangle, Search, MoveRight } from "lucide-react";
+import { Package, AlertTriangle, Search, MoveRight, Pencil } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { materialPieceService, MaterialPieceResponse } from "@/lib/api/material-pieces";
+import { AdjustPieceLengthDialog } from "@/components/dialogs/adjust-piece-length-dialog";
 import { warehouseService, WarehouseResponse } from "@/lib/api/warehouses";
 import { toast } from "sonner";
 
@@ -34,6 +35,9 @@ export default function MaterialPiecesPage() {
 
   // Selection state (for bulk relocate)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // Adjust length dialog
+  const [adjustPiece, setAdjustPiece] = useState<MaterialPieceResponse | null>(null)
 
   // Relocate dialog
   const [relocateOpen, setRelocateOpen]         = useState(false);
@@ -425,19 +429,32 @@ export default function MaterialPiecesPage() {
                             <span className="text-muted-foreground/50 italic text-xs">Unassigned</span>
                           )}
                         </TableCell>
-                        {/* Per-row relocate button (only for Available pieces) */}
+                        {/* Per-row actions (Available / Reserved pieces) */}
                         <TableCell>
-                          {piece.status === "Available" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                              title="Relocate this piece"
-                              onClick={() => openRelocate(piece.id)}
-                            >
-                              <MoveRight className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {(piece.status === "Available" || piece.status === "Reserved") && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                title="Adjust length"
+                                onClick={() => setAdjustPiece(piece)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {piece.status === "Available" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                title="Relocate this piece"
+                                onClick={() => openRelocate(piece.id)}
+                              >
+                                <MoveRight className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -510,6 +527,16 @@ export default function MaterialPiecesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Adjust Length Dialog */}
+      {adjustPiece && (
+        <AdjustPieceLengthDialog
+          piece={adjustPiece}
+          open={!!adjustPiece}
+          onOpenChange={open => { if (!open) setAdjustPiece(null) }}
+          onSuccess={() => { setAdjustPiece(null); loadAll(); }}
+        />
+      )}
     </div>
   );
 }
