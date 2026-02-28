@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -28,20 +28,40 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { MaterialType, MaterialGrade, MaterialShape, MATERIAL_DENSITY_MAP } from '@/types/enums'
+import { Plus } from 'lucide-react'
+import { MaterialGrade, MaterialShape } from '@/types/enums'
+
+// Frontend-only density suggestions (g/cm³) based on material type name keywords
+const DENSITY_MAP: { keywords: string[]; density: number }[] = [
+  { keywords: ['stainless', 'ss'],               density: 7.90 },
+  { keywords: ['steel', 'en8', 'en19', 'en24', 'alloy'], density: 7.85 },
+  { keywords: ['aluminum', 'aluminium', 'al'],   density: 2.70 },
+  { keywords: ['brass'],                          density: 8.50 },
+  { keywords: ['cast iron'],                      density: 7.20 },
+  { keywords: ['copper'],                         density: 8.96 },
+]
+
+function getSuggestedDensity(typeName: string): number | null {
+  const lower = typeName.toLowerCase()
+  for (const entry of DENSITY_MAP) {
+    if (entry.keywords.some(k => lower.includes(k))) return entry.density
+  }
+  return null
+}
 import { materialService } from '@/lib/api/materials'
+import { materialTypeService, MaterialTypeResponse } from '@/lib/api/material-types'
 import { toast } from 'sonner'
-import { useEffect } from 'react'
 
 const formSchema = z.object({
   materialName: z.string().min(2, 'Material name is required'),
-  materialType: z.nativeEnum(MaterialType, { message: 'Material type is required' }),
+  materialType: z.string().min(1, 'Material type is required'),
   grade: z.nativeEnum(MaterialGrade, { message: 'Grade is required' }),
   shape: z.nativeEnum(MaterialShape, { message: 'Shape is required' }),
   diameter: z.number().optional(),
   innerDiameter: z.number().optional(),
   width: z.number().optional(),
   density: z.number().min(0.01, 'Density must be greater than 0'),
+  minLengthMM: z.number().int().min(1, 'Min length must be at least 1 mm').max(9999),
 }).superRefine((data, ctx) => {
   if (data.shape === 'Rod' || data.shape === 'Forged' || data.shape === 'Pipe') {
     if (!data.diameter || data.diameter < 0.01) {
@@ -72,6 +92,12 @@ interface AddRawMaterialDialogProps {
 
 export function AddRawMaterialDialog({ open, onOpenChange, onSuccess }: AddRawMaterialDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [materialTypes, setMaterialTypes] = useState<MaterialTypeResponse[]>([])
+
+  // Inline "Add new type" state
+  const [showAddType, setShowAddType] = useState(false)
+  const [newTypeName, setNewTypeName] = useState('')
+  const [addingType, setAddingType] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -81,19 +107,47 @@ export function AddRawMaterialDialog({ open, onOpenChange, onSuccess }: AddRawMa
       innerDiameter: 0,
       width: 0,
       density: 7.85,
+      minLengthMM: 300,
     },
   })
 
   const shape = form.watch('shape')
-  const materialType = form.watch('materialType')
 
-  // Auto-set density based on material type
-  useEffect(() => {
-    if (materialType) {
-      const density = MATERIAL_DENSITY_MAP[materialType]
-      form.setValue('density', density)
+  const loadMaterialTypes = async () => {
+    try {
+      const types = await materialTypeService.getAll()
+      setMaterialTypes(types)
+    } catch {
+      toast.error('Failed to load material types')
     }
-  }, [materialType, form])
+  }
+
+  useEffect(() => {
+    loadMaterialTypes()
+  }, [])
+
+  const handleMaterialTypeChange = (typeName: string, onChange: (v: string) => void) => {
+    onChange(typeName)
+    const suggested = getSuggestedDensity(typeName)
+    if (suggested) form.setValue('density', suggested)
+  }
+
+  const handleAddType = async () => {
+    if (!newTypeName.trim()) { toast.error('Type name is required'); return }
+    setAddingType(true)
+    try {
+      const created = await materialTypeService.create({ name: newTypeName.trim() })
+      await loadMaterialTypes()
+      form.setValue('materialType', created.name)
+      setShowAddType(false)
+      setNewTypeName('')
+      toast.success(`Material type "${created.name}" added`)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setAddingType(false)
+    }
+  }
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -106,12 +160,14 @@ export function AddRawMaterialDialog({ open, onOpenChange, onSuccess }: AddRawMa
         diameter: (data.shape === 'Sheet' || data.shape === 'Flat') ? 0 : (data.diameter ?? 0),
         innerDiameter: data.shape === 'Pipe' ? data.innerDiameter : undefined,
         width: (data.shape === 'Sheet' || data.shape === 'Flat') ? data.width : undefined,
-        lengthInMM: 0, // Not stored in master - actual length from inventory
+        lengthInMM: 0,
         density: data.density,
-        weightKG: 0, // Not stored in master - actual weight from inventory
+        weightKG: 0,
+        minLengthMM: data.minLengthMM,
       })
       toast.success('Material added successfully!')
       form.reset()
+      setShowAddType(false)
       onSuccess?.()
       onOpenChange(false)
     } catch (error) {
@@ -148,22 +204,72 @@ export function AddRawMaterialDialog({ open, onOpenChange, onSuccess }: AddRawMa
               )}
             />
 
+            {/* Material Type — from master */}
             <FormField
               control={form.control}
               name="materialType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Material Type *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <div className="flex items-center gap-2">
+                    <FormLabel>Material Type *</FormLabel>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => setShowAddType(v => !v)}
+                      title="Add new material type"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+
+                  {/* Inline add form */}
+                  {showAddType && (
+                    <div className="border rounded p-3 bg-muted/40 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">New Material Type</p>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Type name (e.g., Tool Steel)"
+                          value={newTypeName}
+                          onChange={e => setNewTypeName(e.target.value)}
+                          className="flex-1 h-8 text-sm"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8"
+                          onClick={handleAddType}
+                          disabled={addingType}
+                        >
+                          {addingType ? 'Adding...' : 'Add'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8"
+                          onClick={() => { setShowAddType(false); setNewTypeName('') }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <Select
+                    onValueChange={(v) => handleMaterialTypeChange(v, field.onChange)}
+                    value={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select material type" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.values(MaterialType).map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
+                      {materialTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.name}>
+                          {type.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -315,7 +421,7 @@ export function AddRawMaterialDialog({ open, onOpenChange, onSuccess }: AddRawMa
               )}
             </div>
 
-            {/* Density field - required for weight to length conversion */}
+            {/* Density — auto-filled from material type, editable */}
             <FormField
               control={form.control}
               name="density"
@@ -331,6 +437,29 @@ export function AddRawMaterialDialog({ open, onOpenChange, onSuccess }: AddRawMa
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">Suggested from material type. Adjust if needed.</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Min Length — scrap threshold */}
+            <FormField
+              control={form.control}
+              name="minLengthMM"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Min Usable Length (mm) *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="1"
+                      placeholder="300"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 300)}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">Pieces shorter than this after cutting are marked as scrap. Default: 300 mm.</p>
                   <FormMessage />
                 </FormItem>
               )}

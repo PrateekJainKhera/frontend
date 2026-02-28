@@ -15,6 +15,7 @@ export interface CreateGRNLineRequest {
   thickness?: number
   materialDensity: number
   totalWeightKG: number
+  billedWeightKG?: number
   numberOfPieces: number
   lengthPerPieceMM?: number
   warehouseId?: number
@@ -57,6 +58,9 @@ export interface GRNLineResponse {
   weightPerMeterKG?: number
   numberOfPieces: number
   lengthPerPieceMM?: number
+  billedLengthPerPieceMM?: number
+  billedWeightKG?: number
+  lengthVariancePct?: number
   unitPrice?: number
   lineTotal?: number
   remarks?: string
@@ -74,9 +78,17 @@ export interface GRNResponse {
   invoiceNo?: string
   invoiceDate?: string
   totalPieces: number
-  totalWeight?: number
+  totalWeight?: number       // sum of actual received weights
+  totalBilledWeight?: number // sum of vendor-billed weights
   totalValue?: number
   status: string
+  requiresApproval?: boolean
+  approvedBy?: string
+  approvedAt?: string
+  approvalNotes?: string
+  rejectedBy?: string
+  rejectedAt?: string
+  rejectionNotes?: string
   qualityCheckStatus?: string
   qualityCheckedBy?: string
   qualityCheckedAt?: string
@@ -170,6 +182,44 @@ class GRNService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to delete GRN: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getPendingApproval(): Promise<GRNResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<GRNResponse[]>>(`${this.baseUrl}/pending-approval`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch pending GRNs: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async approve(id: number, actionBy: string, notes?: string): Promise<GRNResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse<GRNResponse>>(`${this.baseUrl}/${id}/approve`, { actionBy, notes })
+      if (!response.data.data) throw new Error('Failed to approve GRN')
+      return response.data.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to approve GRN: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async reject(id: number, actionBy: string, notes: string): Promise<GRNResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse<GRNResponse>>(`${this.baseUrl}/${id}/reject`, { actionBy, notes })
+      if (!response.data.data) throw new Error('Failed to reject GRN')
+      return response.data.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to reject GRN: ${error.message}`)
       }
       throw error
     }

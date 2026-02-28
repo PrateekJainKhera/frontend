@@ -12,6 +12,7 @@ export interface CreateMaterialRequest {
   lengthInMM: number
   density: number
   weightKG: number
+  minLengthMM?: number
   isActive?: boolean
   createdBy?: string | null
 }
@@ -34,6 +35,7 @@ export interface MaterialResponse {
   lengthInMM: number
   density: number
   weightKG: number
+  minLengthMM: number
   isActive: boolean
   createdAt: string
   createdBy?: string | null

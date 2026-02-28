@@ -26,7 +26,7 @@ interface GRNEntryDialogProps {
 
 interface PieceBreakdown {
     id: string
-    length: number // in meters
+    length: number   // actual measured length in meters
     quantity: number // number of pieces at this length
 }
 
@@ -347,6 +347,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                         innerDiameter: line.materialType === 'pipe' ? Number(line.innerDiameter) : undefined,
                         materialDensity: Number(line.materialDensity),
                         totalWeightKG: Number(line.weight),
+                        billedWeightKG: Number(line.weight), // no piece breakdown — billed = actual
                         numberOfPieces: 1,
                         lengthPerPieceMM: Number(line.calculatedLength * 1000),
                         warehouseId: warehouseIdNum,
@@ -354,11 +355,21 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                     })
                 } else {
                     // Each batch becomes a separate GRN line
+                    // Actual KG = piece length × density (what physically arrived)
+                    // Billed KG = vendor's invoice weight proportioned by actual piece length
+                    const totalActualLengthM = line.pieces.reduce((sum, p) => sum + p.length * p.quantity, 0)
+
                     for (const batch of line.pieces) {
                         sequenceNo++
-                        // Calculate weight for this batch
                         const batchLength = batch.length * batch.quantity
-                        const batchWeight = (batchLength / line.calculatedLength) * line.weight
+                        // Actual weight from piece dimensions × density
+                        const batchActualWeight = line.weightPerMeter > 0
+                            ? batchLength * line.weightPerMeter
+                            : (batchLength / line.calculatedLength) * line.weight
+                        // Billed weight = vendor's KG proportioned by actual piece length ratio
+                        const batchBilledWeight = totalActualLengthM > 0
+                            ? (batchLength / totalActualLengthM) * line.weight
+                            : undefined
 
                         grnLines.push({
                             sequenceNo,
@@ -370,9 +381,10 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                             outerDiameter: line.materialType === 'pipe' ? Number(line.outerDiameter) : undefined,
                             innerDiameter: line.materialType === 'pipe' ? Number(line.innerDiameter) : undefined,
                             materialDensity: Number(line.materialDensity),
-                            totalWeightKG: Number(batchWeight),
+                            totalWeightKG: Number(batchActualWeight),   // actual KG (goes to inventory)
+                            billedWeightKG: batchBilledWeight ? Number(batchBilledWeight) : undefined, // vendor KG
                             numberOfPieces: Number(batch.quantity),
-                            lengthPerPieceMM: Number(batch.length * 1000), // All pieces in this batch have same length
+                            lengthPerPieceMM: Number(batch.length * 1000),
                             warehouseId: warehouseIdNum,
                             unitPrice: 0,
                         })
@@ -756,45 +768,46 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
 
                                                 {line.pieces.length > 0 && (
                                                     <div className="space-y-2">
-                                                        {line.pieces.map((piece, pieceIndex) => (
-                                                            <div key={piece.id} className="flex items-center gap-2">
-                                                                <span className="text-sm text-muted-foreground w-20">
-                                                                    Batch {pieceIndex + 1}:
-                                                                </span>
+                                                        {line.pieces.map((piece, pieceIndex) => {
+                                                            return (
+                                                            <div key={piece.id} className="space-y-1">
                                                                 <div className="flex items-center gap-2">
-                                                                    <Input
-                                                                        type="number"
-                                                                        step="0.1"
-                                                                        placeholder="Length (m)"
-                                                                        value={piece.length || ''}
-                                                                        onChange={(e) => updatePiece(line.id, piece.id, 'length', parseFloat(e.target.value) || 0)}
-                                                                        className="w-28"
-                                                                    />
-                                                                    <span className="text-sm text-muted-foreground">m ×</span>
-                                                                    <Input
-                                                                        type="number"
-                                                                        min="1"
-                                                                        step="1"
-                                                                        placeholder="Qty"
-                                                                        value={piece.quantity || ''}
-                                                                        onChange={(e) => updatePiece(line.id, piece.id, 'quantity', parseInt(e.target.value) || 1)}
-                                                                        className="w-20"
-                                                                    />
-                                                                    <span className="text-sm text-muted-foreground">pcs</span>
-                                                                    <span className="text-sm font-medium text-blue-600 w-20">
-                                                                        = {(piece.length * piece.quantity).toFixed(2)}m
+                                                                    <span className="text-sm text-muted-foreground w-20">
+                                                                        Batch {pieceIndex + 1}:
                                                                     </span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Input
+                                                                            type="number"
+                                                                            step="0.01"
+                                                                            placeholder="Length (m)"
+                                                                            value={piece.length || ''}
+                                                                            onChange={(e) => updatePiece(line.id, piece.id, 'length', parseFloat(e.target.value) || 0)}
+                                                                            className="w-28"
+                                                                        />
+                                                                        <span className="text-sm text-muted-foreground">×</span>
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="1"
+                                                                            step="1"
+                                                                            placeholder="Qty"
+                                                                            value={piece.quantity || ''}
+                                                                            onChange={(e) => updatePiece(line.id, piece.id, 'quantity', parseInt(e.target.value) || 1)}
+                                                                            className="w-20"
+                                                                        />
+                                                                        <span className="text-sm text-muted-foreground">pcs</span>
+                                                                    </div>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => removePiece(line.id, piece.id)}
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
                                                                 </div>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => removePiece(line.id, piece.id)}
-                                                                >
-                                                                    <Trash2 className="h-3 w-3" />
-                                                                </Button>
                                                             </div>
-                                                        ))}
+                                                            )
+                                                        })}
 
                                                         {/* Total Validation */}
                                                         <div className="space-y-1 pt-2 border-t">

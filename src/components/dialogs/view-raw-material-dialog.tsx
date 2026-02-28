@@ -133,6 +133,16 @@ export function ViewRawMaterialDialog({
                   <p className="font-medium">{material.density} g/cm³</p>
                 </div>
               </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50">
+                  <Ruler className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Min Usable Length (scrap threshold)</p>
+                  <p className="font-medium">{material.minLengthMM ?? 300} mm</p>
+                </div>
+              </div>
             </div>
           </div>
 

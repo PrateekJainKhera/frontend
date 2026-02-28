@@ -26,7 +26,8 @@ import {
   Store,
   ClipboardList,
   Scissors,
-  Clock
+  Clock,
+  ShieldAlert
 } from 'lucide-react'
 import { warehouseService } from '@/lib/api/warehouses'
 
@@ -115,7 +116,8 @@ const navItems: NavItem[] = [
       { title: 'Requisitions', href: '/inventory/material-requisitions', icon: FileText },
       { title: 'Receive Components', href: '/inventory/receive-components', icon: PackageCheck },
       { title: 'Component Issue', href: '/inventory/component-issue', icon: PackageMinus },
-      { title: 'Warehouses', href: '/inventory/warehouses', icon: Warehouse }
+      { title: 'Warehouses', href: '/inventory/warehouses', icon: Warehouse },
+      { title: 'GRN Approvals', href: '/inventory/grn-approvals', icon: ShieldAlert }
     ]
   },
   {
