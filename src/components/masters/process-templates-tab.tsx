@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Workflow } from 'lucide-react'
+import { Plus, Search, Workflow, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,15 +10,36 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { processTemplateService, ProcessTemplateResponse } from '@/lib/api/process-templates'
 import { toast } from 'sonner'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export function ProcessTemplatesTab() {
   const [templates, setTemplates] = useState<ProcessTemplateResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<ProcessTemplateResponse | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     loadTemplates()
   }, [])
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await processTemplateService.delete(deleteTarget.id)
+      toast.success(`"${deleteTarget.templateName}" deleted`)
+      setDeleteTarget(null)
+      loadTemplates()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete template')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const loadTemplates = async () => {
     setLoading(true)
@@ -132,11 +153,17 @@ export function ProcessTemplatesTab() {
                   {template.createdBy && <p>By: {template.createdBy}</p>}
                 </div>
 
-                <Button variant="outline" size="sm" className="w-full" asChild>
-                  <Link href={`/masters/process-templates/${template.id}`}>
-                    View Details
-                  </Link>
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1" asChild>
+                    <Link href={`/masters/process-templates/${template.id}`}>View</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/masters/process-templates/${template.id}/edit`}><Edit className="h-3.5 w-3.5" /></Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.preventDefault(); setDeleteTarget(template) }}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -152,6 +179,23 @@ export function ProcessTemplatesTab() {
           <Plus className="h-6 w-6" />
         </Link>
       </Button>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.templateName}</strong>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

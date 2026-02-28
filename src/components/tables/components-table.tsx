@@ -12,9 +12,15 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Edit } from 'lucide-react'
+import { Eye, Edit, Trash2 } from 'lucide-react'
 import { ViewComponentDialog } from '@/components/dialogs/view-component-dialog'
 import { EditComponentDialog } from '@/components/dialogs/edit-component-dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { componentService } from '@/lib/api/components'
+import { toast } from 'sonner'
 
 interface ComponentsTableProps {
   components: ComponentResponse[]
@@ -46,6 +52,8 @@ export function ComponentsTable({ components, onUpdate }: ComponentsTableProps) 
   const [selectedComponent, setSelectedComponent] = useState<ComponentResponse | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<ComponentResponse | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const handleView = (component: ComponentResponse) => {
     setSelectedComponent(component)
@@ -58,8 +66,21 @@ export function ComponentsTable({ components, onUpdate }: ComponentsTableProps) 
   }
 
   const handleSuccess = () => {
-    if (onUpdate) {
-      onUpdate()
+    if (onUpdate) onUpdate()
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await componentService.delete(deleteTarget.id)
+      toast.success(`"${deleteTarget.componentName}" deleted`)
+      setDeleteTarget(null)
+      onUpdate?.()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete component')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -111,19 +132,14 @@ export function ComponentsTable({ components, onUpdate }: ComponentsTableProps) 
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleView(component)}
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => handleView(component)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(component)}
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(component)}>
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(component)}>
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </TableCell>
@@ -148,6 +164,23 @@ export function ComponentsTable({ components, onUpdate }: ComponentsTableProps) 
           />
         </>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Component?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.componentName}</strong>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

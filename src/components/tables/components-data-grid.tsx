@@ -11,9 +11,15 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { ComponentResponse } from '@/lib/api/components'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Edit } from 'lucide-react'
+import { Eye, Edit, Trash2 } from 'lucide-react'
 import { ViewComponentDialog } from '@/components/dialogs/view-component-dialog'
 import { EditComponentDialog } from '@/components/dialogs/edit-component-dialog'
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { componentService } from '@/lib/api/components'
+import { toast } from 'sonner'
 
 interface ComponentsDataGridProps {
     components: ComponentResponse[]
@@ -73,6 +79,8 @@ export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridP
     const [selectedComponent, setSelectedComponent] = useState<ComponentResponse | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<ComponentResponse | null>(null)
+    const [deleting, setDeleting] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
@@ -91,6 +99,21 @@ export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridP
     const handleEdit = (component: ComponentResponse) => {
         setSelectedComponent(component)
         setEditDialogOpen(true)
+    }
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return
+        setDeleting(true)
+        try {
+            await componentService.delete(deleteTarget.id)
+            toast.success(`"${deleteTarget.componentName}" deleted`)
+            setDeleteTarget(null)
+            onUpdate?.()
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to delete component')
+        } finally {
+            setDeleting(false)
+        }
     }
 
     // Define columns - Masters only (no inventory fields)
@@ -194,6 +217,15 @@ export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridP
                 >
                     <Edit className="h-4 w-4" />
                 </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteTarget(row.original)}
+                    title="Delete"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
             </div>
         ),
     })
@@ -202,7 +234,6 @@ export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridP
         <ThemeProvider theme={muiTheme}>
             <MaterialReactTable table={table} />
 
-            {/* Dialogs */}
             {selectedComponent && (
                 <>
                     <ViewComponentDialog
@@ -221,6 +252,23 @@ export function ComponentsDataGrid({ components, onUpdate }: ComponentsDataGridP
                     />
                 </>
             )}
+
+            <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Component?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{deleteTarget?.componentName}</strong>? This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+                            {deleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </ThemeProvider>
     )
 }

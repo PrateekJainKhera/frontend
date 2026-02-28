@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Plus, PackageCheck, AlertCircle } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
+import { Plus, PackageCheck, AlertCircle, Search } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +37,7 @@ export default function ComponentIssuePage() {
   const [issues, setIssues] = useState<ComponentIssueResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [historySearch, setHistorySearch] = useState("")
 
   // Form state
   const [componentId, setComponentId] = useState("")
@@ -118,6 +119,18 @@ export default function ComponentIssuePage() {
       setSubmitting(false)
     }
   }
+
+  const filteredIssues = useMemo(() => {
+    const q = historySearch.toLowerCase()
+    if (!q) return issues
+    return issues.filter(i =>
+      i.issueNo.toLowerCase().includes(q) ||
+      i.componentName.toLowerCase().includes(q) ||
+      i.partNumber?.toLowerCase().includes(q) ||
+      i.requestedBy.toLowerCase().includes(q) ||
+      i.issuedBy.toLowerCase().includes(q)
+    )
+  }, [issues, historySearch])
 
   const selectedComponent = components.find(c => c.id.toString() === componentId)
   const enteredQty = parseFloat(issuedQty) || 0
@@ -307,13 +320,31 @@ export default function ComponentIssuePage() {
         {/* Issue History */}
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Issue History</CardTitle>
-            <CardDescription>All component issues recorded</CardDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Issue History</CardTitle>
+                <CardDescription>All component issues recorded</CardDescription>
+              </div>
+              <div className="relative w-56 shrink-0">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search issues..."
+                  value={historySearch}
+                  onChange={e => setHistorySearch(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {issues.length === 0 ? (
               <p className="text-center text-muted-foreground py-12">
                 No component issues recorded yet.
+              </p>
+            ) : filteredIssues.length === 0 ? (
+              <p className="text-center text-muted-foreground py-12">
+                No issues match your search.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -330,7 +361,7 @@ export default function ComponentIssuePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {issues.map(issue => (
+                    {filteredIssues.map(issue => (
                       <TableRow key={issue.id}>
                         <TableCell>
                           <Badge variant="outline" className="font-mono text-xs">

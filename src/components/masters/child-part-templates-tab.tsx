@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Wrench, Package, FileText, Ruler } from 'lucide-react'
+import { Plus, Search, Wrench, Package, FileText, Ruler, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,10 @@ import { Badge } from '@/components/ui/badge'
 import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
 import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { toast } from 'sonner'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { ChildPartType } from '@/types'
 import {
   Select,
@@ -27,6 +31,23 @@ export function ChildPartTemplatesTab() {
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [rollerTypeFilter, setRollerTypeFilter] = useState<string>('all')
   const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
+  const [deleteTarget, setDeleteTarget] = useState<ChildPartTemplateResponse | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await childPartTemplateService.delete(deleteTarget.id)
+      toast.success(`"${deleteTarget.templateName}" deleted`)
+      setDeleteTarget(null)
+      loadTemplates()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete template')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const loadTemplates = async () => {
     setLoading(true)
@@ -176,8 +197,7 @@ export function ChildPartTemplatesTab() {
       {/* Templates Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredTemplates.map((template) => (
-          <Link key={template.id} href={`/masters/child-part-templates/${template.id}`}>
-            <Card className="h-full border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-lg transition-shadow cursor-pointer hover:border-primary">
+          <Card key={template.id} className="h-full border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-lg transition-shadow">
               <CardHeader className="p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex-1 min-w-0">
@@ -247,9 +267,19 @@ export function ChildPartTemplatesTab() {
                     {new Date(template.updatedAt).toLocaleDateString()}
                   </span>
                 </div>
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" size="sm" className="flex-1" asChild>
+                    <Link href={`/masters/child-part-templates/${template.id}`}>View</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/masters/child-part-templates/${template.id}/edit`}><Edit className="h-3.5 w-3.5" /></Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(template)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          </Link>
         ))}
       </div>
 
@@ -284,6 +314,23 @@ export function ChildPartTemplatesTab() {
           <Plus className="h-6 w-6" />
         </Link>
       </Button>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.templateName}</strong>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

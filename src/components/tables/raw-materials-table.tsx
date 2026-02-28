@@ -12,9 +12,15 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Edit, Eye } from 'lucide-react'
+import { Edit, Eye, Trash2 } from 'lucide-react'
 import { ViewRawMaterialDialog } from '@/components/dialogs/view-raw-material-dialog'
 import { EditRawMaterialDialog } from '@/components/dialogs/edit-raw-material-dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { materialService } from '@/lib/api/materials'
+import { toast } from 'sonner'
 
 interface RawMaterialsTableProps {
   materials: MaterialResponse[]
@@ -25,6 +31,8 @@ export function RawMaterialsTable({ materials, onUpdate }: RawMaterialsTableProp
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialResponse | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<MaterialResponse | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const handleView = (material: MaterialResponse) => {
     setSelectedMaterial(material)
@@ -34,6 +42,21 @@ export function RawMaterialsTable({ materials, onUpdate }: RawMaterialsTableProp
   const handleEdit = (material: MaterialResponse) => {
     setSelectedMaterial(material)
     setEditDialogOpen(true)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await materialService.delete(deleteTarget.id)
+      toast.success(`"${deleteTarget.materialName}" deleted`)
+      setDeleteTarget(null)
+      onUpdate?.()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete material')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (materials.length === 0) {
@@ -81,6 +104,9 @@ export function RawMaterialsTable({ materials, onUpdate }: RawMaterialsTableProp
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(material)} title="Edit Material">
                     <Edit className="h-4 w-4" />
                   </Button>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(material)} title="Delete Material">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -107,6 +133,24 @@ export function RawMaterialsTable({ materials, onUpdate }: RawMaterialsTableProp
           />
         </>
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Material?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.materialName}</strong>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

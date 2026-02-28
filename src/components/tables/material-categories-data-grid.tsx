@@ -11,8 +11,13 @@ import {
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Edit } from 'lucide-react'
-import { MaterialCategoryResponse } from '@/lib/api/material-categories'
+import { Eye, Edit, Trash2 } from 'lucide-react'
+import { MaterialCategoryResponse, materialCategoryService } from '@/lib/api/material-categories'
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
 
 interface MaterialCategoriesDataGridProps {
     categories: MaterialCategoryResponse[]
@@ -46,11 +51,28 @@ const muiTheme = createTheme({
     },
 })
 
-export function MaterialCategoriesDataGrid({ categories }: MaterialCategoriesDataGridProps) {
+export function MaterialCategoriesDataGrid({ categories, onUpdate }: MaterialCategoriesDataGridProps) {
+    const [deleteTarget, setDeleteTarget] = useState<MaterialCategoryResponse | null>(null)
+    const [deleting, setDeleting] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
     })
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return
+        setDeleting(true)
+        try {
+            await materialCategoryService.delete(deleteTarget.id)
+            toast.success(`"${deleteTarget.categoryName}" deleted`)
+            setDeleteTarget(null)
+            onUpdate?.()
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to delete category')
+        } finally {
+            setDeleting(false)
+        }
+    }
 
     // Define columns
     const columns = useMemo<MRT_ColumnDef<MaterialCategoryResponse>[]>(
@@ -152,6 +174,15 @@ export function MaterialCategoriesDataGrid({ categories }: MaterialCategoriesDat
                         <Edit className="h-4 w-4" />
                     </Button>
                 </Link>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteTarget(row.original)}
+                    title="Delete"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
             </div>
         ),
     })
@@ -159,6 +190,23 @@ export function MaterialCategoriesDataGrid({ categories }: MaterialCategoriesDat
     return (
         <ThemeProvider theme={muiTheme}>
             <MaterialReactTable table={table} />
+
+            <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Category?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{deleteTarget?.categoryName}</strong>? This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+                            {deleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </ThemeProvider>
     )
 }

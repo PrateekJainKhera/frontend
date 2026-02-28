@@ -11,10 +11,16 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Customer } from '@/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Edit, Eye } from 'lucide-react'
+import { Edit, Eye, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
 import { ViewCustomerDialog } from '@/components/dialogs/view-customer-dialog'
 import { EditCustomerDialog } from '@/components/dialogs/edit-customer-dialog'
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { customerService } from '@/lib/api/customer'
+import { toast } from 'sonner'
 
 interface CustomersDataGridProps {
     customers: Customer[]
@@ -57,6 +63,8 @@ export function CustomersDataGrid({ customers: initialCustomers, onUpdate }: Cus
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null)
+    const [deleting, setDeleting] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
@@ -75,6 +83,21 @@ export function CustomersDataGrid({ customers: initialCustomers, onUpdate }: Cus
     const handleEdit = (customer: Customer) => {
         setSelectedCustomer(customer)
         setEditDialogOpen(true)
+    }
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return
+        setDeleting(true)
+        try {
+            await customerService.delete(deleteTarget.id)
+            toast.success(`"${deleteTarget.customerName}" deleted`)
+            setDeleteTarget(null)
+            onUpdate?.()
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to delete customer')
+        } finally {
+            setDeleting(false)
+        }
     }
 
     // Define columns
@@ -179,6 +202,15 @@ export function CustomersDataGrid({ customers: initialCustomers, onUpdate }: Cus
                 >
                     <Edit className="h-4 w-4" />
                 </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteTarget(row.original)}
+                    title="Delete"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
             </div>
         ),
     })
@@ -206,6 +238,22 @@ export function CustomersDataGrid({ customers: initialCustomers, onUpdate }: Cus
                     />
                 </>
             )}
+            <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Customer?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{deleteTarget?.customerName}</strong>? This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+                            {deleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </ThemeProvider>
     )
 }

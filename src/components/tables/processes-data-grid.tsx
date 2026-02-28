@@ -8,12 +8,17 @@ import {
     type MRT_PaginationState,
 } from 'material-react-table'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
-import { ProcessResponse } from '@/lib/api/processes'
+import { ProcessResponse, processService } from '@/lib/api/processes'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Edit, Eye, Clock, ExternalLink } from 'lucide-react'
+import { Edit, Eye, Clock, ExternalLink, Trash2 } from 'lucide-react'
 import { ViewProcessDialog } from '@/components/dialogs/view-process-dialog'
 import { EditProcessDialog } from '@/components/dialogs/edit-process-dialog'
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
 
 interface ProcessesDataGridProps {
     processes: ProcessResponse[]
@@ -71,10 +76,27 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
     const [selectedProcess, setSelectedProcess] = useState<ProcessResponse | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<ProcessResponse | null>(null)
+    const [deleting, setDeleting] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
     })
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return
+        setDeleting(true)
+        try {
+            await processService.delete(deleteTarget.id)
+            toast.success(`"${deleteTarget.processName}" deleted`)
+            setDeleteTarget(null)
+            onUpdate?.()
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to delete process')
+        } finally {
+            setDeleting(false)
+        }
+    }
 
     // Sync prop to internal state
     useMemo(() => {
@@ -223,6 +245,15 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                 >
                     <Edit className="h-4 w-4" />
                 </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteTarget(row.original)}
+                    title="Delete"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
             </div>
         ),
     })
@@ -249,6 +280,23 @@ export function ProcessesDataGrid({ processes, onUpdate }: ProcessesDataGridProp
                     />
                 </>
             )}
+
+            <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Process?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{deleteTarget?.processName}</strong>? This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+                            {deleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </ThemeProvider>
     )
 }

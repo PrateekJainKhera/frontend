@@ -181,6 +181,7 @@ export default function MachinesMasterPage() {
         machines={filteredMachines}
         onEdit={(machine) => router.push(`/masters/machines/${machine.id}/edit`)}
         onView={(machine) => router.push(`/masters/machines/${machine.id}/edit`)}
+        onUpdate={fetchMachines}
       />
 
       {/* Add Machine Dialog */}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit, Eye } from 'lucide-react'
+import { Plus, Search, Edit, Eye, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { materialCategoryService, MaterialCategoryResponse } from '@/lib/api/material-categories'
 import { toast } from 'sonner'
 
@@ -23,10 +27,27 @@ export default function MaterialCategoriesPage() {
   const [categories, setCategories] = useState<MaterialCategoryResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<MaterialCategoryResponse | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     loadCategories()
   }, [])
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await materialCategoryService.delete(deleteTarget.id)
+      toast.success(`"${deleteTarget.categoryName}" deleted`)
+      setDeleteTarget(null)
+      loadCategories()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete category')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const loadCategories = async () => {
     setLoading(true)
@@ -58,12 +79,6 @@ export default function MaterialCategoriesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="sr-only">Material Categories</h1>
-        <Link href="/masters/material-categories/create" className="ml-auto">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Category
-          </Button>
-        </Link>
       </div>
 
       {/* Stats Cards */}
@@ -175,6 +190,9 @@ export default function MaterialCategoriesPage() {
                               <Edit className="h-4 w-4" />
                             </Button>
                           </Link>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(category)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -185,6 +203,32 @@ export default function MaterialCategoriesPage() {
           )}
         </CardContent>
       </Card>
+      {/* Floating Action Button */}
+      <Link href="/masters/material-categories/create">
+        <Button
+          className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+          size="icon"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
+      </Link>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Category?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.categoryName}</strong>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

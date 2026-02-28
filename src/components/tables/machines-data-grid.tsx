@@ -18,13 +18,20 @@ import {
     MapPin,
     Edit,
     Eye,
+    Trash2,
 } from 'lucide-react'
-import { MachineResponse } from '@/lib/api/machines'
+import { MachineResponse, machineService } from '@/lib/api/machines'
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
 
 interface MachinesDataGridProps {
     machines: MachineResponse[]
     onEdit?: (machine: MachineResponse) => void
     onView?: (machine: MachineResponse) => void
+    onUpdate?: () => void
 }
 
 // Status badge helper
@@ -75,12 +82,29 @@ const muiTheme = createTheme({
     },
 })
 
-export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridProps) {
+export function MachinesDataGrid({ machines, onEdit, onView, onUpdate }: MachinesDataGridProps) {
     const [data, setData] = useState<MachineResponse[]>(machines)
+    const [deleteTarget, setDeleteTarget] = useState<MachineResponse | null>(null)
+    const [deleting, setDeleting] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
     })
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return
+        setDeleting(true)
+        try {
+            await machineService.delete(deleteTarget.id)
+            toast.success(`"${deleteTarget.machineName}" deleted`)
+            setDeleteTarget(null)
+            onUpdate?.()
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to delete machine')
+        } finally {
+            setDeleting(false)
+        }
+    }
 
     // Sync prop to internal state for React Compiler compatibility
     useMemo(() => {
@@ -188,6 +212,15 @@ export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridP
                 >
                     <Edit className="h-4 w-4" />
                 </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteTarget(row.original)}
+                    title="Delete"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
             </div>
         ),
     })
@@ -195,6 +228,23 @@ export function MachinesDataGrid({ machines, onEdit, onView }: MachinesDataGridP
     return (
         <ThemeProvider theme={muiTheme}>
             <MaterialReactTable table={table} />
+
+            <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Machine?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{deleteTarget?.machineName}</strong>? This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+                            {deleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </ThemeProvider>
     )
 }

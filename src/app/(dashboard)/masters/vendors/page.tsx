@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Building2 } from 'lucide-react'
+import { Plus, Search, Building2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,6 +10,10 @@ import { vendorService, VendorResponse } from '@/lib/api/vendors'
 import { toast } from 'sonner'
 import { CreateVendorDialog } from '@/components/dialogs/create-vendor-dialog'
 import { EditVendorDialog } from '@/components/dialogs/edit-vendor-dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<VendorResponse[]>([])
@@ -17,6 +21,8 @@ export default function VendorsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editVendor, setEditVendor] = useState<VendorResponse | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<VendorResponse | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => { loadVendors() }, [])
 
@@ -38,6 +44,21 @@ export default function VendorsPage() {
     (v.contactPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   )
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await vendorService.delete(deleteTarget.id)
+      toast.success(`"${deleteTarget.vendorName}" deleted`)
+      setDeleteTarget(null)
+      loadVendors()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete vendor')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const totalActive = vendors.filter(v => v.isActive).length
   const totalInactive = vendors.length - totalActive
 
@@ -49,10 +70,6 @@ export default function VendorsPage() {
           <h1 className="text-2xl font-bold">Vendor Master</h1>
           <p className="text-muted-foreground text-sm">Manage vendors for purchase requests and orders</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Vendor
-        </Button>
       </div>
 
       {/* Stats */}
@@ -122,9 +139,10 @@ export default function VendorsPage() {
                     {vendor.city && <span>📍 {vendor.city}</span>}
                     {vendor.gstNo && <span>GST: <span className="font-mono">{vendor.gstNo}</span></span>}
                   </div>
-                  <div className="mt-3">
-                    <Button variant="outline" size="sm" onClick={() => setEditVendor(vendor)}>
-                      Edit
+                  <div className="mt-3 flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setEditVendor(vendor)}>Edit</Button>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(vendor)}>
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />Delete
                     </Button>
                   </div>
                 </CardContent>
@@ -167,9 +185,12 @@ export default function VendorsPage() {
                         </Badge>
                       </td>
                       <td className="p-3">
-                        <Button variant="outline" size="sm" onClick={() => setEditVendor(vendor)}>
-                          Edit
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setEditVendor(vendor)}>Edit</Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(vendor)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -194,6 +215,32 @@ export default function VendorsPage() {
           onSuccess={loadVendors}
         />
       )}
+
+      {/* Floating Action Button */}
+      <Button
+        onClick={() => setCreateDialogOpen(true)}
+        className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+        size="icon"
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vendor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.vendorName}</strong>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

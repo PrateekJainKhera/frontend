@@ -85,7 +85,7 @@ export function MaterialCategoriesTab({ searchQuery = '' }: MaterialCategoriesTa
           ))}
         </div>
       ) : (
-        <MaterialCategoriesDataGrid categories={filteredCategories} />
+        <MaterialCategoriesDataGrid categories={filteredCategories} onUpdate={loadCategories} />
       )}
 
       {/* Floating Action Button */}
