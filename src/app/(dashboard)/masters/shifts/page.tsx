@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
@@ -13,10 +13,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Clock, Plus, Pencil, Trash2, Loader2, RefreshCw } from 'lucide-react'
+import { Clock, Plus, Loader2 } from 'lucide-react'
 import { shiftService } from '@/lib/api/shifts'
 import { Shift, CreateShiftRequest } from '@/types/shift'
 import { toast } from 'sonner'
+import { ShiftsDataGrid } from '@/components/tables/shifts-data-grid'
 
 const DEFAULT_FORM: CreateShiftRequest = {
   shiftName: '',
@@ -34,7 +35,6 @@ export default function ShiftsPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<CreateShiftRequest>(DEFAULT_FORM)
   const [saving, setSaving] = useState(false)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -88,105 +88,27 @@ export default function ShiftsPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this shift?')) return
-    setDeletingId(id)
-    try {
-      await shiftService.delete(id)
-      toast.success('Shift deleted')
-      load()
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Delete failed')
-    } finally {
-      setDeletingId(null)
-    }
-  }
-
   return (
-    <div className="p-6 max-w-4xl">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-500" /> Shift Master
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Define work shifts used for machine scheduling
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={load} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
-          <Button size="sm" className="h-8 gap-1 text-xs" onClick={openCreate}>
-            <Plus className="h-3.5 w-3.5" /> Add Shift
-          </Button>
-        </div>
-      </div>
-
-      {/* Shift Cards */}
+    <div className="space-y-4">
+      {/* Data Grid */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : shifts.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Clock className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">No shifts configured.</p>
-          <Button size="sm" className="mt-3 gap-1" onClick={openCreate}>
-            <Plus className="h-3.5 w-3.5" /> Create First Shift
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {shifts.map(s => (
-            <div
-              key={s.id}
-              className={`flex items-center gap-4 rounded-lg border px-4 py-3 bg-card ${!s.isActive ? 'opacity-60' : ''}`}
-            >
-              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                <Clock className="h-5 w-5 text-blue-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">{s.shiftName}</span>
-                  {!s.isActive && <Badge variant="outline" className="text-[10px] h-4 px-1">Inactive</Badge>}
-                </div>
-                <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                  <span>{s.startTime} – {s.endTime}</span>
-                  <span>·</span>
-                  <span>{s.regularHours}h regular</span>
-                  <span>·</span>
-                  <span>+{s.maxOvertimeHours}h OT max</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Button
-                  variant="ghost" size="sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                  onClick={() => openEdit(s)}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost" size="sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600"
-                  onClick={() => handleDelete(s.id)}
-                  disabled={deletingId === s.id}
-                >
-                  {deletingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                </Button>
-              </div>
-            </div>
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
+      ) : (
+        <ShiftsDataGrid shifts={shifts} onEdit={openEdit} onUpdate={load} />
       )}
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm">{editingId ? 'Edit Shift' : 'New Shift'}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-blue-500" />
+              {editingId ? 'Edit Shift' : 'New Shift'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div className="space-y-1">
@@ -260,6 +182,15 @@ export default function ShiftsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Floating Action Button */}
+      <Button
+        onClick={openCreate}
+        className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+        size="icon"
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
     </div>
   )
 }

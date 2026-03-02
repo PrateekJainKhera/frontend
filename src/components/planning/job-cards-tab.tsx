@@ -117,9 +117,9 @@ export function JobCardsTab() {
   const stats = {
     total: jobCards.length,
     pending: jobCards.filter(jc => jc.status === 'Pending').length,
-    pendingMaterial: jobCards.filter(jc => jc.status === 'Pending Material').length,
-    inProgress: jobCards.filter(jc => jc.status === 'In Progress').length,
-    completed: jobCards.filter(jc => jc.status === 'Completed').length,
+    scheduled: jobCards.filter(jc => jc.status === 'Scheduled').length,
+    inProgress: jobCards.filter(jc => jc.productionStatus === 'InProgress' || jc.productionStatus === 'Paused').length,
+    completed: jobCards.filter(jc => jc.productionStatus === 'Completed').length,
   }
 
   const getStatusBadgeVariant = (status: string) => {
@@ -184,10 +184,10 @@ export function JobCardsTab() {
           </CardHeader>
         </Card>
 
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-yellow-200 bg-yellow-50">
           <CardHeader className="pb-3">
-            <CardDescription className="text-red-700">Pending Material</CardDescription>
-            <CardTitle className="text-3xl text-red-900">{stats.pendingMaterial}</CardTitle>
+            <CardDescription className="text-yellow-700">Scheduled</CardDescription>
+            <CardTitle className="text-3xl text-yellow-900">{stats.scheduled}</CardTitle>
           </CardHeader>
         </Card>
 

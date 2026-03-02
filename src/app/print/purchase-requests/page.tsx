@@ -1,11 +1,11 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { purchaseRequestService, PurchaseRequestResponse } from '@/lib/api/purchase-requests'
 import { format } from 'date-fns'
 
-export default function BulkPrintPurchaseRequestsPage() {
+function BulkPrintContent() {
   const searchParams = useSearchParams()
   const [prs, setPRs] = useState<PurchaseRequestResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -188,5 +188,13 @@ export default function BulkPrintPurchaseRequestsPage() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function BulkPrintPurchaseRequestsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 32, textAlign: 'center', fontFamily: 'Arial' }}>Loading...</div>}>
+      <BulkPrintContent />
+    </Suspense>
   )
 }

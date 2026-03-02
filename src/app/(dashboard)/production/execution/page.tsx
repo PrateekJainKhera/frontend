@@ -3,13 +3,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
-  ChevronDown, ChevronRight, CheckCircle, Lock, Clock, RefreshCw, Layers, Truck,
+  ChevronDown, ChevronRight, CheckCircle, Lock, Clock, RefreshCw, Layers, Truck, Play,
+  ShieldCheck, FileUp, XCircle,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
@@ -21,6 +23,7 @@ import {
 } from '@/lib/api/production'
 import { ospService } from '@/lib/api/osp'
 import { vendorService, VendorResponse } from '@/lib/api/vendors'
+import { qcService, QCPendingItem } from '@/lib/api/qc'
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 
@@ -253,7 +256,7 @@ function BatchOSPDialog({
 function JobCardRow({
   row, state, ospChecked,
   onToggle, onOspToggle,
-  onQtyChange, onSubmit, onLogOSP,
+  onQtyChange, onSubmit, onStart, onLogOSP,
 }: {
   row: ExecutionViewRow
   state: RowState
@@ -262,6 +265,7 @@ function JobCardRow({
   onOspToggle: () => void
   onQtyChange: (field: 'completedQty' | 'rejectedQty', value: string) => void
   onSubmit: () => void
+  onStart: () => void
   onLogOSP: () => void
 }) {
   const isDone = row.productionStatus === 'Completed'
@@ -361,10 +365,26 @@ function JobCardRow({
             Send to Vendor
           </Button>
         )}
+
+        {/* Start button for Ready in-house rows */}
+        {!isOsp && !isLocked && !isDone && row.productionStatus === 'Ready' && !state.checked && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1 ml-auto border-blue-500 text-blue-700 hover:bg-blue-50"
+            disabled={state.submitting}
+            onClick={onStart}
+          >
+            {state.submitting
+              ? <RefreshCw className="h-3 w-3 animate-spin" />
+              : <Play className="h-3 w-3" />}
+            Start
+          </Button>
+        )}
       </div>
 
-      {/* Expanded qty entry (in-house only) */}
-      {!isOsp && state.checked && !isDone && !isLocked && (
+      {/* Expanded qty entry (in-house only): shown when checked OR already InProgress */}
+      {!isOsp && (state.checked || row.productionStatus === 'InProgress') && !isDone && !isLocked && (
         <div className="mt-3 flex items-end gap-4 flex-wrap border-t border-blue-200 pt-3">
           <div className="flex flex-col gap-1">
             <Label className="text-xs text-muted-foreground">Completed Qty</Label>
@@ -393,7 +413,7 @@ function JobCardRow({
               {state.submitting
                 ? <RefreshCw className="h-3 w-3 animate-spin mr-1" />
                 : <CheckCircle className="h-3 w-3 mr-1" />}
-              Submit
+              Complete
             </Button>
             <Button size="sm" variant="ghost" className="h-8" onClick={onToggle} disabled={state.submitting}>
               Cancel
@@ -401,6 +421,261 @@ function JobCardRow({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── QC Submit Dialog ──────────────────────────────────────────────────────────
+
+function SubmitQCDialog({
+  item, onClose, onSubmitted,
+}: {
+  item: QCPendingItem | null
+  onClose: () => void
+  onSubmitted: () => void
+}) {
+  const [qcStatus, setQcStatus] = useState<'Passed' | 'Failed'>('Passed')
+  const [qcBy, setQcBy] = useState('')
+  const [notes, setNotes] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (item) {
+      setQcStatus('Passed'); setQcBy(''); setNotes(''); setFile(null)
+    }
+  }, [item])
+
+  async function save() {
+    if (!item) return
+    if (!qcBy.trim()) { toast.error('Enter QC completed by name'); return }
+    setSaving(true)
+    try {
+      await qcService.submitQC(item.orderItemId, item.orderId, qcStatus, qcBy.trim(), notes, file)
+      toast.success(qcStatus === 'Passed'
+        ? `QC Passed — ${item.orderNo}-${item.itemSequence} is ready for dispatch`
+        : `QC Failed — ${item.orderNo}-${item.itemSequence} marked as failed`)
+      onSubmitted()
+      onClose()
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to submit QC')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={!!item} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-blue-600" />
+            Quality Check (QC)
+          </DialogTitle>
+        </DialogHeader>
+
+        {item && (
+          <div className="space-y-4 py-1">
+            {/* Order info */}
+            <div className="rounded-md bg-muted/40 px-3 py-2 text-sm space-y-0.5">
+              <div><span className="text-muted-foreground">Order: </span><strong className="font-mono">{item.orderNo}-{item.itemSequence}</strong></div>
+              <div><span className="text-muted-foreground">Product: </span>{item.productName}</div>
+              <div><span className="text-muted-foreground">Customer: </span>{item.customerName}</div>
+              <div><span className="text-muted-foreground">Qty: </span>{item.quantity} pcs</div>
+              {item.qcStatus === 'Failed' && (
+                <div className="flex items-center gap-1 text-red-600 mt-1">
+                  <XCircle className="h-3 w-3" />
+                  <span className="text-xs">Previous QC: Failed — re-submitting</span>
+                </div>
+              )}
+            </div>
+
+            {/* QC Result */}
+            <div className="space-y-1.5">
+              <Label>QC Result <span className="text-red-500">*</span></Label>
+              <Select value={qcStatus} onValueChange={(v) => setQcStatus(v as 'Passed' | 'Failed')}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Passed">
+                    <span className="flex items-center gap-2 text-green-700">
+                      <CheckCircle className="h-3.5 w-3.5" /> Passed
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="Failed">
+                    <span className="flex items-center gap-2 text-red-700">
+                      <XCircle className="h-3.5 w-3.5" /> Failed
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* QC By */}
+            <div className="space-y-1.5">
+              <Label>QC Completed By <span className="text-red-500">*</span></Label>
+              <Input
+                value={qcBy}
+                onChange={(e) => setQcBy(e.target.value)}
+                placeholder="Inspector name"
+                className="h-9"
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Observations, defects found, etc."
+                className="resize-none h-20 text-sm"
+              />
+            </div>
+
+            {/* Certificate PDF */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <FileUp className="h-3.5 w-3.5" />
+                QC Certificate (PDF) — optional
+              </Label>
+              <Input
+                type="file"
+                accept=".pdf,application/pdf"
+                className="h-9 text-sm"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+              {file && (
+                <p className="text-xs text-muted-foreground truncate">{file.name}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button
+            onClick={save}
+            disabled={saving || !qcBy.trim()}
+            className={`gap-1 ${qcStatus === 'Passed'
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : 'bg-red-600 hover:bg-red-700 text-white'}`}
+          >
+            {saving
+              ? <RefreshCw className="h-3 w-3 animate-spin" />
+              : <ShieldCheck className="h-3 w-3" />}
+            {qcStatus === 'Passed' ? 'Mark Passed' : 'Mark Failed'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── QC Section (bottom of execution page) ────────────────────────────────────
+
+function QCSection({ onRefreshExecution }: { onRefreshExecution: () => void }) {
+  const [items, setItems] = useState<QCPendingItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(true)
+  const [dialogItem, setDialogItem] = useState<QCPendingItem | null>(null)
+
+  const loadQC = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await qcService.getPending()
+      setItems(data)
+      if (data.length > 0) setExpanded(true)
+    } catch {
+      // silent — QC section is non-critical
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadQC() }, [loadQC])
+
+  if (!loading && items.length === 0) return null  // hide section when nothing pending
+
+  const failedCount = items.filter((i) => i.qcStatus === 'Failed').length
+
+  return (
+    <div className="border-2 border-blue-200 rounded-lg overflow-hidden">
+      {/* Section header */}
+      <button
+        className="w-full flex items-center justify-between px-5 py-4 text-left bg-blue-50 hover:bg-blue-100 transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex items-center gap-3">
+          {expanded ? <ChevronDown className="h-4 w-4 text-blue-600" /> : <ChevronRight className="h-4 w-4 text-blue-600" />}
+          <ShieldCheck className="h-4 w-4 text-blue-600" />
+          <span className="font-semibold text-base text-blue-900">Quality Check (QC)</span>
+          <Badge className="bg-blue-600 text-white text-xs">{items.length} pending</Badge>
+          {failedCount > 0 && (
+            <Badge className="bg-red-500 text-white text-xs">{failedCount} failed</Badge>
+          )}
+        </div>
+        <span className="text-xs text-blue-700">Assembly complete — awaiting QC sign-off before dispatch</span>
+      </button>
+
+      {expanded && (
+        <div className="px-5 py-4 space-y-2 bg-background">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+              <RefreshCw className="h-4 w-4 animate-spin" /> Loading...
+            </div>
+          ) : (
+            items.map((item) => {
+              const isFailed = item.qcStatus === 'Failed'
+              return (
+                <div
+                  key={item.orderItemId}
+                  className={`rounded-lg border px-4 py-3 flex items-center gap-4 flex-wrap transition-colors ${
+                    isFailed ? 'bg-red-50 border-red-200' : 'bg-background border-border'
+                  }`}
+                >
+                  <span className="font-mono text-sm font-semibold w-36 shrink-0">
+                    {item.orderNo}-{item.itemSequence}
+                  </span>
+
+                  <span className="text-sm text-muted-foreground flex-1 min-w-0 truncate">
+                    {item.productName}
+                    {item.customerName && <span className="text-xs ml-1">· {item.customerName}</span>}
+                  </span>
+
+                  <span className="text-sm text-muted-foreground shrink-0">Qty: {item.quantity}</span>
+
+                  {isFailed ? (
+                    <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs shrink-0">
+                      <XCircle className="h-3 w-3 mr-1" />QC Failed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300 text-xs shrink-0">
+                      Awaiting QC
+                    </Badge>
+                  )}
+
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs gap-1 ml-auto bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                    onClick={() => setDialogItem(item)}
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    {isFailed ? 'Re-submit QC' : 'Submit QC'}
+                  </Button>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      <SubmitQCDialog
+        item={dialogItem}
+        onClose={() => setDialogItem(null)}
+        onSubmitted={() => { loadQC(); onRefreshExecution() }}
+      />
     </div>
   )
 }
@@ -458,7 +733,7 @@ export default function ProductionExecutionPage() {
   }, [])
 
   useEffect(() => {
-    vendorService.getActive().then(setVendors).catch(() => {})
+    vendorService.getAll().then(setVendors).catch(() => {})
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -571,6 +846,24 @@ export default function ProductionExecutionPage() {
     if (successCount > 0) toast.success(`${successCount} job card(s) marked complete`)
     if (failCount > 0) toast.error(`${failCount} job card(s) failed — check quantities`)
     await load()
+  }
+
+  const startRow = async (row: ExecutionViewRow) => {
+    setRowStates((prev) => ({
+      ...prev,
+      [row.jobCardId]: { ...prev[row.jobCardId], submitting: true },
+    }))
+    try {
+      await productionService.jobCardAction(row.jobCardId, 'start')
+      toast.success(`${row.orderNo} — ${row.childPartName} started`)
+      await load()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to start')
+      setRowStates((prev) => ({
+        ...prev,
+        [row.jobCardId]: { ...prev[row.jobCardId], submitting: false },
+      }))
+    }
   }
 
   const submitRow = async (row: ExecutionViewRow) => {
@@ -782,6 +1075,7 @@ export default function ProductionExecutionPage() {
                             onOspToggle={() => toggleOspRow(row.jobCardId)}
                             onQtyChange={(field, value) => changeQty(row.jobCardId, field, value)}
                             onSubmit={() => submitRow(row)}
+                            onStart={() => startRow(row)}
                             onLogOSP={() => setOspDialogRow(row)}
                           />
                         ))}
@@ -818,6 +1112,9 @@ export default function ProductionExecutionPage() {
           load()
         }}
       />
+
+      {/* QC Section — shown at bottom when assembly-complete items need sign-off */}
+      <QCSection onRefreshExecution={load} />
     </div>
   )
 }

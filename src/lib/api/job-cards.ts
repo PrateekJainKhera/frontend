@@ -63,6 +63,9 @@ export interface JobCardResponse {
 
   quantity: number
   status: string
+  productionStatus: string
+  completedQty: number
+  rejectedQty: number
   priority: string
 
   manufacturingDimensions?: string | null

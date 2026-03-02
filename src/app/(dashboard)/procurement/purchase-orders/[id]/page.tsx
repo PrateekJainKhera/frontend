@@ -89,7 +89,7 @@ export default function PurchaseOrderDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
-            <Link href={`/procurement/purchase-orders/${poId}/print`}>
+            <Link href={`/print/purchase-orders/${poId}`}>
               <Printer className="mr-2 h-4 w-4" />
               Print
             </Link>
