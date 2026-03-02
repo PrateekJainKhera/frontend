@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { CheckCircle, XCircle, Plus, ExternalLink } from 'lucide-react'
+import { CheckCircle, XCircle, Plus, ExternalLink, Printer } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -185,9 +185,17 @@ export default function PurchaseRequestDetailPage() {
             Requested by {pr.requestedBy} on {format(new Date(pr.createdAt), 'dd MMM yyyy')}
           </p>
         </div>
-        <Button variant="outline" asChild className="self-start">
-          <Link href="/procurement/purchase-requests">← Back</Link>
-        </Button>
+        <div className="flex gap-2 self-start">
+          <Button variant="outline" asChild>
+            <Link href={`/print/purchase-requests/${id}`}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/procurement/purchase-requests">← Back</Link>
+          </Button>
+        </div>
       </div>
 
       {/* PR Notes */}
@@ -276,12 +284,18 @@ export default function PurchaseRequestDetailPage() {
                   {item.itemType === 'RawMaterial' && item.cuttingList && item.cuttingList.length > 0 && (
                     <div className="bg-blue-50 border border-blue-200 rounded p-2">
                       <p className="text-xs font-semibold text-blue-700 mb-1">
-                        Cutting List — Total: {item.cuttingList.reduce((s, r) => s + r.totalLengthMeter, 0).toFixed(3)}m
+                        Cutting List — Total: {(item.cuttingList.reduce((s, r) => s + r.totalLengthMeter, 0) * 1000).toFixed(0)}mm
+                        {item.materialWeightKgPerMm != null && (
+                          <span className="ml-2 text-blue-600">| {(item.cuttingList.reduce((s, r) => s + r.totalLengthMeter, 0) * 1000 * item.materialWeightKgPerMm).toFixed(3)}kg</span>
+                        )}
                       </p>
                       <div className="space-y-0.5">
                         {item.cuttingList.map((row) => (
                           <p key={row.id} className="text-xs text-blue-800">
-                            {row.lengthMeter}m × {row.pieces} pcs = {row.totalLengthMeter.toFixed(3)}m
+                            {(row.lengthMeter * 1000).toFixed(0)}mm × {row.pieces} pcs = {(row.totalLengthMeter * 1000).toFixed(0)}mm
+                            {item.materialWeightKgPerMm != null && (
+                              <span className="text-blue-600 ml-1">({(row.totalLengthMeter * 1000 * item.materialWeightKgPerMm).toFixed(3)}kg)</span>
+                            )}
                             {row.notes && <span className="text-blue-500 ml-1">({row.notes})</span>}
                           </p>
                         ))}
@@ -409,12 +423,18 @@ export default function PurchaseRequestDetailPage() {
                         {item.itemType === 'RawMaterial' && item.cuttingList && item.cuttingList.length > 0 && (
                           <div className="mt-2 bg-blue-50 border border-blue-200 rounded p-2">
                             <p className="text-xs font-semibold text-blue-700 mb-1">
-                              Cutting List — Total: {item.cuttingList.reduce((s, r) => s + r.totalLengthMeter, 0).toFixed(3)}m
+                              Cutting List — Total: {(item.cuttingList.reduce((s, r) => s + r.totalLengthMeter, 0) * 1000).toFixed(0)}mm
+                              {item.materialWeightKgPerMm != null && (
+                                <span className="ml-2 text-blue-600">| {(item.cuttingList.reduce((s, r) => s + r.totalLengthMeter, 0) * 1000 * item.materialWeightKgPerMm).toFixed(3)}kg</span>
+                              )}
                             </p>
                             <div className="space-y-0.5">
                               {item.cuttingList.map((row) => (
                                 <p key={row.id} className="text-xs text-blue-800">
-                                  {row.lengthMeter}m × {row.pieces} pcs = {row.totalLengthMeter.toFixed(3)}m
+                                  {(row.lengthMeter * 1000).toFixed(0)}mm × {row.pieces} pcs = {(row.totalLengthMeter * 1000).toFixed(0)}mm
+                                  {item.materialWeightKgPerMm != null && (
+                                    <span className="text-blue-600 ml-1">({(row.totalLengthMeter * 1000 * item.materialWeightKgPerMm).toFixed(3)}kg)</span>
+                                  )}
                                   {row.notes && <span className="text-blue-500 ml-1">({row.notes})</span>}
                                 </p>
                               ))}

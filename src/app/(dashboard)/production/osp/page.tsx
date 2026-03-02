@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
-import { RefreshCw, Plus, CheckCircle, AlertTriangle, Truck } from 'lucide-react'
+import { RefreshCw, Plus, CheckCircle, AlertTriangle, Truck, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -300,6 +300,7 @@ export default function OSPTrackingPage() {
   const [loading, setLoading] = useState(true)
   const [logOpen, setLogOpen] = useState(false)
   const [receiveEntry, setReceiveEntry] = useState<OSPTrackingEntry | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -319,6 +320,18 @@ export default function OSPTrackingPage() {
   const atVendor = entries.filter((e) => e.status === 'Sent').length
   const overdue = entries.filter(isOverdue).length
   const received = entries.filter((e) => e.status === 'Received').length
+
+  const filteredEntries = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    if (!q) return entries
+    return entries.filter(e =>
+      e.jobCardNo.toLowerCase().includes(q) ||
+      (e.childPartName ?? '').toLowerCase().includes(q) ||
+      (e.processName ?? '').toLowerCase().includes(q) ||
+      (e.vendorName ?? '').toLowerCase().includes(q) ||
+      orderLabel(e).toLowerCase().includes(q)
+    )
+  }, [entries, searchQuery])
 
   return (
     <div className="space-y-4">
@@ -361,6 +374,18 @@ export default function OSPTrackingPage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search job card, part, vendor, order..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+      </div>
+
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center h-40 text-muted-foreground">
@@ -371,6 +396,11 @@ export default function OSPTrackingPage() {
           <Truck className="h-8 w-8 opacity-30" />
           <p className="text-sm">No OSP entries yet.</p>
           <p className="text-xs">Click "Log OSP" to track materials sent to vendors.</p>
+        </div>
+      ) : filteredEntries.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2 border-2 border-dashed rounded-lg">
+          <Search className="h-8 w-8 opacity-30" />
+          <p className="text-sm">No entries match your search.</p>
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
@@ -391,7 +421,7 @@ export default function OSPTrackingPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((e) => {
+              {filteredEntries.map((e) => {
                 const processed = e.receivedQty + e.rejectedQty
                 const isPartial = e.status === 'Sent' && processed > 0
                 return (

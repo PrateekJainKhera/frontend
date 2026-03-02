@@ -12,13 +12,15 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Calendar } from 'lucide-react'
+import { Eye, Calendar, Pencil, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
 import { Progress } from '@/components/ui/progress'
 import { getOrderProgress, getDelayDays } from '@/lib/mock-data/orders'
 
 interface OrdersTableProps {
   orders: Order[]
+  onDelete?: (orderId: string) => void
+  onEdit?: (orderId: string) => void
 }
 
 const getStatusVariant = (status: string) => {
@@ -34,7 +36,7 @@ const getStatusVariant = (status: string) => {
   }
 }
 
-export function OrdersTable({ orders }: OrdersTableProps) {
+export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
   const router = useRouter()
 
   const handleViewOrder = (orderId: string) => {
@@ -140,13 +142,21 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleViewOrder(order.id)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleViewOrder(order.id)} title="View">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {onEdit && (
+                      <Button variant="ghost" size="icon" onClick={() => onEdit(order.id)} title="Edit">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onDelete && (
+                      <Button variant="ghost" size="icon" onClick={() => onDelete(order.id)} title="Delete" className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             )

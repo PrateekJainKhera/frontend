@@ -190,6 +190,21 @@ class JobCardService {
     }
   }
 
+  async updateQuantity(id: number, newQuantity: number): Promise<void> {
+    try {
+      const response = await apiClient.patch<ApiResponse<boolean>>(
+        `${this.baseUrl}/${id}/update-quantity`,
+        { newQuantity, updatedBy: 'Admin' }
+      )
+      if (!response.data.success) throw new Error(response.data.message)
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to update quantity: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async delete(id: number): Promise<boolean> {
     try {
       const response = await apiClient.delete<ApiResponse<boolean>>(`${this.baseUrl}/${id}`)

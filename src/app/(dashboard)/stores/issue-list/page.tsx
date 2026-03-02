@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { issueWindowService } from '@/lib/api/issue-window'
 import { DraftSummary, DraftDetail, IssueDraftRequest } from '@/types/issue-window'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
   Eye,
   PackageCheck,
   ClipboardList,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -188,6 +189,7 @@ export default function IssueListPage() {
   const [drafts, setDrafts] = useState<DraftSummary[]>([])
   const [loading, setLoading] = useState(true)
 
+  const [searchQuery, setSearchQuery] = useState('')
   const [issuingDraft, setIssuingDraft] = useState<DraftSummary | null>(null)
   const [issuing, setIssuing] = useState(false)
 
@@ -200,6 +202,12 @@ export default function IssueListPage() {
     setToast({ type, msg })
     setTimeout(() => setToast(null), 4000)
   }
+
+  const filteredDrafts = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    if (!q) return drafts
+    return drafts.filter(d => d.draftNo.toLowerCase().includes(q))
+  }, [drafts, searchQuery])
 
   const loadDrafts = async () => {
     setLoading(true)
@@ -272,9 +280,21 @@ export default function IssueListPage() {
               Finalized cutting drafts ready for physical material issue
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={loadDrafts} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search draft no..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="flex h-9 w-48 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={loadDrafts} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -289,9 +309,14 @@ export default function IssueListPage() {
               <p className="text-sm">No finalized drafts yet.</p>
               <p className="text-xs">Finalize drafts in Cutting Planning to see them here.</p>
             </div>
+          ) : filteredDrafts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+              <Search className="h-10 w-10 opacity-30" />
+              <p className="text-sm">No drafts match your search.</p>
+            </div>
           ) : (
             <div className="space-y-2 max-w-4xl">
-              {drafts.map(draft => (
+              {filteredDrafts.map(draft => (
                 <div
                   key={draft.id}
                   className="flex items-center gap-4 rounded-lg border bg-background px-4 py-3 hover:bg-muted/20 transition-colors"

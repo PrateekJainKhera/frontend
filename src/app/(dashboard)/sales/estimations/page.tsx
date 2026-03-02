@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { Plus, Filter, FileText } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Plus, Filter, FileText, Search } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +24,7 @@ export default function EstimationsPage() {
   const [estimations, setEstimations] = useState<EstimationResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => { loadEstimations() }, [])
 
@@ -39,10 +40,19 @@ export default function EstimationsPage() {
     }
   }
 
-  const filtered = estimations.filter(e => {
-    if (statusFilter !== 'all' && e.status !== statusFilter) return false
-    return true
-  })
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    return estimations.filter(e => {
+      if (statusFilter !== 'all' && e.status !== statusFilter) return false
+      if (q) {
+        return (
+          e.estimateNo.toLowerCase().includes(q) ||
+          (e.customerName?.toLowerCase() ?? '').includes(q)
+        )
+      }
+      return true
+    })
+  }, [estimations, statusFilter, searchQuery])
 
   const counts = {
     total: estimations.length,
@@ -93,6 +103,16 @@ export default function EstimationsPage() {
 
       {/* Filter */}
       <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by estimate no or customer..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="flex h-9 w-64 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
         <Filter className="h-4 w-4 text-muted-foreground" />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">

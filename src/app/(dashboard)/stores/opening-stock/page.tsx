@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Eye, Trash2, CheckCircle, Package } from 'lucide-react'
+import { Plus, Eye, Trash2, CheckCircle, Package, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,6 +22,7 @@ export default function OpeningStockPage() {
   const [entries, setEntries] = useState<OpeningStockSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [searchQuery, setSearchQuery] = useState('')
   const [deleting, setDeleting] = useState<number | null>(null)
 
   useEffect(() => {
@@ -61,9 +62,14 @@ export default function OpeningStockPage() {
     Confirmed: entries.filter(e => e.status === 'Confirmed').length,
   }
 
-  const filtered = entries.filter(e =>
-    statusFilter === 'All' || e.status === statusFilter
-  )
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    return entries.filter(e => {
+      if (statusFilter !== 'All' && e.status !== statusFilter) return false
+      if (q) return e.entryNo.toLowerCase().includes(q) || e.remarks?.toLowerCase().includes(q)
+      return true
+    })
+  }, [entries, statusFilter, searchQuery])
 
   const totalPieces = entries.filter(e => e.status === 'Confirmed').reduce((s, e) => s + e.totalPieces, 0)
   const totalComponents = entries.filter(e => e.status === 'Confirmed').reduce((s, e) => s + e.totalComponents, 0)
@@ -111,10 +117,22 @@ export default function OpeningStockPage() {
       {/* Table */}
       <Card className="border-2 border-border">
         <CardHeader>
-          <CardTitle>
-            Opening Stock Entries
-            <span className="text-muted-foreground font-normal text-base ml-2">({filtered.length})</span>
-          </CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle>
+              Opening Stock Entries
+              <span className="text-muted-foreground font-normal text-base ml-2">({filtered.length})</span>
+            </CardTitle>
+            <div className="relative shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search by entry no or remarks..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="flex h-9 w-60 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-6">
           {filtered.length === 0 ? (

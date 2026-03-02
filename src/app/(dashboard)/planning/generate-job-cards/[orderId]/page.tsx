@@ -1,9 +1,9 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, AlertTriangle, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Save } from 'lucide-react'
+import { ArrowLeft, Package, AlertTriangle, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Save, Pencil, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -108,6 +108,12 @@ export default function GenerateJobCardsPage() {
   // Track unsaved changes and saving state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Inline qty edit
+  const [editingQty, setEditingQty] = useState(false)
+  const [editQtyValue, setEditQtyValue] = useState('')
+  const [savingQty, setSavingQty] = useState(false)
+  const qtyInputRef = useRef<HTMLInputElement>(null)
 
   // Piece selection dialog state
   const [pieceSelectionOpen, setPieceSelectionOpen] = useState(false)
@@ -327,6 +333,37 @@ export default function GenerateJobCardsPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const startQtyEdit = () => {
+    const currentQty = currentOrderItem ? currentOrderItem.quantity : order?.quantity ?? 1
+    setEditQtyValue(String(currentQty))
+    setEditingQty(true)
+    setTimeout(() => qtyInputRef.current?.select(), 0)
+  }
+
+  const cancelQtyEdit = () => {
+    setEditingQty(false)
+    setEditQtyValue('')
+  }
+
+  const saveQty = async () => {
+    const newQty = parseInt(editQtyValue)
+    if (isNaN(newQty) || newQty < 1) { toast.error('Quantity must be at least 1'); return }
+    const currentQty = currentOrderItem ? currentOrderItem.quantity : order?.quantity ?? 1
+    if (newQty === currentQty) { cancelQtyEdit(); return }
+    setSavingQty(true)
+    try {
+      await orderService.updateQuantity(Number(orderId), newQty, currentOrderItem?.id)
+      toast.success(`Quantity updated to ${newQty}`)
+      setEditingQty(false)
+      setEditQtyValue('')
+      await loadData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update quantity')
+    } finally {
+      setSavingQty(false)
     }
   }
 
@@ -1189,7 +1226,33 @@ export default function GenerateJobCardsPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
             <div>
               <span className="text-muted-foreground">Quantity:</span>
-              <span className="ml-2 font-medium">{currentOrderItem ? currentOrderItem.quantity : order.quantity} pcs</span>
+              {editingQty ? (
+                <span className="ml-2 inline-flex items-center gap-1">
+                  <input
+                    ref={qtyInputRef}
+                    type="number"
+                    min={1}
+                    value={editQtyValue}
+                    onChange={e => setEditQtyValue(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveQty(); if (e.key === 'Escape') cancelQtyEdit() }}
+                    disabled={savingQty}
+                    className="w-20 h-7 rounded border border-input bg-background px-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                  <button onClick={saveQty} disabled={savingQty} className="h-7 w-7 flex items-center justify-center rounded text-green-600 hover:bg-green-50 disabled:opacity-50" title="Save">
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button onClick={cancelQtyEdit} disabled={savingQty} className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted" title="Cancel">
+                    <X className="h-4 w-4" />
+                  </button>
+                </span>
+              ) : (
+                <span className="ml-2 inline-flex items-center gap-1">
+                  <span className="font-medium">{currentOrderItem ? currentOrderItem.quantity : order.quantity} pcs</span>
+                  <button onClick={startQtyEdit} className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted" title="Edit quantity">
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
             </div>
             <div>
               <span className="text-muted-foreground">Due Date:</span>

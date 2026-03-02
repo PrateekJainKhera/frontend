@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { FileText, CheckCircle2, Clock, AlertTriangle, Eye, Upload } from 'lucide-react'
+import { FileText, CheckCircle2, Clock, AlertTriangle, Eye, Upload, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,7 @@ import { formatDate } from '@/lib/utils/formatters'
 export default function DrawingReviewDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     loadData()
@@ -30,24 +31,34 @@ export default function DrawingReviewDashboardPage() {
     setLoading(false)
   }
 
+  const visibleProducts = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    if (!q) return products
+    return products.filter(p =>
+      p.partCode.toLowerCase().includes(q) ||
+      (p.customerName ?? '').toLowerCase().includes(q) ||
+      (p.modelName ?? '').toLowerCase().includes(q)
+    )
+  }, [products, searchQuery])
+
   // Filter products by drawing review status
-  const pendingReviewProducts = products.filter(product =>
+  const pendingReviewProducts = visibleProducts.filter(product =>
     product.drawingReviewStatus === 'Pending'
   )
 
-  const underReviewProducts = products.filter(product =>
+  const underReviewProducts = visibleProducts.filter(product =>
     product.drawingReviewStatus === 'UnderReview'
   )
 
-  const revisionRequiredProducts = products.filter(product =>
+  const revisionRequiredProducts = visibleProducts.filter(product =>
     product.drawingReviewStatus === 'RevisionRequired'
   )
 
-  const rejectedProducts = products.filter(product =>
+  const rejectedProducts = visibleProducts.filter(product =>
     product.drawingReviewStatus === 'Rejected'
   )
 
-  const approvedProducts = products.filter(product =>
+  const approvedProducts = visibleProducts.filter(product =>
     product.drawingReviewStatus === 'Approved'
   )
 
@@ -93,12 +104,22 @@ export default function DrawingReviewDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Product Drawing Review</h1>
           <p className="text-muted-foreground mt-1">
             Manage and approve product drawings before production planning
           </p>
+        </div>
+        <div className="relative shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search part code, customer, model..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="flex h-9 w-64 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
         </div>
       </div>
 

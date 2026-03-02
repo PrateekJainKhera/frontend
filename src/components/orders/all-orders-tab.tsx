@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, Filter } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -15,8 +16,10 @@ import {
 import { Order, OrderStatus, OrderSource, Priority, PlanningStatus, DrawingReviewStatus, SchedulingStrategy } from '@/types'
 import { OrdersTable } from '@/components/tables/orders-table'
 import { orderService, OrderResponse } from '@/lib/api/orders'
+import { toast } from 'sonner'
 
 export function AllOrdersTab() {
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -92,6 +95,21 @@ export function AllOrdersTab() {
       console.error('Failed to load orders:', err)
     }
     setLoading(false)
+  }
+
+  const handleDelete = async (orderId: string) => {
+    if (!confirm('Are you sure you want to delete this order? This cannot be undone.')) return
+    try {
+      await orderService.delete(Number(orderId))
+      toast.success('Order deleted')
+      loadOrders()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete order')
+    }
+  }
+
+  const handleEdit = (orderId: string) => {
+    router.push(`/orders/${orderId}`)
   }
 
   const filteredOrders = orders.filter((order) => {
@@ -192,7 +210,7 @@ export function AllOrdersTab() {
           ))}
         </div>
       ) : (
-        <OrdersTable orders={filteredOrders} />
+        <OrdersTable orders={filteredOrders} onDelete={handleDelete} onEdit={handleEdit} />
       )}
     </div>
   )

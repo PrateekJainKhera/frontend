@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Package, Truck, CheckCircle2, AlertTriangle, RefreshCw, X } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Package, Truck, CheckCircle2, AlertTriangle, RefreshCw, X, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -108,7 +108,32 @@ export default function DispatchDashboardPage() {
     }
   }
 
+  const [searchQuery, setSearchQuery] = useState('')
+
   const dispatchedChallans = challans.filter(c => c.status === 'Dispatched')
+
+  const filteredReadyItems = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    if (!q) return readyItems
+    return readyItems.filter(i =>
+      i.orderNo.toLowerCase().includes(q) ||
+      (i.customerName ?? '').toLowerCase().includes(q) ||
+      (i.productName ?? '').toLowerCase().includes(q) ||
+      (i.partCode ?? '').toLowerCase().includes(q)
+    )
+  }, [readyItems, searchQuery])
+
+  const filteredChallans = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    if (!q) return dispatchedChallans
+    return dispatchedChallans.filter(c =>
+      c.challanNo.toLowerCase().includes(q) ||
+      c.orderNo.toLowerCase().includes(q) ||
+      (c.customerName ?? '').toLowerCase().includes(q) ||
+      (c.productName ?? '').toLowerCase().includes(q) ||
+      (c.invoiceNo ?? '').toLowerCase().includes(q)
+    )
+  }, [dispatchedChallans, searchQuery])
 
   const stats = {
     readyCount: readyItems.length,
@@ -131,15 +156,27 @@ export default function DispatchDashboardPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dispatch</h1>
           <p className="text-muted-foreground">Dispatch completed products to customers</p>
         </div>
-        <Button variant="outline" onClick={loadData}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search order, customer, product..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="flex h-9 w-60 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+          <Button variant="outline" onClick={loadData}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -194,9 +231,11 @@ export default function DispatchDashboardPage() {
               <p className="font-medium">All dispatched!</p>
               <p className="text-sm">No items waiting for dispatch</p>
             </div>
+          ) : filteredReadyItems.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">No items match your search.</div>
           ) : (
             <div className="space-y-3">
-              {readyItems.map((item) => (
+              {filteredReadyItems.map((item) => (
                 <div
                   key={item.orderItemId}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
@@ -255,7 +294,7 @@ export default function DispatchDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {dispatchedChallans.slice(0, 10).map((challan) => (
+              {filteredChallans.slice(0, 10).map((challan) => (
                 <div
                   key={challan.id}
                   className="flex items-center justify-between p-4 border rounded-lg"

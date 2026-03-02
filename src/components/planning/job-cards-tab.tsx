@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Filter, FileText, AlertTriangle, CheckCircle2, Clock, Package, Search } from 'lucide-react'
+import { Filter, FileText, AlertTriangle, CheckCircle2, Clock, Package, Search, Pencil, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +29,12 @@ export function JobCardsTab() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [orderFilter, setOrderFilter] = useState<string>('all')
 
+  // Inline qty edit
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editQty, setEditQty] = useState('')
+  const [savingId, setSavingId] = useState<number | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     loadData()
   }, [])
@@ -46,6 +52,38 @@ export function JobCardsTab() {
       toast.error(error instanceof Error ? error.message : 'Failed to load job cards')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const startEdit = (jc: JobCardResponse) => {
+    setEditingId(jc.id)
+    setEditQty(jc.quantity.toString())
+    setTimeout(() => inputRef.current?.select(), 0)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditQty('')
+  }
+
+  const saveQty = async (jc: JobCardResponse) => {
+    const newQty = parseInt(editQty)
+    if (isNaN(newQty) || newQty < 1) {
+      toast.error('Quantity must be at least 1')
+      return
+    }
+    if (newQty === jc.quantity) { cancelEdit(); return }
+    setSavingId(jc.id)
+    try {
+      await jobCardService.updateQuantity(jc.id, newQty)
+      toast.success(`${jc.jobCardNo}: quantity updated to ${newQty} — order also updated`)
+      setEditingId(null)
+      setEditQty('')
+      await loadData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update quantity')
+    } finally {
+      setSavingId(null)
     }
   }
 
@@ -308,7 +346,47 @@ export function JobCardsTab() {
                         )}
                         <div>
                           <span className="text-muted-foreground">Quantity:</span>
-                          <p className="font-medium">{jc.quantity} pcs</p>
+                          {editingId === jc.id ? (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <input
+                                ref={inputRef}
+                                type="number"
+                                min={1}
+                                value={editQty}
+                                onChange={e => setEditQty(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') saveQty(jc); if (e.key === 'Escape') cancelEdit() }}
+                                className="w-20 h-7 rounded border border-input bg-background px-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                disabled={savingId === jc.id}
+                              />
+                              <button
+                                onClick={() => saveQty(jc)}
+                                disabled={savingId === jc.id}
+                                className="h-7 w-7 flex items-center justify-center rounded text-green-600 hover:bg-green-50 disabled:opacity-50"
+                                title="Save"
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                disabled={savingId === jc.id}
+                                className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted"
+                                title="Cancel"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <p className="font-medium">{jc.quantity} pcs</p>
+                              <button
+                                onClick={() => startEdit(jc)}
+                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                                title="Edit quantity"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 

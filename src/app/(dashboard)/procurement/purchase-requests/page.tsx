@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Filter } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, Filter, Printer } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { purchaseRequestService, PurchaseRequestResponse } from '@/lib/api/purchase-requests'
 import { toast } from 'sonner'
@@ -21,10 +23,34 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function PurchaseRequestsPage() {
+  const router = useRouter()
   const [prs, setPRs] = useState<PurchaseRequestResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = (ids: number[]) => {
+    if (ids.every(id => selectedIds.has(id))) {
+      setSelectedIds(prev => { const next = new Set(prev); ids.forEach(id => next.delete(id)); return next })
+    } else {
+      setSelectedIds(prev => { const next = new Set(prev); ids.forEach(id => next.add(id)); return next })
+    }
+  }
+
+  const printSelected = () => {
+    if (selectedIds.size === 0) return
+    const ids = Array.from(selectedIds).join(',')
+    router.push(`/print/purchase-requests?ids=${ids}`)
+  }
 
   useEffect(() => { loadPRs() }, [])
 
@@ -62,6 +88,12 @@ export default function PurchaseRequestsPage() {
           <p className="text-muted-foreground text-sm">Create and manage purchase requests for components and raw materials</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {selectedIds.size > 0 && (
+            <Button variant="outline" onClick={printSelected}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print Selected ({selectedIds.size})
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link href="/procurement/purchase-requests/create?itemType=RawMaterial">Raw Material PR</Link>
           </Button>
@@ -141,6 +173,12 @@ export default function PurchaseRequestsPage() {
             <table className="w-full text-sm min-w-[400px]">
               <thead>
                 <tr className="bg-muted border-b">
+                  <th className="p-3 w-10">
+                    <Checkbox
+                      checked={filtered.length > 0 && filtered.every(pr => selectedIds.has(pr.id))}
+                      onCheckedChange={() => toggleSelectAll(filtered.map(pr => pr.id))}
+                    />
+                  </th>
                   <th className="text-left p-3 font-semibold">PR Number</th>
                   <th className="text-left p-3 font-semibold hidden sm:table-cell">Type</th>
                   <th className="text-left p-3 font-semibold hidden sm:table-cell">Items</th>
@@ -152,10 +190,15 @@ export default function PurchaseRequestsPage() {
               </thead>
               <tbody>
                 {filtered.map((pr) => (
-                  <tr key={pr.id} className="border-b hover:bg-muted/40 transition-colors">
+                  <tr key={pr.id} className={`border-b hover:bg-muted/40 transition-colors ${selectedIds.has(pr.id) ? 'bg-blue-50/50' : ''}`}>
+                    <td className="p-3">
+                      <Checkbox
+                        checked={selectedIds.has(pr.id)}
+                        onCheckedChange={() => toggleSelect(pr.id)}
+                      />
+                    </td>
                     <td className="p-3">
                       <p className="font-mono font-semibold text-sm">{pr.prNumber}</p>
-                      {/* Show type inline on mobile */}
                       <p className="text-xs text-muted-foreground sm:hidden">
                         {pr.itemType === 'RawMaterial' ? 'Raw Material' : 'Component'} • {pr.items.length} item(s)
                       </p>

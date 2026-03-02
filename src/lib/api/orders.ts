@@ -331,6 +331,33 @@ class OrderService {
       throw error
     }
   }
+
+  async delete(id: number): Promise<void> {
+    try {
+      const response = await apiClient.delete<ApiResponse<boolean>>(`${this.baseUrl}/${id}`)
+      if (!response.data.success) throw new Error(response.data.message)
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to delete order: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async updateQuantity(orderId: number, newQuantity: number, orderItemId?: number): Promise<void> {
+    try {
+      const response = await apiClient.patch<ApiResponse<boolean>>(
+        `${this.baseUrl}/${orderId}/update-quantity`,
+        { newQuantity, orderItemId: orderItemId ?? null, updatedBy: 'Admin' }
+      )
+      if (!response.data.success) throw new Error(response.data.message)
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to update quantity: ${error.message}`)
+      }
+      throw error
+    }
+  }
 }
 
 export const orderService = new OrderService()

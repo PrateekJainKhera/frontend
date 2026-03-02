@@ -124,24 +124,35 @@ export default function PrintPurchaseOrderPage() {
                     </td>
                   </tr>
                   {/* Cutting list sub-row for raw material items */}
-                  {cuttingList.length > 0 && (
-                    <tr key={`cl-${item.id}`}>
-                      <td></td>
-                      <td colSpan={5} className="border border-gray-300 px-3 pb-2 bg-blue-50">
-                        <p className="text-xs font-semibold text-blue-700 mt-1 mb-1">Cutting Specification:</p>
-                        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                          {cuttingList.map((row) => (
-                            <span key={row.id} className="text-xs text-blue-800">
-                              {row.lengthMeter}m × {row.pieces} pcs = {row.totalLengthMeter.toFixed(3)}m
-                            </span>
-                          ))}
-                          <span className="text-xs font-semibold text-blue-900">
-                            | Total: {cuttingList.reduce((s, r) => s + r.totalLengthMeter, 0).toFixed(3)}m
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
+                  {cuttingList.length > 0 && (() => {
+                    const prItem = pr?.items.find(i => i.id === item.purchaseRequestItemId)
+                    const wPerMm = prItem?.materialWeightKgPerMm ?? null
+                    const totalMM = cuttingList.reduce((s, r) => s + r.totalLengthMeter, 0) * 1000
+                    const totalKg = wPerMm != null ? totalMM * wPerMm : null
+                    return (
+                      <tr key={`cl-${item.id}`}>
+                        <td></td>
+                        <td colSpan={5} className="border border-gray-300 px-3 pb-2 bg-blue-50">
+                          <p className="text-xs font-semibold text-blue-700 mt-1 mb-1">
+                            Cutting Specification — Total: {totalMM.toFixed(0)}mm
+                            {totalKg != null && <span className="ml-2">| {totalKg.toFixed(3)}kg</span>}
+                          </p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                            {cuttingList.map((row) => {
+                              const rowMM = row.totalLengthMeter * 1000
+                              const rowKg = wPerMm != null ? rowMM * wPerMm : null
+                              return (
+                                <span key={row.id} className="text-xs text-blue-800">
+                                  {(row.lengthMeter * 1000).toFixed(0)}mm × {row.pieces} pcs = {rowMM.toFixed(0)}mm
+                                  {rowKg != null && <span className="text-blue-600 ml-1">({rowKg.toFixed(3)}kg)</span>}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })()}
                 </>
               )
             })}

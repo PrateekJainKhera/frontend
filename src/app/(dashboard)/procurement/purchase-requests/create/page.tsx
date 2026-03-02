@@ -1,8 +1,8 @@
 "use client"
 
-import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Plus, Trash2, ChevronDown, ChevronUp, ChevronsUpDown, Check } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, ChevronUp, Check, Search, Loader2 } from 'lucide-react'
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -11,10 +11,10 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { purchaseRequestService, CreatePRItemRequest, CuttingListItemRequest } from '@/lib/api/purchase-requests'
 import { componentService } from '@/lib/api/components'
+import { inventoryService } from '@/lib/api/inventory'
+import { materialPieceService } from '@/lib/api/material-pieces'
 import { toast } from 'sonner'
 
 interface CuttingRow extends CuttingListItemRequest {
@@ -25,6 +25,13 @@ interface PRItem extends CreatePRItemRequest {
   _key: string
   _cuttingList: CuttingRow[]
   _showCutting: boolean
+}
+
+interface CatalogItem {
+  id: number
+  name: string
+  code: string
+  unit: string
 }
 
 function CreatePurchaseRequestContent() {
@@ -41,11 +48,14 @@ function CreatePurchaseRequestContent() {
   const [items, setItems] = useState<PRItem[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [comboOpen, setComboOpen] = useState(false)
+  // Catalog + search
+  const [catalog, setCatalog] = useState<CatalogItem[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
-  const [searching, setSearching] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [stockMap, setStockMap] = useState<Record<number, any>>({})
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (preloadItemId && preloadItemName) {
@@ -63,32 +73,72 @@ function CreatePurchaseRequestContent() {
     }
   }, [])
 
-  const doSearch = useCallback(async (term: string) => {
-    if (!term.trim()) { setSearchResults([]); return }
-    setSearching(true)
-    try {
-      if (itemType === 'Component') {
-        const results = await componentService.search(term)
-        setSearchResults(results.map(c => ({ id: c.id, name: c.componentName, code: c.partNumber, unit: c.unit })))
-      } else {
-        const { materialService } = await import('@/lib/api/materials')
-        const results = await materialService.searchByName(term)
-        setSearchResults(results.map((m: any) => ({ id: m.id, name: m.materialName, code: m.materialCode, unit: 'meter' })))
-      }
-    } catch {
-      setSearchResults([])
-    } finally {
-      setSearching(false)
-    }
+  // Load full catalog when itemType changes
+  useEffect(() => {
+    setCatalog([])
+    setStockMap({})
+    setSearchTerm('')
+    loadCatalog()
   }, [itemType])
 
-  const handleComboSearch = (value: string) => {
-    setSearchTerm(value)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => doSearch(value), 350)
+  const loadCatalog = async () => {
+    setCatalogLoading(true)
+    try {
+      let mapped: CatalogItem[] = []
+      if (itemType === 'Component') {
+        const results = await componentService.getAll()
+        mapped = results.map((c: any) => ({ id: c.id, name: c.componentName, code: c.partNumber || '', unit: c.unit || 'pcs' }))
+      } else {
+        const { materialService } = await import('@/lib/api/materials')
+        const results = await materialService.getAll()
+        mapped = results.map((m: any) => ({ id: m.id, name: m.materialName, code: m.materialCode || '', unit: 'meter' }))
+      }
+      setCatalog(mapped)
+
+      // Fetch stock for all catalog items in background
+      const stockEntries = await Promise.all(
+        mapped.map(async (r) => {
+          try {
+            if (itemType === 'Component') {
+              const s = await inventoryService.getComponentStock(r.id)
+              return [r.id, { qty: s.currentStock, unit: s.uom }]
+            } else {
+              const s = await materialPieceService.getStockSummary(r.id)
+              return [r.id, s]
+            }
+          } catch {
+            return [r.id, null]
+          }
+        })
+      )
+      setStockMap(Object.fromEntries(stockEntries))
+    } catch {
+      toast.error('Failed to load items')
+    } finally {
+      setCatalogLoading(false)
+    }
   }
 
-  const addItem = (result: any) => {
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Filtered list based on search term
+  const filtered = searchTerm.trim()
+    ? catalog.filter(c =>
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.code.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : catalog
+
+  const addItem = (result: CatalogItem) => {
     const alreadyAdded = items.some(i => i.itemId === result.id && i.itemType === itemType)
     if (alreadyAdded) { toast.warning('Item already added'); return }
     setItems(prev => [...prev, {
@@ -103,7 +153,7 @@ function CreatePurchaseRequestContent() {
       requestedQty: 1,
     }])
     setSearchTerm('')
-    setSearchResults([])
+    setDropdownOpen(false)
   }
 
   const updateQty = (key: string, qty: number) => {
@@ -118,7 +168,6 @@ function CreatePurchaseRequestContent() {
     setItems(prev => prev.map(i => i._key === key ? { ...i, _showCutting: !i._showCutting } : i))
   }
 
-  // Cutting list row operations
   const addCuttingRow = (itemKey: string) => {
     setItems(prev => prev.map(i => i._key === itemKey
       ? { ...i, _cuttingList: [...i._cuttingList, { _key: Date.now().toString(), lengthMeter: 1, pieces: 1 }] }
@@ -194,7 +243,7 @@ function CreatePurchaseRequestContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-1.5 block">Item Type *</label>
-              <Select value={itemType} onValueChange={(v) => { setItemType(v); setItems([]); setSearchResults([]) }}
+              <Select value={itemType} onValueChange={(v) => { setItemType(v); setItems([]) }}
                 disabled={items.length > 0}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -217,65 +266,83 @@ function CreatePurchaseRequestContent() {
       <Card className="border-2 border-border">
         <CardHeader><CardTitle>Add Items</CardTitle></CardHeader>
         <CardContent>
-          <Popover open={comboOpen} onOpenChange={setComboOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-between" role="combobox">
-                <span className="text-muted-foreground">
-                  {`Search and select ${itemType === 'Component' ? 'component' : 'raw material'}...`}
-                </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command shouldFilter={false}>
-                <CommandInput
-                  placeholder={`Type to search ${itemType === 'Component' ? 'components' : 'raw materials'}...`}
-                  value={searchTerm}
-                  onValueChange={handleComboSearch}
-                />
-                <CommandList className="max-h-64">
-                  {searching && (
-                    <div className="py-6 text-center text-sm text-muted-foreground">Searching...</div>
-                  )}
-                  {!searching && searchTerm.length > 0 && searchResults.length === 0 && (
-                    <CommandEmpty>No results found.</CommandEmpty>
-                  )}
-                  {!searching && searchResults.length > 0 && (
-                    <CommandGroup>
-                      {searchResults.map(result => {
-                        const alreadyAdded = items.some(i => i.itemId === result.id && i.itemType === itemType)
-                        return (
-                          <CommandItem
-                            key={result.id}
-                            value={result.id.toString()}
-                            onSelect={() => {
-                              addItem(result)
-                              setComboOpen(false)
-                              setSearchTerm('')
-                              setSearchResults([])
-                            }}
-                            disabled={alreadyAdded}
-                            className="flex items-center justify-between"
-                          >
-                            <div>
-                              <p className="font-medium text-sm">{result.name}</p>
-                              <p className="text-xs text-muted-foreground">{result.code} • {result.unit}</p>
+          <div ref={dropdownRef} className="relative">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                ref={inputRef}
+                placeholder={catalogLoading
+                  ? 'Loading items...'
+                  : `Search ${itemType === 'Component' ? 'components' : 'raw materials'} by name or code...`
+                }
+                value={searchTerm}
+                onChange={e => { setSearchTerm(e.target.value); setDropdownOpen(true) }}
+                onFocus={() => setDropdownOpen(true)}
+                className="pl-9 pr-9"
+                disabled={catalogLoading}
+              />
+              {catalogLoading
+                ? <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                : catalog.length > 0 && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    {filtered.length}/{catalog.length}
+                  </span>
+                )
+              }
+            </div>
+
+            {/* Dropdown list */}
+            {dropdownOpen && !catalogLoading && catalog.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg overflow-hidden">
+                <div className="overflow-y-auto max-h-72">
+                  {filtered.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">No results for "{searchTerm}"</div>
+                  ) : (
+                    filtered.map(result => {
+                      const alreadyAdded = items.some(i => i.itemId === result.id && i.itemType === itemType)
+                      const stock = stockMap[result.id]
+                      return (
+                        <button
+                          key={result.id}
+                          type="button"
+                          onMouseDown={e => { e.preventDefault(); if (!alreadyAdded) addItem(result) }}
+                          disabled={alreadyAdded}
+                          className={`w-full text-left px-4 py-2.5 border-b border-border/50 last:border-0 transition-colors
+                            ${alreadyAdded
+                              ? 'bg-muted/40 cursor-not-allowed opacity-60'
+                              : 'hover:bg-accent cursor-pointer'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm truncate">{result.name}</p>
+                              <p className="text-xs text-muted-foreground">{result.code} · {result.unit}</p>
+                              {stock && (
+                                itemType === 'Component' ? (
+                                  <p className={`text-xs font-semibold mt-0.5 ${stock.qty > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    Stock: {stock.qty} {stock.unit}
+                                  </p>
+                                ) : (
+                                  <p className={`text-xs font-semibold mt-0.5 ${stock.pieces > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    Stock: {stock.pieces} pcs · {stock.totalLengthMM.toFixed(0)} mm · {stock.totalWeightKG.toFixed(3)} kg
+                                  </p>
+                                )
+                              )}
                             </div>
                             {alreadyAdded && <Check className="h-4 w-4 text-green-500 shrink-0" />}
-                          </CommandItem>
-                        )
-                      })}
-                    </CommandGroup>
+                          </div>
+                        </button>
+                      )
+                    })
                   )}
-                  {!searching && searchTerm.length === 0 && (
-                    <div className="py-6 text-center text-sm text-muted-foreground">
-                      Start typing to search...
-                    </div>
-                  )}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                </div>
+                <div className="px-3 py-1.5 bg-muted/30 border-t text-xs text-muted-foreground">
+                  {filtered.length} item{filtered.length !== 1 ? 's' : ''} · Click to add
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -296,6 +363,22 @@ function CreatePurchaseRequestContent() {
                       <div className="flex-1 min-w-0 basis-full sm:basis-auto">
                         <p className="font-medium text-sm">{item.itemName}</p>
                         <p className="text-xs text-muted-foreground">{item.itemCode}</p>
+                        {(() => {
+                          const stock = stockMap[item.itemId]
+                          if (!stock) return null
+                          if (item.itemType === 'Component') {
+                            return (
+                              <p className={`text-xs font-semibold mt-0.5 ${stock.qty > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                Stock: {stock.qty} {stock.unit}
+                              </p>
+                            )
+                          }
+                          return (
+                            <p className={`text-xs font-semibold mt-0.5 ${stock.pieces > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              Stock: {stock.pieces} pcs · {stock.totalLengthMM.toFixed(0)} mm · {stock.totalWeightKG.toFixed(3)} kg
+                            </p>
+                          )
+                        })()}
                       </div>
                       <div className="flex items-center gap-2">
                         <label className="text-sm text-muted-foreground whitespace-nowrap">Qty:</label>
@@ -313,8 +396,8 @@ function CreatePurchaseRequestContent() {
                         <Button variant="ghost" size="sm" onClick={() => toggleCutting(item._key)}
                           className="text-xs text-blue-600">
                           {item._showCutting ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
-                          <span className="hidden xs:inline">Cutting List </span>
-                          {item._cuttingList.length > 0 && `(${item._cuttingList.length})`}
+                          Cutting List
+                          {item._cuttingList.length > 0 && ` (${item._cuttingList.length})`}
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => removeItem(item._key)}>

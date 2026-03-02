@@ -271,6 +271,17 @@ class MaterialPieceService {
     }
   }
 
+  async getStockSummary(materialId: number): Promise<{ pieces: number; totalLengthMM: number; totalWeightKG: number }> {
+    try {
+      const response = await apiClient.get<ApiResponse<{ pieces: number; totalLengthMM: number; totalWeightKG: number }>>(
+        `${this.baseUrl}/stock/summary/${materialId}`
+      )
+      return response.data.data || { pieces: 0, totalLengthMM: 0, totalWeightKG: 0 }
+    } catch {
+      return { pieces: 0, totalLengthMM: 0, totalWeightKG: 0 }
+    }
+  }
+
   async adjustLength(id: number, newLengthMM: number, remark: string, adjustedBy = 'Admin'): Promise<void> {
     try {
       const response = await apiClient.patch<ApiResponse<object>>(`/material-pieces/${id}/adjust-length`, {

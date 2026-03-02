@@ -31,6 +31,7 @@ export interface PurchaseRequestItemResponse {
   estimatedUnitCost?: number | null
   status: string
   notes?: string | null
+  materialWeightKgPerMm?: number | null
   cuttingList: CuttingListItemResponse[]
 }
 
