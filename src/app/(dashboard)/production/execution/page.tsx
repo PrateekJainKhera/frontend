@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   ChevronDown, ChevronRight, CheckCircle, Lock, Clock, RefreshCw, Layers, Truck, Play,
-  ShieldCheck, FileUp, XCircle,
+  ShieldCheck, FileUp, XCircle, Search, X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -695,6 +695,13 @@ export default function ProductionExecutionPage() {
   const [batchOspRows, setBatchOspRows] = useState<ExecutionViewRow[]>([])
   const [vendors, setVendors] = useState<VendorResponse[]>([])
 
+  // ── Filter state ──────────────────────────────────────────────────────────
+  const [searchText, setSearchText] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterChildPart, setFilterChildPart] = useState('')
+  const [filterProcess, setFilterProcess] = useState('')
+  const [filterOrder, setFilterOrder] = useState('')
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -737,6 +744,60 @@ export default function ProductionExecutionPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // ── Derived filter options (from full dataset) ────────────────────────────
+  const uniqueChildParts = useMemo(
+    () => [...new Set(categories.flatMap((c) => c.childParts.map((cp) => cp.childPartName)))].sort(),
+    [categories]
+  )
+  const uniqueProcesses = useMemo(
+    () => [...new Set(categories.flatMap((c) => c.childParts.flatMap((cp) => cp.jobCards.map((jc) => jc.processName).filter((p): p is string => !!p))))].sort(),
+    [categories]
+  )
+  const uniqueOrders = useMemo(
+    () => [...new Set(categories.flatMap((c) => c.childParts.flatMap((cp) => cp.jobCards.map((jc) => jc.orderNo))))].sort(),
+    [categories]
+  )
+
+  const hasFilters = !!(searchText.trim() || filterCategory || filterChildPart || filterProcess || filterOrder)
+
+  const filteredCategories = useMemo(() => {
+    if (!hasFilters) return categories
+    const q = searchText.toLowerCase().trim()
+    return categories
+      .filter((cat) => !filterCategory || cat.categoryName === filterCategory)
+      .map((cat) => ({
+        ...cat,
+        childParts: cat.childParts
+          .filter((cp) => !filterChildPart || cp.childPartName === filterChildPart)
+          .map((cp) => ({
+            ...cp,
+            jobCards: cp.jobCards.filter((jc) => {
+              if (filterProcess && jc.processName !== filterProcess) return false
+              if (filterOrder && jc.orderNo !== filterOrder) return false
+              if (q && ![jc.orderNo, jc.childPartName, jc.processName].some((s) => s?.toLowerCase().includes(q))) return false
+              return true
+            }),
+          }))
+          .filter((cp) => cp.jobCards.length > 0),
+      }))
+      .filter((cat) => cat.childParts.length > 0)
+  }, [categories, hasFilters, searchText, filterCategory, filterChildPart, filterProcess, filterOrder])
+
+  // Auto-expand matching categories when filters are active
+  useEffect(() => {
+    if (!hasFilters) return
+    setExpandedCategories((prev) => {
+      const next = new Set(prev)
+      filteredCategories.forEach((cat) => next.add(cat.categoryName))
+      return next
+    })
+  }, [filteredCategories]) // filteredCategories changes whenever filters change
+
+  const clearFilters = () => {
+    setSearchText(''); setFilterCategory(''); setFilterChildPart('')
+    setFilterProcess(''); setFilterOrder('')
+  }
 
   const toggleCategory = (name: string) => {
     setExpandedCategories((prev) => {
@@ -930,8 +991,93 @@ export default function ProductionExecutionPage() {
         </Button>
       </div>
 
+      {/* Filter bar */}
+      <div className="flex flex-col gap-2">
+        {/* Search — always full width */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search order, part, process..."
+            className="pl-8 h-9"
+          />
+        </div>
+
+        {/* Dropdowns: 2-col grid on mobile → flex row on sm+ */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <Select value={filterCategory || 'all'} onValueChange={(v) => setFilterCategory(v === 'all' ? '' : v)}>
+            <SelectTrigger className="h-9 w-full sm:w-44">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.categoryName} value={cat.categoryName}>{cat.categoryName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterChildPart || 'all'} onValueChange={(v) => setFilterChildPart(v === 'all' ? '' : v)}>
+            <SelectTrigger className="h-9 w-full sm:w-44">
+              <SelectValue placeholder="All Parts" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              <SelectItem value="all">All Parts</SelectItem>
+              {uniqueChildParts.map((part) => (
+                <SelectItem key={part} value={part}>{part}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterProcess || 'all'} onValueChange={(v) => setFilterProcess(v === 'all' ? '' : v)}>
+            <SelectTrigger className="h-9 w-full sm:w-44">
+              <SelectValue placeholder="All Processes" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              <SelectItem value="all">All Processes</SelectItem>
+              {uniqueProcesses.map((proc) => (
+                <SelectItem key={proc} value={proc}>{proc}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterOrder || 'all'} onValueChange={(v) => setFilterOrder(v === 'all' ? '' : v)}>
+            <SelectTrigger className="h-9 w-full sm:w-36">
+              <SelectValue placeholder="All Orders" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              <SelectItem value="all">All Orders</SelectItem>
+              {uniqueOrders.map((ord) => (
+                <SelectItem key={ord} value={ord}>{ord}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasFilters && (
+            <Button
+              variant="ghost" size="sm"
+              className="h-9 col-span-2 sm:col-span-1 text-muted-foreground gap-1.5 border border-dashed border-border"
+              onClick={clearFilters}
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear Filters
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* No results when filters active */}
+      {filteredCategories.length === 0 && hasFilters && (
+        <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2 border-2 border-dashed border-border rounded-lg">
+          <Search className="h-8 w-8 opacity-30" />
+          <p className="text-sm">No job cards match current filters.</p>
+          <Button variant="ghost" size="sm" onClick={clearFilters}>Clear filters</Button>
+        </div>
+      )}
+
       {/* Category sections */}
-      {categories.map((cat) => {
+      {filteredCategories.map((cat) => {
         const isExpanded = expandedCategories.has(cat.categoryName)
         const allDone = cat.completedJobs === cat.totalJobs
 
