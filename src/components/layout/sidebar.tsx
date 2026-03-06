@@ -27,15 +27,19 @@ import {
   ClipboardList,
   Scissors,
   Clock,
-  ShieldAlert
+  ShieldAlert,
+  ShieldCheck,
+  Users
 } from 'lucide-react'
 import { warehouseService } from '@/lib/api/warehouses'
+import { getSession, canView } from '@/lib/auth'
 
 interface NavItem {
   title: string
   href: string
   icon: React.ComponentType<{ className?: string }>
   children?: NavItem[]
+  module?: string  // if set, item is hidden when user lacks View permission for this module
 }
 
 const navItems: NavItem[] = [
@@ -48,6 +52,7 @@ const navItems: NavItem[] = [
     title: 'Masters',
     href: '/masters',
     icon: Database,
+    module: 'Masters',
     children: [
       { title: 'Customers', href: '/masters/customers', icon: Package },
       { title: 'Products', href: '/masters/products', icon: Package },
@@ -63,6 +68,7 @@ const navItems: NavItem[] = [
     title: 'Sales',
     href: '/sales',
     icon: FileText,
+    module: 'Sales',
     children: [
       { title: 'Estimations', href: '/sales/estimations', icon: FileText }
     ]
@@ -70,12 +76,14 @@ const navItems: NavItem[] = [
   {
     title: 'Orders',
     href: '/orders',
-    icon: ShoppingCart
+    icon: ShoppingCart,
+    module: 'Sales',
   },
   {
     title: 'Procurement',
     href: '/procurement',
     icon: ClipboardList,
+    module: 'Procurement',
     children: [
       { title: 'Purchase Requests', href: '/procurement/purchase-requests', icon: FileText },
       { title: 'Purchase Orders', href: '/procurement/purchase-orders', icon: Truck }
@@ -84,22 +92,26 @@ const navItems: NavItem[] = [
   {
     title: 'Drawing Review',
     href: '/drawing-review',
-    icon: FileText
+    icon: FileText,
+    module: 'Planning',
   },
   {
     title: 'Planning',
     href: '/planning',
-    icon: Calendar
+    icon: Calendar,
+    module: 'Planning',
   },
   {
     title: 'Scheduling',
     href: '/scheduling',
-    icon: Calendar
+    icon: Calendar,
+    module: 'Planning',
   },
   {
     title: 'Production',
     href: '/production',
     icon: Factory,
+    module: 'Production',
     children: [
       { title: 'Dashboard', href: '/production', icon: Factory },
       { title: 'Execution', href: '/production/execution', icon: Factory },
@@ -110,6 +122,7 @@ const navItems: NavItem[] = [
     title: 'Inventory',
     href: '/inventory',
     icon: Warehouse,
+    module: 'Inventory',
     children: [
       { title: 'Raw Materials', href: '/inventory/raw-materials', icon: Package },
       { title: 'Material Pieces', href: '/inventory/material-pieces', icon: PackageCheck },
@@ -124,6 +137,7 @@ const navItems: NavItem[] = [
     title: 'Stores',
     href: '/stores',
     icon: PackageCheck,
+    module: 'Stores',
     children: [
       { title: 'Cutting Planning', href: '/stores/cutting-planning', icon: Scissors },
       { title: 'Opening Stock', href: '/stores/opening-stock', icon: PackagePlus }
@@ -132,12 +146,14 @@ const navItems: NavItem[] = [
   {
     title: 'Dispatch',
     href: '/dispatch',
-    icon: Truck
+    icon: Truck,
+    module: 'Dispatch',
   },
   {
     title: 'Quality',
     href: '/quality',
     icon: XCircle,
+    module: 'Quality',
     children: [
       { title: 'Rejections', href: '/quality/rejections', icon: XCircle },
       { title: 'Rework Orders', href: '/quality/rework', icon: RotateCcw }
@@ -147,11 +163,22 @@ const navItems: NavItem[] = [
     title: 'MIS',
     href: '/mis',
     icon: BarChart3,
+    module: 'Reports',
     children: [
       { title: 'Executive', href: '/mis/executive', icon: BarChart3 },
       { title: 'Production', href: '/mis/production', icon: BarChart3 },
       { title: 'Sales', href: '/mis/sales', icon: BarChart3 },
       { title: 'Agent Performance', href: '/mis/agents', icon: BarChart3 }
+    ]
+  },
+  {
+    title: 'Admin',
+    href: '/admin',
+    icon: ShieldCheck,
+    module: 'Admin',
+    children: [
+      { title: 'Users', href: '/admin/users', icon: Users },
+      { title: 'Roles & Permissions', href: '/admin/roles', icon: ShieldCheck }
     ]
   }
 ]
@@ -227,7 +254,7 @@ export function Sidebar({ isOpen, isExpanded, onClose, onToggle, isMobile = fals
           isExpanded ? "px-3" : "px-2"
         )}>
           <ul role="list" className="space-y-1">
-              {navItems.map((item) => (
+              {navItems.filter((item) => !item.module || canView(item.module)).map((item) => (
                 <li key={item.href}>
                   {item.children ? (
                     <>

@@ -1,18 +1,32 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
 import { TopHeader } from '@/components/layout/top-header'
 import { Menu } from 'lucide-react'
+import { getSession } from '@/lib/auth'
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+  const [checked, setChecked] = useState(false)
+
+  // Session guard
+  useEffect(() => {
+    const session = getSession()
+    if (!session) {
+      router.replace('/login')
+    } else {
+      setChecked(true)
+    }
+  }, [router])
 
   // Set initial expanded state based on screen size
   useEffect(() => {
@@ -37,6 +51,8 @@ export default function DashboardLayout({
   const toggleSidebarExpanded = () => {
     setSidebarExpanded(!sidebarExpanded)
   }
+
+  if (!checked) return null
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">

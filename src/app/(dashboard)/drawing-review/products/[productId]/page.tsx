@@ -14,6 +14,7 @@ import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 import { Product } from '@/types/product'
 import { formatDate } from '@/lib/utils/formatters'
 import { toast } from 'sonner'
+import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
 
 export default function ProductDrawingReviewPage() {
   const params = useParams()
@@ -27,6 +28,10 @@ export default function ProductDrawingReviewPage() {
   // Drawing state
   const [assemblyDrawing, setAssemblyDrawing] = useState<DrawingResponse | null>(null)
   const [childPartDrawings, setChildPartDrawings] = useState<ProductChildPartDrawingResponse[]>([])
+
+  // Preview dialog state
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState('')
 
   // Form state
   const [reviewNotes, setReviewNotes] = useState('')
@@ -265,7 +270,7 @@ export default function ProductDrawingReviewPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => assemblyDrawing.fileUrl && window.open(assemblyDrawing.fileUrl, '_blank')}
+                    onClick={() => { if (assemblyDrawing.fileUrl) { setPreviewUrl(assemblyDrawing.fileUrl); setPreviewTitle(assemblyDrawing.fileName || assemblyDrawing.drawingName || 'Assembly Drawing') } }}
                   >
                     <FileText className="mr-2 h-4 w-4" />
                     View Drawing
@@ -349,7 +354,7 @@ export default function ProductDrawingReviewPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => drawing.fileUrl && window.open(drawing.fileUrl, '_blank')}
+                        onClick={() => { if (drawing.fileUrl) { setPreviewUrl(drawing.fileUrl); setPreviewTitle(drawing.childPartTemplateName || drawing.fileName || 'Drawing') } }}
                       >
                         <FileText className="mr-1 h-3 w-3" />
                         View
@@ -496,6 +501,13 @@ export default function ProductDrawingReviewPage() {
           </Card>
         </div>
       </div>
+
+      <DrawingPreviewDialog
+        open={!!previewUrl}
+        onOpenChange={(v) => { if (!v) setPreviewUrl(null) }}
+        url={previewUrl}
+        title={previewTitle}
+      />
     </div>
   )
 }

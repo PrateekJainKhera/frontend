@@ -12,31 +12,32 @@ export const apiClient = axios.create({
   timeout: 30000, // 30 seconds
 })
 
-// Request interceptor - can be used for auth tokens, logging, etc.
+// Request interceptor — attach session token on every request
 apiClient.interceptors.request.use(
   (config) => {
-    // Add auth token if available
-    // const token = localStorage.getItem('token')
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`
-    // }
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('erp_session')
+        if (raw) {
+          const session = JSON.parse(raw)
+          if (session?.sessionToken) {
+            config.headers['X-Session-Token'] = session.sessionToken
+          }
+        }
+      } catch { /* ignore */ }
+    }
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
-// Response interceptor - can be used for global error handling
+// Response interceptor — redirect to login on 401
 apiClient.interceptors.response.use(
-  (response) => {
-    return response
-  },
+  (response) => response,
   (error) => {
-    // Global error handling
-    if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login, etc.
-      console.error('Unauthorized access')
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('erp_session')
+      window.location.href = '/login'
     }
     return Promise.reject(error)
   }

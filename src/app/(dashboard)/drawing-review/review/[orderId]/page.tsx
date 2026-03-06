@@ -30,6 +30,7 @@ import { orderService, OrderResponse } from '@/lib/api/orders'
 import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
 import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 import { formatDate } from '@/lib/utils/formatters'
+import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
 
 const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace(/\/api$/, '')
 
@@ -49,6 +50,10 @@ export default function DrawingReviewDetailPage() {
 
   // Track which drawings have been reviewed/passed
   const [reviewedDrawings, setReviewedDrawings] = useState<Set<number>>(new Set())
+
+  // Preview dialog
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState('')
 
   // Upload form state (for in-house drawing source)
   const [uploadName, setUploadName] = useState('')
@@ -409,10 +414,10 @@ export default function DrawingReviewDetailPage() {
                             <TableCell className="text-xs text-muted-foreground">
                               {drawing.fileName ? (
                                 drawing.fileUrl ? (
-                                  <a href={FILE_BASE_URL + drawing.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline">
+                                  <button onClick={() => { setPreviewUrl(FILE_BASE_URL + drawing.fileUrl); setPreviewTitle(drawing.drawingName || drawing.fileName || 'Drawing') }} className="flex items-center gap-1 text-blue-600 hover:underline text-left">
                                     <FileText className="h-3 w-3" />
                                     {drawing.fileName.length > 20 ? drawing.fileName.substring(0, 20) + '...' : drawing.fileName}
-                                  </a>
+                                  </button>
                                 ) : (
                                   <span className="flex items-center gap-1">
                                     <FileText className="h-3 w-3" />
@@ -445,11 +450,9 @@ export default function DrawingReviewDetailPage() {
                             </TableCell>
                             <TableCell>
                               {drawing.fileUrl ? (
-                                <a href={FILE_BASE_URL + drawing.fileUrl} target="_blank" rel="noopener noreferrer">
-                                  <Button size="sm" variant="ghost" title="Open drawing">
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </a>
+                                <Button size="sm" variant="ghost" title="Open drawing" onClick={() => { setPreviewUrl(FILE_BASE_URL + drawing.fileUrl); setPreviewTitle(drawing.drawingName || drawing.fileName || 'Drawing') }}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
                               ) : (
                                 <Button size="sm" variant="ghost" disabled title="No file attached">
                                   <Eye className="h-4 w-4 text-muted-foreground" />
@@ -681,6 +684,13 @@ export default function DrawingReviewDetailPage() {
           </Card>
         </div>
       </div>
+
+      <DrawingPreviewDialog
+        open={!!previewUrl}
+        onOpenChange={(v) => { if (!v) setPreviewUrl(null) }}
+        url={previewUrl}
+        title={previewTitle}
+      />
     </div>
   )
 }

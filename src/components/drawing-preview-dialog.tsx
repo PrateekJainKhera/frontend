@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge'
 interface DrawingPreviewDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  file: File | null
+  file?: File | null
+  url?: string | null   // direct server URL — alternative to file
   title: string
   description?: string
 }
@@ -18,6 +19,7 @@ export function DrawingPreviewDialog({
   open,
   onOpenChange,
   file,
+  url,
   title,
   description
 }: DrawingPreviewDialogProps) {
@@ -26,32 +28,30 @@ export function DrawingPreviewDialog({
 
   useEffect(() => {
     if (file) {
-      // Create blob URL for preview
-      const url = URL.createObjectURL(file)
+      const blobUrl = URL.createObjectURL(file)
+      setPreviewUrl(blobUrl)
+      return () => { URL.revokeObjectURL(blobUrl) }
+    } else if (url) {
       setPreviewUrl(url)
-
-      // Cleanup function to revoke URL when component unmounts or file changes
-      return () => {
-        URL.revokeObjectURL(url)
-      }
     } else {
       setPreviewUrl(null)
     }
-  }, [file])
+  }, [file, url])
 
   const handleDownload = () => {
-    if (!file || !previewUrl) return
-
+    if (!previewUrl) return
     const link = document.createElement('a')
     link.href = previewUrl
-    link.download = file.name
+    link.download = file?.name || title
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  const isPDF = file?.type === 'application/pdf'
-  const isImage = file?.type.startsWith('image/')
+  // Detect type: prefer file MIME, fall back to extension from URL
+  const ext = (file?.name || url || '').split('.').pop()?.toLowerCase() ?? ''
+  const isPDF = file ? file.type === 'application/pdf' : ext === 'pdf'
+  const isImage = file ? file.type.startsWith('image/') : ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -68,14 +68,12 @@ export function DrawingPreviewDialog({
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">
-                {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}
-              </Badge>
               {file && (
-                <Badge variant="outline">
-                  {file.type === 'application/pdf' ? 'PDF' : file.type.split('/')[1].toUpperCase()}
-                </Badge>
+                <Badge variant="outline">{(file.size / 1024 / 1024).toFixed(2)} MB</Badge>
               )}
+              <Badge variant="outline">
+                {isPDF ? 'PDF' : isImage ? ext.toUpperCase() : ext.toUpperCase() || 'FILE'}
+              </Badge>
             </div>
           </div>
         </DialogHeader>
@@ -119,7 +117,7 @@ export function DrawingPreviewDialog({
 
         {/* Preview Area */}
         <div className="flex-1 overflow-auto bg-gray-50 rounded-lg border">
-          {!file ? (
+          {!file && !url ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">No file selected</p>
             </div>
@@ -157,10 +155,10 @@ export function DrawingPreviewDialog({
         </div>
 
         {/* File Info Footer */}
-        {file && (
+        {(file || url) && (
           <div className="border-t pt-3 flex items-center justify-between text-sm text-muted-foreground">
-            <span className="font-medium">{file.name}</span>
-            <span>Last modified: {new Date(file.lastModified).toLocaleString()}</span>
+            <span className="font-medium">{file?.name || title}</span>
+            {file && <span>Last modified: {new Date(file.lastModified).toLocaleString()}</span>}
           </div>
         )}
       </DialogContent>

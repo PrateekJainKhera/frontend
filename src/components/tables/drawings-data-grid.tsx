@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Eye, FileText } from 'lucide-react'
 import { Drawing } from '@/lib/mock-data'
+import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
 
 const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace(/\/api$/, '')
 
@@ -82,6 +83,8 @@ export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
         pageIndex: 0,
         pageSize: 10,
     })
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const [previewTitle, setPreviewTitle] = useState('')
 
     // Sync prop to internal state
     useMemo(() => {
@@ -181,9 +184,9 @@ export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
                         <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
                             {row.original.fileUrl ? (
-                                <a href={FILE_BASE_URL + row.original.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                                <button onClick={() => { setPreviewUrl(FILE_BASE_URL + row.original.fileUrl!); setPreviewTitle(row.original.drawingName || row.original.fileName || 'Drawing') }} className="text-sm text-blue-600 hover:underline text-left">
                                     {row.original.fileName}
-                                </a>
+                                </button>
                             ) : (
                                 <span className="text-sm">{row.original.fileName || '—'}</span>
                             )}
@@ -237,8 +240,16 @@ export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
     })
 
     return (
-        <ThemeProvider theme={muiTheme}>
-            <MaterialReactTable table={table} />
-        </ThemeProvider>
+        <>
+            <ThemeProvider theme={muiTheme}>
+                <MaterialReactTable table={table} />
+            </ThemeProvider>
+            <DrawingPreviewDialog
+                open={!!previewUrl}
+                onOpenChange={(v) => { if (!v) setPreviewUrl(null) }}
+                url={previewUrl}
+                title={previewTitle}
+            />
+        </>
     )
 }

@@ -1,7 +1,7 @@
 "use client"
 
-import { usePathname } from 'next/navigation'
-import { Info } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Info, LogOut, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -9,6 +9,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { getSession, clearSession } from '@/lib/auth'
+import { authService } from '@/lib/api/auth'
+import { toast } from 'sonner'
 
 // Map of routes to page titles
 const pageTitles: Record<string, string> = {
@@ -99,6 +109,17 @@ interface TopHeaderProps {
 
 export function TopHeader(_props: TopHeaderProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const session = getSession()
+
+  async function handleLogout() {
+    try {
+      if (session?.sessionToken) await authService.logout(session.sessionToken)
+    } catch { /* ignore */ }
+    clearSession()
+    router.replace('/login')
+    toast.success('Logged out')
+  }
 
   // Get the page title from the mapping, or extract from path
   const getPageTitle = () => {
@@ -152,6 +173,32 @@ export function TopHeader(_props: TopHeaderProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* User menu */}
+        {session && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-2 h-8 text-sm">
+                <User className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{session.fullName}</span>
+                {session.roleName && (
+                  <span className="hidden sm:inline text-xs text-muted-foreground">({session.roleName})</span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">{session.username}</div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-600 focus:text-red-600">
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </header>
