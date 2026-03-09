@@ -16,6 +16,8 @@ export interface ProductionOrderSummary {
   totalChildParts: number
   completedChildParts: number
   productionStatus: string     // "Pending" | "InProgress" | "Completed"
+  quantity: number
+  qtyDispatched: number
 }
 
 // ── Execution View types ────────────────────────────────────────────────────

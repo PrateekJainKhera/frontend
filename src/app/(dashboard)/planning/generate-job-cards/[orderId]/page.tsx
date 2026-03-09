@@ -999,25 +999,30 @@ export default function GenerateJobCardsPage() {
         jobCardCount++
       }
 
-      // Update order planning status to "Planned"
+      // Update order item planning status to "Planned"
       try {
-        await orderService.update(order.id, {
-          id: order.id,
-          orderDate: order.orderDate,
-          dueDate: order.dueDate,
-          adjustedDueDate: order.adjustedDueDate || undefined,  // Convert null to undefined
-          customerId: order.customerId,
-          productId: order.productId,
-          quantity: order.quantity,
-          status: order.status,
-          priority: order.priority,
-          planningStatus: 'Planned',  // ✅ Update planning status
-          delayReason: order.delayReason || undefined,  // Convert null to undefined
-          version: order.version,  // ✅ Required for optimistic locking
-          updatedBy: 'Admin'
-        })
+        if (itemId) {
+          await orderService.updateItemPlanningStatus(itemId, 'Planned')
+        } else {
+          // Legacy single-product order: fall back to order-level update
+          await orderService.update(order.id, {
+            id: order.id,
+            orderDate: order.orderDate,
+            dueDate: order.dueDate,
+            adjustedDueDate: order.adjustedDueDate || undefined,
+            customerId: order.customerId,
+            productId: order.productId,
+            quantity: order.quantity,
+            status: order.status,
+            priority: order.priority,
+            planningStatus: 'Planned',
+            delayReason: order.delayReason || undefined,
+            version: order.version,
+            updatedBy: 'Admin'
+          })
+        }
       } catch (error) {
-        console.error('Failed to update order status:', error)
+        console.error('Failed to update planning status:', error)
         // Continue anyway - job cards are created
       }
 

@@ -75,7 +75,7 @@ export function PlanningDashboardTab() {
               itemPriority: item.priority,
               itemStatus: item.status,
               drawingReviewStatus: order.drawingReviewStatus,
-              planningStatus: order.planningStatus
+              planningStatus: item.planningStatus ?? order.planningStatus
             })
           })
         } else {

@@ -18,6 +18,7 @@ export interface OrderItemResponse {
   adjustedDueDate?: string | null
   priority: string
   status: string
+  planningStatus: string
   primaryDrawingId?: number | null
   linkedProductTemplateId?: number | null
   materialGradeApproved: boolean
@@ -339,6 +340,18 @@ class OrderService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to delete order: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async updateItemPlanningStatus(itemId: number, planningStatus: string): Promise<void> {
+    try {
+      const response = await apiClient.patch(`${this.baseUrl}/items/${itemId}/planning-status`, { planningStatus })
+      if (!response.data.success) throw new Error(response.data.message)
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to update planning status: ${error.message}`)
       }
       throw error
     }
