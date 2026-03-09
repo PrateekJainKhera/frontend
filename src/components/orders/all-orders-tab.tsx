@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Filter } from 'lucide-react'
+import { Search, Filter, Truck, ChevronDown, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -21,10 +21,12 @@ import { toast } from 'sonner'
 export function AllOrdersTab() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
+  const [dispatchedOrderNos, setDispatchedOrderNos] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
+  const [showDispatched, setShowDispatched] = useState(false)
 
   useEffect(() => {
     loadOrders()
@@ -91,6 +93,23 @@ export function AllOrdersTab() {
     try {
       const data = await orderService.getAll()
       setOrders(data.flatMap(expandOrder))
+
+      // Track which expanded order rows are fully dispatched
+      const dispatched = new Set<string>()
+      data.forEach(r => {
+        if (r.items && r.items.length > 0) {
+          r.items.forEach(item => {
+            if (item.qtyDispatched > 0 && item.qtyDispatched >= item.quantity) {
+              dispatched.add(`${r.orderNo}-${item.itemSequence}`)
+            }
+          })
+        } else {
+          if (r.qtyDispatched > 0 && r.qtyDispatched >= r.quantity) {
+            dispatched.add(r.orderNo)
+          }
+        }
+      })
+      setDispatchedOrderNos(dispatched)
     } catch (err) {
       console.error('Failed to load orders:', err)
     }
@@ -127,6 +146,16 @@ export function AllOrdersTab() {
 
     return matchesSearch && matchesStatus && matchesSource
   })
+
+  const activeOrders = filteredOrders.filter(o => !dispatchedOrderNos.has(o.orderNo))
+  const dispatchedOrders = filteredOrders.filter(o => dispatchedOrderNos.has(o.orderNo))
+
+  // Derive effective status from quantity fields (DB status may be stale)
+  const getEffectiveStatus = (o: Order): OrderStatus => {
+    if (o.qtyCompleted >= o.quantity && o.quantity > 0) return OrderStatus.COMPLETED
+    if ((o.qtyInProgress ?? 0) > 0 || (o.qtyCompleted ?? 0) > 0) return OrderStatus.IN_PROGRESS
+    return o.status as OrderStatus
+  }
 
   return (
     <div className="space-y-6">
@@ -185,24 +214,24 @@ export function AllOrdersTab() {
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">In Progress</p>
           <p className="text-2xl font-bold text-blue-600">
-            {orders.filter((o) => o.status === OrderStatus.IN_PROGRESS).length}
+            {orders.filter((o) => getEffectiveStatus(o) === OrderStatus.IN_PROGRESS).length}
           </p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Completed</p>
           <p className="text-2xl font-bold text-green-600">
-            {orders.filter((o) => o.status === OrderStatus.COMPLETED).length}
+            {orders.filter((o) => getEffectiveStatus(o) === OrderStatus.COMPLETED).length}
           </p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Pending</p>
           <p className="text-2xl font-bold text-amber-600">
-            {orders.filter((o) => o.status === OrderStatus.PENDING).length}
+            {orders.filter((o) => getEffectiveStatus(o) === OrderStatus.PENDING).length}
           </p>
         </Card>
       </div>
 
-      {/* Table */}
+      {/* Active Orders Table */}
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
@@ -210,7 +239,26 @@ export function AllOrdersTab() {
           ))}
         </div>
       ) : (
-        <OrdersTable orders={filteredOrders} onDelete={handleDelete} onEdit={handleEdit} />
+        <OrdersTable orders={activeOrders} onDelete={handleDelete} onEdit={handleEdit} />
+      )}
+
+      {/* Dispatched Orders — collapsible */}
+      {!loading && dispatchedOrders.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowDispatched(v => !v)}
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-lg border border-green-200 bg-green-50 text-green-800 text-sm font-medium hover:bg-green-100 transition-colors"
+          >
+            {showDispatched ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <Truck className="h-4 w-4" />
+            Dispatched Orders ({dispatchedOrders.length})
+          </button>
+          {showDispatched && (
+            <div className="mt-2">
+              <OrdersTable orders={dispatchedOrders} onDelete={handleDelete} onEdit={handleEdit} />
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

@@ -149,16 +149,16 @@ const navItems: NavItem[] = [
     icon: Truck,
     module: 'Dispatch',
   },
-  {
-    title: 'Quality',
-    href: '/quality',
-    icon: XCircle,
-    module: 'Quality',
-    children: [
-      { title: 'Rejections', href: '/quality/rejections', icon: XCircle },
-      { title: 'Rework Orders', href: '/quality/rework', icon: RotateCcw }
-    ]
-  },
+  // {
+  //   title: 'Quality',
+  //   href: '/quality',
+  //   icon: XCircle,
+  //   module: 'Quality',
+  //   children: [
+  //     { title: 'Rejections', href: '/quality/rejections', icon: XCircle },
+  //     { title: 'Rework Orders', href: '/quality/rework', icon: RotateCcw }
+  //   ]
+  // },
   {
     title: 'MIS',
     href: '/mis',

@@ -139,10 +139,67 @@ interface Step1Props {
 
 function Step1({ orders, selectedOrderIds, onToggle, loading, loadingNext, onRefresh, onNext }: Step1Props) {
   const [search, setSearch] = useState('')
+  const [showScheduled, setShowScheduled] = useState(false)
+
   const filtered = orders.filter(o =>
     o.orderNo.toLowerCase().includes(search.toLowerCase()) ||
     (o.customerName ?? '').toLowerCase().includes(search.toLowerCase())
   )
+
+  const pendingOrders = filtered.filter(o => o.readyToScheduleCount > 0)
+  const scheduledOrders = filtered.filter(o => o.readyToScheduleCount === 0 && o.alreadyScheduledCount > 0)
+
+  const renderOrderRow = (order: SchedulableOrderV2) => {
+    const key = getOrderKey(order)
+    const selected = selectedOrderIds.has(key)
+    return (
+      <div
+        key={key}
+        onClick={() => onToggle(key)}
+        className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+          selected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'hover:bg-muted/30 bg-card'
+        }`}
+      >
+        {selected
+          ? <CheckSquare className="h-4 w-4 text-primary shrink-0" />
+          : <Square className="h-4 w-4 text-muted-foreground shrink-0" />
+        }
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm">{order.orderNo}</span>
+            {priorityBadge(order.priority)}
+            {order.customerName && (
+              <span className="text-xs text-muted-foreground truncate">{order.customerName}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+            <span className="text-blue-600 font-medium">{order.materialIssuedCount} material issued</span>
+            {order.readyToScheduleCount > 0 && (
+              <>
+                <span>·</span>
+                <span className="text-orange-600 font-medium">{order.readyToScheduleCount} ready to schedule</span>
+              </>
+            )}
+            {order.alreadyScheduledCount > 0 && (
+              <>
+                <span>·</span>
+                <span className="text-green-600">{order.alreadyScheduledCount} scheduled</span>
+              </>
+            )}
+            {order.dueDate && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Due {format(new Date(order.dueDate), 'dd MMM')}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -182,60 +239,43 @@ function Step1({ orders, selectedOrderIds, onToggle, loading, loadingNext, onRef
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : pendingOrders.length === 0 && scheduledOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
             <CheckCircle2 className="h-8 w-8 text-green-500" />
             <p className="text-sm font-medium">No orders ready for scheduling</p>
             <p className="text-xs">Ensure material is issued first via the Stores module.</p>
           </div>
         ) : (
-          filtered.map(order => {
-            const key = getOrderKey(order)
-            const selected = selectedOrderIds.has(key)
-            return (
-              <div
-                key={key}
-                onClick={() => onToggle(key)}
-                className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
-                  selected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'hover:bg-muted/30 bg-card'
-                }`}
-              >
-                {selected
-                  ? <CheckSquare className="h-4 w-4 text-primary shrink-0" />
-                  : <Square className="h-4 w-4 text-muted-foreground shrink-0" />
-                }
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm">{order.orderNo}</span>
-                    {priorityBadge(order.priority)}
-                    {order.customerName && (
-                      <span className="text-xs text-muted-foreground truncate">{order.customerName}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                    <span className="text-blue-600 font-medium">{order.materialIssuedCount} material issued</span>
-                    <span>·</span>
-                    <span className="text-orange-600 font-medium">{order.readyToScheduleCount} ready to schedule</span>
-                    {order.alreadyScheduledCount > 0 && (
-                      <>
-                        <span>·</span>
-                        <span className="text-green-600">{order.alreadyScheduledCount} already scheduled</span>
-                      </>
-                    )}
-                    {order.dueDate && (
-                      <>
-                        <span>·</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Due {format(new Date(order.dueDate), 'dd MMM')}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
+          <>
+            {/* Pending scheduling */}
+            {pendingOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-1">
+                <CheckCircle2 className="h-6 w-6 text-green-500" />
+                <p className="text-xs font-medium">All orders are scheduled</p>
               </div>
-            )
-          })
+            ) : (
+              pendingOrders.map(renderOrderRow)
+            )}
+
+            {/* Fully scheduled — collapsible */}
+            {scheduledOrders.length > 0 && (
+              <div className="mt-3">
+                <button
+                  onClick={() => setShowScheduled(v => !v)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-green-800 text-xs font-medium hover:bg-green-100 transition-colors"
+                >
+                  {showScheduled ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Fully Scheduled Orders ({scheduledOrders.length})
+                </button>
+                {showScheduled && (
+                  <div className="mt-1.5 space-y-1.5">
+                    {scheduledOrders.map(renderOrderRow)}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
