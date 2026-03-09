@@ -62,6 +62,46 @@ export default function DrawingDetailPage() {
     approvedAt: d.approvedAt,
   })
 
+  const handleApprove = async () => {
+    if (!drawing) return
+    try {
+      await drawingService.update(Number(drawing.id), {
+        drawingName: drawing.drawingName,
+        drawingType: drawing.drawingType,
+        revision: drawing.revision,
+        revisionDate: drawing.revisionDate,
+        status: 'approved',
+        description: drawing.description,
+        notes: drawing.notes,
+        linkedProductId: drawing.linkedProductId ? Number(drawing.linkedProductId) : undefined,
+        linkedCustomerId: drawing.linkedCustomerId ? Number(drawing.linkedCustomerId) : undefined,
+      })
+      loadDrawing()
+    } catch (err) {
+      console.error('Failed to approve drawing:', err)
+    }
+  }
+
+  const handleMarkObsolete = async () => {
+    if (!drawing || !confirm('Mark this drawing as obsolete? It will no longer be usable for production.')) return
+    try {
+      await drawingService.update(Number(drawing.id), {
+        drawingName: drawing.drawingName,
+        drawingType: drawing.drawingType,
+        revision: drawing.revision,
+        revisionDate: drawing.revisionDate,
+        status: 'obsolete',
+        description: drawing.description,
+        notes: drawing.notes,
+        linkedProductId: drawing.linkedProductId ? Number(drawing.linkedProductId) : undefined,
+        linkedCustomerId: drawing.linkedCustomerId ? Number(drawing.linkedCustomerId) : undefined,
+      })
+      loadDrawing()
+    } catch (err) {
+      console.error('Failed to mark drawing obsolete:', err)
+    }
+  }
+
   const loadDrawing = async () => {
     setLoading(true)
     try {
@@ -147,8 +187,20 @@ export default function DrawingDetailPage() {
             <Eye className="mr-2 h-4 w-4" />
             Open Drawing
           </Button>
+          {drawing.status === 'draft' && (
+            <Button className="bg-green-600 hover:bg-green-700" onClick={handleApprove}>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Approve
+            </Button>
+          )}
+          {drawing.status === 'approved' && (
+            <Button variant="destructive" onClick={handleMarkObsolete}>
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Mark Obsolete
+            </Button>
+          )}
           <Link href={`/masters/drawings/${drawing.id}/edit`}>
-            <Button>
+            <Button variant="outline">
               <Edit className="mr-2 h-4 w-4" />
               Edit
             </Button>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Upload, FileText, X, FileUp, Files, CheckCircle, AlertCircle, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,10 +10,14 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { mockRawMaterials, mockProducts, mockCustomers, Drawing, ManufacturingDimensions } from "@/lib/mock-data"
+import { Drawing, ManufacturingDimensions } from "@/lib/mock-data"
 import { toast } from "sonner"
 import { ManufacturingDimensionsForm } from "./manufacturing-dimensions-form"
 import { drawingService, BulkUploadResult } from "@/lib/api/drawings"
+import { productService } from "@/lib/api/products"
+import { customerService } from "@/lib/api/customer"
+import { Product } from "@/types/product"
+import { Customer } from "@/types/customer"
 
 interface AddDrawingDialogProps {
     open: boolean
@@ -24,17 +28,18 @@ interface AddDrawingDialogProps {
 export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDialogProps) {
     const [uploading, setUploading] = useState(false)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [products, setProducts] = useState<Product[]>([])
+    const [customers, setCustomers] = useState<Customer[]>([])
 
     // Single upload form state
     const [drawingNumber, setDrawingNumber] = useState("")
     const [drawingName, setDrawingName] = useState("")
-    const [drawingType, setDrawingType] = useState<Drawing['drawingType']>("shaft")
+    const [drawingType, setDrawingType] = useState<Drawing['drawingType']>("other")
     const [revision, setRevision] = useState("A")
     const [revisionDate, setRevisionDate] = useState(new Date().toISOString().split('T')[0])
     const [status, setStatus] = useState<Drawing['status']>("draft")
     const [description, setDescription] = useState("")
     const [notes, setNotes] = useState("")
-    const [linkedPartId, setLinkedPartId] = useState("")
     const [linkedProductId, setLinkedProductId] = useState("")
     const [linkedCustomerId, setLinkedCustomerId] = useState("")
     const [manufacturingDimensions, setManufacturingDimensions] = useState<Partial<ManufacturingDimensions>>({
@@ -46,6 +51,11 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
     const [bulkLinkedProductId, setBulkLinkedProductId] = useState("")
     const [bulkLinkedCustomerId, setBulkLinkedCustomerId] = useState("")
     const [bulkResults, setBulkResults] = useState<BulkUploadResult[]>([])
+
+    useEffect(() => {
+        productService.getAll().then(setProducts).catch(() => {})
+        customerService.getAll().then(setCustomers).catch(() => {})
+    }, [])
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -95,7 +105,6 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
                 revisionDate,
                 status,
                 manufacturingDimensionsJSON: dimensionsJson,
-                linkedPartId: linkedPartId ? parseInt(linkedPartId) : undefined,
                 linkedProductId: linkedProductId ? parseInt(linkedProductId) : undefined,
                 linkedCustomerId: linkedCustomerId ? parseInt(linkedCustomerId) : undefined,
                 description,
@@ -118,13 +127,12 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
         setSelectedFile(null)
         setDrawingNumber("")
         setDrawingName("")
-        setDrawingType("shaft")
+        setDrawingType("other")
         setRevision("A")
         setRevisionDate(new Date().toISOString().split('T')[0])
         setStatus("draft")
         setDescription("")
         setNotes("")
-        setLinkedPartId("")
         setLinkedProductId("")
         setLinkedCustomerId("")
         setManufacturingDimensions({ materialGrade: "" })
@@ -326,25 +334,14 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
                                     {/* Linking (Optional) */}
                                     <div className="space-y-3">
                                         <Label className="text-sm font-semibold">Link to (Optional)</Label>
-                                        <div className="grid grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label className="text-xs">Part</Label>
-                                                <Select value={linkedPartId || undefined} onValueChange={setLinkedPartId}>
-                                                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {mockRawMaterials.slice(0, 5).map((material) => (
-                                                            <SelectItem key={material.id} value={material.id.toString()}>{material.materialName}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs">Product/Roller</Label>
+                                                <Label className="text-xs">Product / Roller</Label>
                                                 <Select value={linkedProductId || undefined} onValueChange={setLinkedProductId}>
                                                     <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                                                     <SelectContent>
-                                                        {mockProducts.slice(0, 5).map((product) => (
-                                                            <SelectItem key={product.id} value={product.id.toString()}>{product.modelName}</SelectItem>
+                                                        {products.map((product) => (
+                                                            <SelectItem key={product.id} value={product.id.toString()}>{product.partCode} — {product.modelName}</SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
@@ -354,7 +351,7 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
                                                 <Select value={linkedCustomerId || undefined} onValueChange={setLinkedCustomerId}>
                                                     <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                                                     <SelectContent>
-                                                        {mockCustomers.slice(0, 5).map((customer) => (
+                                                        {customers.map((customer) => (
                                                             <SelectItem key={customer.id} value={customer.id.toString()}>{customer.customerName}</SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -400,8 +397,8 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
                                             <Select value={bulkLinkedProductId || undefined} onValueChange={setBulkLinkedProductId}>
                                                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                                                 <SelectContent>
-                                                    {mockProducts.slice(0, 5).map((product) => (
-                                                        <SelectItem key={product.id} value={product.id.toString()}>{product.modelName}</SelectItem>
+                                                    {products.map((product) => (
+                                                        <SelectItem key={product.id} value={product.id.toString()}>{product.partCode} — {product.modelName}</SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
@@ -411,7 +408,7 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
                                             <Select value={bulkLinkedCustomerId || undefined} onValueChange={setBulkLinkedCustomerId}>
                                                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                                                 <SelectContent>
-                                                    {mockCustomers.slice(0, 5).map((customer) => (
+                                                    {customers.map((customer) => (
                                                         <SelectItem key={customer.id} value={customer.id.toString()}>{customer.customerName}</SelectItem>
                                                     ))}
                                                 </SelectContent>

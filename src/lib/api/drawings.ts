@@ -16,7 +16,9 @@ export interface DrawingResponse {
   manufacturingDimensionsJSON?: string
   linkedPartId?: number
   linkedProductId?: number
+  linkedProductName?: string
   linkedCustomerId?: number
+  linkedCustomerName?: string
   linkedOrderId?: number
   linkedOrderNo?: string
   description?: string
