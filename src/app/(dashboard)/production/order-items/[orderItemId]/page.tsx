@@ -88,7 +88,7 @@ interface ProductionOrderDetail {
   completedSteps: number
   inProgressSteps: number
   childParts: ProductionChildPartGroup[]
-  assembly: ProductionStepItem | null
+  assemblySteps: ProductionStepItem[]
   canStartAssembly: boolean
 }
 
@@ -605,7 +605,7 @@ export default function OrderItemProductionPage() {
       </div>
 
       {/* Assembly */}
-      {order.assembly && (
+      {order.assemblySteps.length > 0 && (
         <div className="space-y-2">
           <h2 className="font-medium text-sm text-muted-foreground px-1">Assembly</h2>
           <Collapsible open={assemblyExpanded} onOpenChange={setAssemblyExpanded}>
@@ -614,16 +614,27 @@ export default function OrderItemProductionPage() {
                 <div className="flex items-center gap-3">
                   {assemblyExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   <span className="font-medium">Final Assembly</span>
-                  <StatusBadge status={order.assembly.productionStatus} />
-                  {!order.canStartAssembly && order.assembly.productionStatus === 'Pending' && (
+                  <StatusBadge status={
+                    order.assemblySteps.every(s => s.productionStatus === 'Completed') ? 'Completed'
+                    : order.assemblySteps.some(s => s.productionStatus === 'InProgress') ? 'InProgress'
+                    : order.assemblySteps.some(s => s.productionStatus === 'Paused') ? 'Paused'
+                    : order.assemblySteps.some(s => s.productionStatus === 'Ready') ? 'Ready'
+                    : 'Pending'
+                  } />
+                  {!order.canStartAssembly && order.assemblySteps[0]?.productionStatus === 'Pending' && (
                     <span className="text-xs text-amber-600">Waiting for all child parts</span>
                   )}
                 </div>
+                <span className="text-sm text-muted-foreground">
+                  {order.assemblySteps.filter(s => s.productionStatus === 'Completed').length}/{order.assemblySteps.length}
+                </span>
               </div>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="ml-7 mt-2 pb-2">
-                <StepRow step={order.assembly} onAction={handleAction} onSendToVendor={(s) => setOspStep(s)} />
+              <div className="ml-7 mt-2 space-y-2 pb-2">
+                {order.assemblySteps.map(step => (
+                  <StepRow key={step.jobCardId} step={step} onAction={handleAction} onSendToVendor={(s) => setOspStep(s)} />
+                ))}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -631,7 +642,9 @@ export default function OrderItemProductionPage() {
       )}
 
       {/* QC Status */}
-      {order.assembly && (
+      {order.assemblySteps.length > 0 && (() => {
+        const allAssemblyDone = order.assemblySteps.every(s => s.productionStatus === 'Completed')
+        return (
         <div className="space-y-2">
           <h2 className="font-medium text-sm text-muted-foreground px-1 flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5" />
@@ -642,11 +655,11 @@ export default function OrderItemProductionPage() {
               ? 'bg-green-50 border-green-200'
               : qcRecord?.qcStatus === 'Failed'
               ? 'bg-red-50 border-red-200'
-              : order.assembly.productionStatus === 'Completed'
+              : allAssemblyDone
               ? 'bg-amber-50 border-amber-200'
               : 'bg-card border-border'
           }`}>
-            {order.assembly.productionStatus !== 'Completed' ? (
+            {!allAssemblyDone ? (
               <>
                 <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0" />
                 <span className="text-muted-foreground text-sm">Complete assembly first before QC can be submitted</span>
@@ -700,7 +713,8 @@ export default function OrderItemProductionPage() {
             )}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* QC Submit Dialog */}
       <QCSubmitDialog
