@@ -498,6 +498,74 @@ function IssueDialog({
   )
 }
 
+function BulkIssueDialog({
+  open, count, selectedDrafts, onClose, onIssue, issuing,
+}: {
+  open: boolean
+  count: number
+  selectedDrafts: DraftSummary[]
+  onClose: () => void
+  onIssue: (issuedBy: string, receivedBy: string) => void
+  issuing: boolean
+}) {
+  const [issuedBy, setIssuedBy] = useState('')
+  const [receivedBy, setReceivedBy] = useState('')
+
+  useEffect(() => {
+    if (open) { setIssuedBy(''); setReceivedBy('') }
+  }, [open])
+
+  const totalBars = selectedDrafts.reduce((s, d) => s + d.totalBars, 0)
+  const totalCuts = selectedDrafts.reduce((s, d) => s + d.totalCuts, 0)
+  const totalReqs = selectedDrafts.reduce((s, d) => s + d.requisitionCount, 0)
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Issue {count} Draft{count !== 1 ? 's' : ''}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Drafts</span>
+              <span className="font-semibold">{count}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Total Bars</span>
+              <span className="font-semibold">{totalBars}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Total Cuts</span>
+              <span className="font-semibold">{totalCuts}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Total Requisitions</span>
+              <span className="font-semibold">{totalReqs}</span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bulkIssuedBy" className="text-xs">Issued By *</Label>
+            <Input id="bulkIssuedBy" value={issuedBy} onChange={e => setIssuedBy(e.target.value)} placeholder="Issuer name" className="h-8 text-sm" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bulkReceivedBy" className="text-xs">Received By *</Label>
+            <Input id="bulkReceivedBy" value={receivedBy} onChange={e => setReceivedBy(e.target.value)} placeholder="Receiver name" className="h-8 text-sm" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} size="sm">Cancel</Button>
+          <Button onClick={() => onIssue(issuedBy, receivedBy)} disabled={issuing || !issuedBy.trim() || !receivedBy.trim()} size="sm" className="bg-green-600 hover:bg-green-700">
+            {issuing
+              ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Issuing…</>
+              : <><PackageCheck className="h-3.5 w-3.5 mr-1" />Issue All Selected</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── View Draft Modal ──────────────────────────────────────────────────────────
 
 function ViewDraftModal({
@@ -756,6 +824,9 @@ export default function MaterialIssuePage() {
   const [loadingIssueDrafts, setLoadingIssueDrafts] = useState(false)
   const [issuingDraft, setIssuingDraft] = useState<DraftSummary | null>(null)
   const [issuing, setIssuing] = useState(false)
+  const [selectedIssueIds, setSelectedIssueIds] = useState<Set<number>>(new Set())
+  const [bulkIssueOpen, setBulkIssueOpen] = useState(false)
+  const [bulkIssuing, setBulkIssuing] = useState(false)
 
   // ── Shared state ────────────────────────────────────────────────────────────
   const [printDrafts, setPrintDrafts] = useState<DraftDetail[]>([])
@@ -1053,6 +1124,32 @@ export default function MaterialIssuePage() {
       showToast('error', e instanceof Error ? e.message : 'Failed to issue materials')
     } finally {
       setIssuing(false)
+    }
+  }
+
+  const handleBulkIssue = async (issuedBy: string, receivedBy: string) => {
+    setBulkIssuing(true)
+    try {
+      const ids = Array.from(selectedIssueIds)
+      const results = await issueWindowService.bulkIssueDrafts(ids, issuedBy, receivedBy)
+      const failed = results.filter(r => !r.success)
+      if (!failed.length) {
+        showToast('success', `${ids.length} draft(s) issued — ${results.length} requisition(s) successful`)
+      } else {
+        showToast('error', `${failed.length} requisition(s) failed`)
+      }
+      setBulkIssueOpen(false)
+      setSelectedIssueIds(new Set())
+      const [drafts, issued] = await Promise.all([
+        issueWindowService.getDrafts(),
+        issueWindowService.getFinalizedDrafts(),
+      ])
+      setAllDrafts(drafts)
+      setIssueDrafts(issued)
+    } catch (e: unknown) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to bulk issue')
+    } finally {
+      setBulkIssuing(false)
     }
   }
 
@@ -1398,9 +1495,21 @@ export default function MaterialIssuePage() {
               <p className="text-xs text-muted-foreground">
                 Finalized cutting drafts ready for physical material issue
               </p>
-              <Button variant="outline" size="sm" onClick={loadIssueDrafts} disabled={loadingIssueDrafts}>
-                {loadingIssueDrafts ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
-              </Button>
+              <div className="flex items-center gap-2">
+                {selectedIssueIds.size > 0 && (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-green-600 hover:bg-green-700"
+                    onClick={() => setBulkIssueOpen(true)}
+                  >
+                    <PackageCheck className="h-4 w-4" />
+                    Issue Selected ({selectedIssueIds.size})
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={loadIssueDrafts} disabled={loadingIssueDrafts}>
+                  {loadingIssueDrafts ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
+                </Button>
+              </div>
             </div>
 
             {loadingIssueDrafts ? (
@@ -1415,11 +1524,48 @@ export default function MaterialIssuePage() {
               </div>
             ) : (
               <div className="space-y-2 max-w-4xl">
+                {/* Select all row */}
+                <div className="flex items-center gap-3 px-4 py-1 text-xs text-muted-foreground">
+                  <Checkbox
+                    checked={selectedIssueIds.size === filteredIssueDrafts.length && filteredIssueDrafts.length > 0}
+                    onCheckedChange={() => {
+                      if (selectedIssueIds.size === filteredIssueDrafts.length) {
+                        setSelectedIssueIds(new Set())
+                      } else {
+                        setSelectedIssueIds(new Set(filteredIssueDrafts.map(d => d.id)))
+                      }
+                    }}
+                  />
+                  <span>
+                    {selectedIssueIds.size > 0
+                      ? `${selectedIssueIds.size} of ${filteredIssueDrafts.length} selected`
+                      : `Select all (${filteredIssueDrafts.length})`}
+                  </span>
+                  {selectedIssueIds.size > 0 && (
+                    <button className="underline hover:text-foreground" onClick={() => setSelectedIssueIds(new Set())}>
+                      Clear
+                    </button>
+                  )}
+                </div>
+
                 {filteredIssueDrafts.map(draft => (
                   <div
                     key={draft.id}
-                    className="flex items-center gap-4 rounded-lg border bg-background px-4 py-3 hover:bg-muted/20 transition-colors"
+                    className={cn(
+                      'flex items-center gap-4 rounded-lg border bg-background px-4 py-3 hover:bg-muted/20 transition-colors',
+                      selectedIssueIds.has(draft.id) && 'border-green-400 bg-green-50/40'
+                    )}
                   >
+                    <Checkbox
+                      checked={selectedIssueIds.has(draft.id)}
+                      onCheckedChange={() => {
+                        setSelectedIssueIds(prev => {
+                          const next = new Set(prev)
+                          next.has(draft.id) ? next.delete(draft.id) : next.add(draft.id)
+                          return next
+                        })
+                      }}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm font-semibold">{draft.draftNo}</span>
@@ -1504,6 +1650,16 @@ export default function MaterialIssuePage() {
         onClose={() => setIssuingDraft(null)}
         onIssue={handleIssue}
         issuing={issuing}
+      />
+
+      {/* Bulk Issue Dialog */}
+      <BulkIssueDialog
+        open={bulkIssueOpen}
+        count={selectedIssueIds.size}
+        selectedDrafts={issueDrafts.filter(d => selectedIssueIds.has(d.id))}
+        onClose={() => setBulkIssueOpen(false)}
+        onIssue={handleBulkIssue}
+        issuing={bulkIssuing}
       />
 
     </>

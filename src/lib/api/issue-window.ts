@@ -67,6 +67,11 @@ export const issueWindowService = {
     return res.data.data ?? []
   },
 
+  bulkIssueDrafts: async (draftIds: number[], issuedBy: string, receivedBy: string): Promise<IssueResult[]> => {
+    const res = await apiClient.post<{ data: IssueResult[] }>(`${BASE}/drafts/bulk-issue`, { draftIds, issuedBy, receivedBy })
+    return res.data.data ?? []
+  },
+
   deleteDraft: async (id: number): Promise<void> => {
     await apiClient.delete(`${BASE}/drafts/${id}`)
   },
