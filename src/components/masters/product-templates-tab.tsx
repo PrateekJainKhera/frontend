@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Package, ListTree, Trash2 } from 'lucide-react'
+import { Plus, Search, Package, ListTree, Trash2, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -209,6 +209,11 @@ export function ProductTemplatesTab() {
                 <div className="flex gap-2 pt-1">
                   <Button variant="outline" size="sm" className="flex-1" asChild>
                     <Link href={`/masters/product-templates/${template.id}`}>View</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/masters/product-templates/${template.id}/edit`}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Link>
                   </Button>
                   <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(template)}>
                     <Trash2 className="h-3.5 w-3.5" />

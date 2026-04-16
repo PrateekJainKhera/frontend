@@ -40,9 +40,9 @@ const formSchema = z.object({
   customerName: z.string().optional(),
   modelId: z.number().min(1, 'Model is required'),
   rollerType: z.string().min(2, 'Roller type is required'),
-  diameter: z.number().positive('Diameter must be positive'),
-  length: z.number().positive('Length must be positive'),
-  materialGrade: z.string().min(1, 'Material grade is required'),
+  diameter: z.number().positive('Diameter must be positive').optional(),
+  length: z.number().positive('Length must be positive').optional(),
+  materialGrade: z.string().optional(),
   drawingNo: z.string().optional(),
   revisionNo: z.string().optional(),
   revisionDate: z.string().optional(),
@@ -104,8 +104,8 @@ export function EditProductDialog({
       customerName: product.customerName,
       modelId: product.modelId,
       rollerType: product.rollerType,
-      diameter: product.diameter,
-      length: product.length,
+      diameter: product.diameter ?? undefined,
+      length: product.length ?? undefined,
       materialGrade: product.materialGrade,
       drawingNo: product.drawingNo || '',
       revisionNo: product.revisionNo || '',
@@ -192,7 +192,7 @@ export function EditProductDialog({
                 name="customerName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer Name *</FormLabel>
+                    <FormLabel>Customer Name</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter customer name" {...field} />
                     </FormControl>
@@ -206,7 +206,7 @@ export function EditProductDialog({
               <FormField
                 control={form.control}
                 name="modelId"
-                render={({ field }) => (
+                render={() => (
                   <FormItem>
                     <FormLabel>Model *</FormLabel>
                     <FormControl>
@@ -266,7 +266,7 @@ export function EditProductDialog({
                 name="diameter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Diameter (mm) *</FormLabel>
+                    <FormLabel>Diameter (mm)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -285,7 +285,7 @@ export function EditProductDialog({
                 name="length"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Length (mm) *</FormLabel>
+                    <FormLabel>Length (mm)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -306,7 +306,7 @@ export function EditProductDialog({
                 name="materialGrade"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Material Grade *</FormLabel>
+                    <FormLabel>Material Grade</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., EN31" {...field} />
                     </FormControl>

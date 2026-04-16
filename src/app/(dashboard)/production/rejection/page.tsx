@@ -216,7 +216,7 @@ function RejectionRecordContent() {
     if (canBeReworked) {
       router.push(`/production/rework/create?jobId=${jobCard.id}&rejectedQty=${qtyToReject}`)
     } else {
-      router.push('/production/job-cards')
+      router.push('/planning/job-cards')
     }
   }
 
@@ -246,7 +246,7 @@ function RejectionRecordContent() {
         <h2 className="text-2xl font-bold text-primary mb-2">Job Card Not Found</h2>
         <p className="text-muted-foreground mb-6">The requested job card could not be loaded</p>
         <Button asChild>
-          <Link href="/production/job-cards">
+          <Link href="/planning/job-cards">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Job Cards
           </Link>
@@ -261,7 +261,7 @@ function RejectionRecordContent() {
       <div className="sticky top-0 z-10 bg-background p-4 border-b">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" asChild>
-            <Link href={`/production/job-cards/${jobId}`}>
+            <Link href={`/planning/job-cards/${jobId}`}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

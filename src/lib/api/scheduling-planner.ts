@@ -82,6 +82,20 @@ class SchedulingPlannerService {
       throw e
     }
   }
+
+  async createFullRework(jobCardId: number, rejectedQty: number, reason: string, reportedBy?: string): Promise<number[]> {
+    try {
+      const r = await apiClient.post<ApiResponse<number[]>>(
+        `${this.base}/full-rework/${jobCardId}`,
+        { rejectedQty, reason, reportedBy }
+      )
+      if (!r.data.success) throw new Error(r.data.message)
+      return r.data.data || []
+    } catch (e) {
+      if (axios.isAxiosError(e)) throw new Error(e.response?.data?.message || e.message)
+      throw e
+    }
+  }
 }
 
 export const schedulingPlannerService = new SchedulingPlannerService()

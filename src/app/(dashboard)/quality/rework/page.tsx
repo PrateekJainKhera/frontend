@@ -345,7 +345,7 @@ export default function ReworkOrdersListPage() {
                       </div>
                     </div>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/production/job-cards/${order.id}`}>
+                      <Link href={`/planning/job-cards/${order.id}`}>
                         View Details
                       </Link>
                     </Button>

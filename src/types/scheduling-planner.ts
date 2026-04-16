@@ -13,6 +13,7 @@ export interface SchedulableOrderV2 {
   materialIssuedCount: number
   alreadyScheduledCount: number
   readyToScheduleCount: number
+  reworkCount: number
 }
 
 // ── Step 2 ────────────────────────────────────────────────────────────────────

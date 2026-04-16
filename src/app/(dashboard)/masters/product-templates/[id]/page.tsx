@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Package, ListTree, Edit, Trash2, Plus, Link as LinkIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -387,7 +387,7 @@ export default function ProductTemplateDetailPage() {
                   <option value="">Select a template...</option>
                 </select>
                 <Button variant="outline" size="sm" asChild>
-                  <Link href="/masters/child-part-templates">
+                  <Link href="/masters/products">
                     Browse
                   </Link>
                 </Button>

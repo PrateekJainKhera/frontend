@@ -55,7 +55,7 @@ const pageTitles: Record<string, string> = {
   '/scheduling': 'Scheduling',
   // Production
   '/production': 'Production',
-  '/production/job-cards': 'Job Cards',
+  '/planning/job-cards': 'Job Cards',
   '/production/job-cards/create': 'New Job Card',
   '/production/child-parts': 'Child Parts',
   '/production/machines': 'Machine Load',

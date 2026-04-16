@@ -9,10 +9,8 @@ import {
   ShoppingCart,
   Factory,
   Database,
-  XCircle,
-  RotateCcw,
-  BarChart3,
   Home,
+  SlidersHorizontal,
   Warehouse,
   ChevronLeft,
   ChevronDown,
@@ -29,7 +27,8 @@ import {
   Clock,
   ShieldAlert,
   ShieldCheck,
-  Users
+  Users,
+  Settings
 } from 'lucide-react'
 import { warehouseService } from '@/lib/api/warehouses'
 import { getSession, canView } from '@/lib/auth'
@@ -61,7 +60,8 @@ const navItems: NavItem[] = [
       { title: 'Drawings', href: '/masters/drawings', icon: Package },
       { title: 'Machines', href: '/masters/machines', icon: Factory },
       { title: 'Vendors', href: '/masters/vendors', icon: Store },
-      { title: 'Shifts', href: '/masters/shifts', icon: Clock }
+      { title: 'Shifts', href: '/masters/shifts', icon: Clock },
+      { title: 'Configurations', href: '/masters/configurations', icon: SlidersHorizontal },
     ]
   },
   {
@@ -115,7 +115,8 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Dashboard', href: '/production', icon: Factory },
       { title: 'Execution', href: '/production/execution', icon: Factory },
-      { title: 'OSP Tracking', href: '/production/osp', icon: Factory }
+      { title: 'OSP Tracking', href: '/production/osp', icon: Factory },
+      { title: 'Rework Approval', href: '/production/rework', icon: Factory }
     ]
   },
   {
@@ -140,6 +141,7 @@ const navItems: NavItem[] = [
     module: 'Stores',
     children: [
       { title: 'Cutting Planning', href: '/stores/cutting-planning', icon: Scissors },
+      { title: 'Issue List', href: '/stores/issue-list', icon: PackageCheck },
       { title: 'Opening Stock', href: '/stores/opening-stock', icon: PackagePlus }
     ]
   },
@@ -159,18 +161,19 @@ const navItems: NavItem[] = [
   //     { title: 'Rework Orders', href: '/quality/rework', icon: RotateCcw }
   //   ]
   // },
-  {
-    title: 'MIS',
-    href: '/mis',
-    icon: BarChart3,
-    module: 'Reports',
-    children: [
-      { title: 'Executive', href: '/mis/executive', icon: BarChart3 },
-      { title: 'Production', href: '/mis/production', icon: BarChart3 },
-      { title: 'Sales', href: '/mis/sales', icon: BarChart3 },
-      { title: 'Agent Performance', href: '/mis/agents', icon: BarChart3 }
-    ]
-  },
+  // MIS reports hidden until real API data is connected
+  // {
+  //   title: 'MIS',
+  //   href: '/mis',
+  //   icon: BarChart3,
+  //   module: 'Reports',
+  //   children: [
+  //     { title: 'Executive', href: '/mis/executive', icon: BarChart3 },
+  //     { title: 'Production', href: '/mis/production', icon: BarChart3 },
+  //     { title: 'Sales', href: '/mis/sales', icon: BarChart3 },
+  //     { title: 'Agent Performance', href: '/mis/agents', icon: BarChart3 }
+  //   ]
+  // },
   {
     title: 'Admin',
     href: '/admin',
@@ -178,7 +181,8 @@ const navItems: NavItem[] = [
     module: 'Admin',
     children: [
       { title: 'Users', href: '/admin/users', icon: Users },
-      { title: 'Roles & Permissions', href: '/admin/roles', icon: ShieldCheck }
+      { title: 'Roles & Permissions', href: '/admin/roles', icon: ShieldCheck },
+      { title: 'System Settings', href: '/admin/settings', icon: Settings }
     ]
   }
 ]

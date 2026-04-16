@@ -22,6 +22,7 @@ import {
   productionService, ExecutionViewCategory, ExecutionViewRow,
 } from '@/lib/api/production'
 import { ospService } from '@/lib/api/osp'
+import { schedulingPlannerService } from '@/lib/api/scheduling-planner'
 import { vendorService, VendorResponse } from '@/lib/api/vendors'
 import { qcService, QCPendingItem } from '@/lib/api/qc'
 
@@ -256,7 +257,7 @@ function BatchOSPDialog({
 function JobCardRow({
   row, state, ospChecked,
   onToggle, onOspToggle,
-  onQtyChange, onSubmit, onStart, onLogOSP,
+  onQtyChange, onSubmit, onStart, onLogOSP, onReportRejection,
 }: {
   row: ExecutionViewRow
   state: RowState
@@ -267,6 +268,7 @@ function JobCardRow({
   onSubmit: () => void
   onStart: () => void
   onLogOSP: () => void
+  onReportRejection: () => void
 }) {
   const isDone = row.productionStatus === 'Completed'
   const isLocked = row.isLocked
@@ -329,6 +331,11 @@ function JobCardRow({
           <Badge variant="outline" className="text-xs border-amber-400 text-amber-700">OSP</Badge>
         )}
 
+        {/* Rework label */}
+        {row.isRework && (
+          <Badge variant="outline" className="text-xs border-purple-400 text-purple-700 bg-purple-50">RW</Badge>
+        )}
+
         {/* Machine (in-house only) */}
         {!isOsp && row.machineName && (
           <span className="text-xs text-muted-foreground border border-dashed border-border rounded px-2 py-0.5">
@@ -346,11 +353,22 @@ function JobCardRow({
 
         {/* Completed summary */}
         {isDone && (
-          <span className="text-xs text-green-700 flex items-center gap-1 ml-auto">
-            <CheckCircle className="h-3 w-3" />
-            Done: {row.completedQty} pcs
-            {row.rejectedQty > 0 && ` · Rejected: ${row.rejectedQty}`}
-          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-xs text-green-700 flex items-center gap-1">
+              <CheckCircle className="h-3 w-3" />
+              Done: {row.completedQty} pcs
+              {row.rejectedQty > 0 && ` · Rejected: ${row.rejectedQty}`}
+            </span>
+            {!isOsp && (
+              <Button
+                size="sm" variant="outline"
+                className="h-6 text-xs gap-1 border-red-300 text-red-700 hover:bg-red-50"
+                onClick={onReportRejection}
+              >
+                <XCircle className="h-3 w-3" /> Report Rejection
+              </Button>
+            )}
+          </div>
         )}
 
         {/* OSP action: single Send to Vendor (when not batch-selected) */}
@@ -422,6 +440,86 @@ function JobCardRow({
         </div>
       )}
     </div>
+  )
+}
+
+// ── Report Rejection / Full Rework Dialog ─────────────────────────────────────
+
+function ReportRejectionDialog({
+  row, onClose, onSaved,
+}: { row: ExecutionViewRow | null; onClose: () => void; onSaved: () => void }) {
+  const [rejectedQty, setRejectedQty] = useState('')
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (row) {
+      setRejectedQty(String(row.rejectedQty > 0 ? row.rejectedQty : row.quantity))
+      setReason('')
+    }
+  }, [row])
+
+  if (!row) return null
+
+  async function save() {
+    if (!row) return
+    if (!reason.trim()) { toast.error('Reason is required'); return }
+    const qty = Number(rejectedQty)
+    if (!qty || qty <= 0) { toast.error('Enter rejected quantity'); return }
+
+    setSaving(true)
+    try {
+      const newIds = await schedulingPlannerService.createFullRework(
+        row.jobCardId, qty, reason.trim(), 'Admin'
+      )
+      toast.success(`Full rework started — ${newIds.length} new job card(s) created`)
+      onSaved(); onClose()
+    } catch (e: any) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <Dialog open={!!row} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle className="text-red-700">Report Rejection — Full Rework</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-1">
+          <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm space-y-0.5">
+            <p><span className="font-medium">{row.jobCardNo ?? row.orderNo}</span> · {row.processName}</p>
+            <p className="text-muted-foreground">{row.childPartName}</p>
+            <p className="text-xs text-red-700 font-medium mt-1">
+              All job cards for this child part will be re-created from Step 1. A new rework cycle begins.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Rejected Qty <span className="text-red-500">*</span></Label>
+            <Input
+              type="number" min={1} max={row.quantity}
+              value={rejectedQty}
+              onChange={(e) => setRejectedQty(e.target.value)}
+              className="h-9"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Reason for Rejection <span className="text-red-500">*</span></Label>
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="h-9"
+              placeholder="e.g. Dimension out of tolerance, surface defect..."
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving || !reason.trim()} className="gap-1 bg-red-600 hover:bg-red-700 text-white">
+            {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+            Confirm Full Rework
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -694,6 +792,8 @@ export default function ProductionExecutionPage() {
   const [ospChecked, setOspChecked] = useState<Record<number, boolean>>({})
   const [batchOspRows, setBatchOspRows] = useState<ExecutionViewRow[]>([])
   const [vendors, setVendors] = useState<VendorResponse[]>([])
+  // Rework dialog
+  const [reworkRow, setReworkRow] = useState<ExecutionViewRow | null>(null)
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [searchText, setSearchText] = useState('')
@@ -1223,6 +1323,7 @@ export default function ProductionExecutionPage() {
                             onSubmit={() => submitRow(row)}
                             onStart={() => startRow(row)}
                             onLogOSP={() => setOspDialogRow(row)}
+                            onReportRejection={() => setReworkRow(row)}
                           />
                         ))}
                       </div>
@@ -1258,6 +1359,9 @@ export default function ProductionExecutionPage() {
           load()
         }}
       />
+
+      {/* Report Rejection / Full Rework dialog */}
+      <ReportRejectionDialog row={reworkRow} onClose={() => setReworkRow(null)} onSaved={load} />
 
       {/* QC Section — shown at bottom when assembly-complete items need sign-off */}
       <QCSection onRefreshExecution={load} />

@@ -456,7 +456,7 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-center">Orders</span>
             </Link>
 
-            <Link href="/production/job-cards" className="flex flex-col items-center gap-2 p-4 border rounded-lg hover:bg-muted/50 hover:border-primary transition-all group">
+            <Link href="/planning/job-cards" className="flex flex-col items-center gap-2 p-4 border rounded-lg hover:bg-muted/50 hover:border-primary transition-all group">
               <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
                 <Factory className="h-6 w-6 text-primary" />
               </div>

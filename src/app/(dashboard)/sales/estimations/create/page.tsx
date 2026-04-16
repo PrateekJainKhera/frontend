@@ -16,8 +16,10 @@ import { Customer } from '@/types/customer'
 import { Product } from '@/types/product'
 import { customerService } from '@/lib/api/customer'
 import { estimationService } from '@/lib/api/estimations'
+import { apiClient } from '@/lib/api/axios-config'
 import { ProductSearchDialog } from '@/components/dialogs/product-search-dialog'
 import { CreateCustomerDialog } from '@/components/forms/create-customer-dialog'
+import { CreateProductDialog } from '@/components/forms/create-product-dialog'
 
 interface EstimationItem {
   product: Product
@@ -38,6 +40,7 @@ export default function CreateEstimationPage() {
   const [termsAndConditions, setTermsAndConditions] = useState('Payment due within 30 days of invoice.')
   const [productSearchOpen, setProductSearchOpen] = useState(false)
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false)
+  const [createProductOpen, setCreateProductOpen] = useState(false)
 
   useEffect(() => { loadCustomers() }, [])
 
@@ -59,6 +62,14 @@ export default function CreateEstimationPage() {
     setProductSearchOpen(false)
   }
 
+  const handleNewProductCreated = (product?: Product) => {
+    if (!product) return
+    setCreateProductOpen(false)
+    if (items.find(i => i.product.id === product.id)) return
+    setItems(prev => [...prev, { product, quantity: 1, unitPrice: 0, notes: '' }])
+    toast.success(`Product ${product.partCode} created and added. Drawing review will be triggered when order is placed.`)
+  }
+
   const updateItem = (index: number, field: keyof Omit<EstimationItem, 'product'>, value: string | number) => {
     setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item))
   }
@@ -68,6 +79,15 @@ export default function CreateEstimationPage() {
   }
 
   // Calculations
+  const [gstRate, setGstRate] = useState(18)
+
+  useEffect(() => {
+    apiClient.get('/app-settings/GSTRate').then(res => {
+      const v = parseFloat(res.data?.data?.value)
+      if (!isNaN(v)) setGstRate(v)
+    }).catch(() => {})
+  }, [])
+
   const subTotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
   const discountAmount = discountType === 'Percent'
     ? Math.round(subTotal * discountValue / 100 * 100) / 100
@@ -75,6 +95,8 @@ export default function CreateEstimationPage() {
       ? Math.min(discountValue, subTotal)
       : 0
   const totalAmount = subTotal - discountAmount
+  const gstAmount = Math.round(totalAmount * gstRate / 100 * 100) / 100
+  const grandTotal = totalAmount + gstAmount
 
   const handleSubmit = async () => {
     if (!selectedCustomerId) { toast.error('Please select a customer'); return }
@@ -151,18 +173,28 @@ export default function CreateEstimationPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Products</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setProductSearchOpen(true)}>
-              <Search className="mr-2 h-4 w-4" /> Add Product
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCreateProductOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> New Product
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setProductSearchOpen(true)}>
+                <Search className="mr-2 h-4 w-4" /> Add Existing
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {items.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm">No products added yet</p>
-              <Button variant="outline" className="mt-3" onClick={() => setProductSearchOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Add First Product
-              </Button>
+              <div className="flex gap-2 justify-center mt-3">
+                <Button variant="outline" onClick={() => setCreateProductOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Create New Product
+                </Button>
+                <Button variant="outline" onClick={() => setProductSearchOpen(true)}>
+                  <Search className="mr-2 h-4 w-4" /> Add Existing
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -290,10 +322,18 @@ export default function CreateEstimationPage() {
                   <span>- ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
+              <div className="flex justify-between text-muted-foreground">
+                <span>Taxable Amount</span>
+                <span>₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-blue-600">
+                <span>GST ({gstRate}%)</span>
+                <span>₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
               <Separator />
               <div className="flex justify-between font-bold text-base">
-                <span>Total Amount</span>
-                <span>₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <span>Grand Total</span>
+                <span>₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
               <p className="text-xs text-muted-foreground pt-2">Valid for 21 days from creation</p>
             </div>
@@ -345,6 +385,11 @@ export default function CreateEstimationPage() {
         open={productSearchOpen}
         onOpenChange={setProductSearchOpen}
         onSelectProduct={handleProductSelected}
+      />
+      <CreateProductDialog
+        open={createProductOpen}
+        onOpenChange={setCreateProductOpen}
+        onSuccess={handleNewProductCreated}
       />
       <CreateCustomerDialog
         open={createCustomerOpen}

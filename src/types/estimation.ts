@@ -22,7 +22,10 @@ export interface EstimationResponse {
   discountType?: string // Percent | Fixed
   discountValue: number
   discountAmount: number
-  totalAmount: number
+  totalAmount: number       // SubTotal - Discount (taxable amount)
+  gstRate: number
+  gstAmount: number
+  grandTotal: number        // TotalAmount + GSTAmount
   validUntil: string
   approvedBy?: string
   approvedAt?: string

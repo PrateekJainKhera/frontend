@@ -66,6 +66,14 @@ export interface ReceiveOSPRequest {
   updatedBy?: string
 }
 
+export interface ResendOSPRequest {
+  vendorId: number
+  newSentDate: string
+  newExpectedReturnDate: string
+  notes?: string | null
+  updatedBy?: string
+}
+
 class OSPService {
   private base = '/osp'
 
@@ -116,6 +124,17 @@ class OSPService {
       return res.data.message || 'Updated'
     } catch (err) {
       if (axios.isAxiosError(err)) throw new Error(err.response?.data?.message || 'Failed to mark as received')
+      throw err
+    }
+  }
+
+  async resendToVendor(id: number, data: ResendOSPRequest): Promise<number> {
+    try {
+      const res = await apiClient.post<ApiResponse<number>>(`${this.base}/${id}/resend`, data)
+      if (!res.data.success) throw new Error(res.data.message)
+      return res.data.data!
+    } catch (err) {
+      if (axios.isAxiosError(err)) throw new Error(err.response?.data?.message || 'Failed to resend to vendor')
       throw err
     }
   }

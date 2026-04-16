@@ -153,6 +153,9 @@ function PlanCard({
               <div key={ci} className="flex items-center gap-1.5 text-[10px] py-0.5 border-t border-black/5 first:border-0">
                 <span className="font-mono font-semibold w-12 shrink-0">{mm(c.cutLengthMM)}</span>
                 <span className="text-muted-foreground truncate flex-1">{c.jobCardNo ?? c.partName ?? '—'}</span>
+                {c.jobCardNo?.includes('-RW') && (
+                  <Badge className="bg-purple-100 text-purple-700 border border-purple-200 text-[9px] h-3.5 px-1 shrink-0">RW</Badge>
+                )}
                 <span className="text-muted-foreground shrink-0 text-[9px]">{c.requisitionNo}</span>
               </div>
             ))}
@@ -320,6 +323,9 @@ function MaterialGroupCard({
               <span className="flex-1 min-w-0 truncate text-xs text-muted-foreground">
                 {cut.jobCardNo ?? cut.partName ?? '—'}
               </span>
+              {cut.jobCardNo?.includes('-RW') && (
+                <Badge className="bg-purple-100 text-purple-700 border border-purple-200 text-[10px] h-4 px-1 shrink-0">RW</Badge>
+              )}
               <span className="text-[11px] text-muted-foreground shrink-0">
                 {cut.requisitionNo}
               </span>
@@ -645,7 +651,14 @@ function ViewDraftModal({
                     <tr key={cut.id} className="hover:bg-muted/10">
                       <td className="px-4 py-1.5 text-muted-foreground">{ci + 1}</td>
                       <td className="px-4 py-1.5 font-mono font-semibold">{mm(cut.cutLengthMM)}</td>
-                      <td className="px-4 py-1.5">{cut.jobCardNo ?? cut.partName ?? '—'}</td>
+                      <td className="px-4 py-1.5">
+                        <span className="flex items-center gap-1.5">
+                          {cut.jobCardNo ?? cut.partName ?? '—'}
+                          {cut.jobCardNo?.includes('-RW') && (
+                            <Badge className="bg-purple-100 text-purple-700 border border-purple-200 text-[10px] h-4 px-1">RW</Badge>
+                          )}
+                        </span>
+                      </td>
                       <td className="px-4 py-1.5 text-muted-foreground">{cut.requisitionNo}</td>
                     </tr>
                   ))}

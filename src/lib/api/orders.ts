@@ -26,6 +26,7 @@ export interface OrderItemResponse {
   materialGradeApprovalDate?: string | null
   materialGradeApprovedBy?: string | null
   materialGradeRemark?: string | null
+  remarks?: string | null
   createdAt: string
   createdBy?: string | null
   updatedAt?: string | null
@@ -354,6 +355,27 @@ class OrderService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to update planning status: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async updateOrderItem(orderId: number, itemId: number, data: {
+    quantity?: number
+    dueDate?: string
+    priority?: string
+    remarks?: string
+    updatedBy?: string
+  }): Promise<void> {
+    try {
+      const response = await apiClient.patch<ApiResponse<boolean>>(
+        `${this.baseUrl}/${orderId}/items/${itemId}`,
+        data
+      )
+      if (!response.data.success) throw new Error(response.data.message)
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to update order item: ${error.message}`)
       }
       throw error
     }

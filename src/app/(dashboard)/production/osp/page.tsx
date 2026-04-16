@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
-import { RefreshCw, Plus, CheckCircle, AlertTriangle, Truck, Search } from 'lucide-react'
+import { RefreshCw, Plus, CheckCircle, AlertTriangle, Truck, Search, RotateCcw, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table'
 import { ospService, OSPTrackingEntry, OSPJobCardOption } from '@/lib/api/osp'
 import { vendorService, VendorResponse } from '@/lib/api/vendors'
+import { schedulingPlannerService } from '@/lib/api/scheduling-planner'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -291,6 +292,196 @@ function ReceiveDialog({
   )
 }
 
+// ── Re-send to Vendor Dialog ───────────────────────────────────────────────────
+
+function ResendDialog({
+  entry, onClose, onSaved, vendors,
+}: { entry: OSPTrackingEntry | null; onClose: () => void; onSaved: () => void; vendors: VendorResponse[] }) {
+  const [vendorId, setVendorId] = useState('')
+  const [newSentDate, setNewSentDate] = useState(new Date().toISOString().slice(0, 10))
+  const [newExpectedReturn, setNewExpectedReturn] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (entry) {
+      setVendorId(String(entry.vendorId))
+      setNewSentDate(new Date().toISOString().slice(0, 10))
+      setNewExpectedReturn('')
+      setNotes('')
+    }
+  }, [entry])
+
+  if (!entry) return null
+
+  async function save() {
+    if (!entry) return
+    if (!vendorId || !newSentDate || !newExpectedReturn) {
+      toast.error('Fill all required fields'); return
+    }
+    setSaving(true)
+    try {
+      const newId = await ospService.resendToVendor(entry.id, {
+        vendorId: Number(vendorId),
+        newSentDate,
+        newExpectedReturnDate: newExpectedReturn,
+        notes: notes || null,
+        updatedBy: 'Admin',
+      })
+      toast.success(`Re-sent to vendor — new OSP entry #${newId} created`)
+      onSaved(); onClose()
+    } catch (e: any) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <Dialog open={!!entry} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Re-send to Vendor</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-1">
+          <div className="rounded-md bg-muted/50 p-3 text-sm space-y-0.5">
+            <p><span className="font-medium">{entry.jobCardNo}</span> · {entry.processName}</p>
+            <p className="text-muted-foreground">{entry.childPartName} · Current vendor: {entry.vendorName}</p>
+            <p className="text-xs text-amber-600 font-medium mt-1">
+              Current entry will be closed. A new OSP entry will be created.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Vendor <span className="text-red-500">*</span></Label>
+            <Select value={vendorId} onValueChange={setVendorId}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Select vendor" /></SelectTrigger>
+              <SelectContent className="max-h-52">
+                {vendors.map((v) => (
+                  <SelectItem key={v.id} value={String(v.id)}>
+                    {v.vendorName}{v.city && <span className="ml-1 text-xs text-muted-foreground">· {v.city}</span>}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>New Sent Date <span className="text-red-500">*</span></Label>
+              <Input type="date" value={newSentDate} onChange={(e) => setNewSentDate(e.target.value)} className="h-9" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Expected Return <span className="text-red-500">*</span></Label>
+              <Input type="date" value={newExpectedReturn} onChange={(e) => setNewExpectedReturn(e.target.value)} className="h-9" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-9" placeholder="Reason for resend..." />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving} className="gap-1 bg-amber-600 hover:bg-amber-700 text-white">
+            {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+            Re-send
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Full Rework Dialog ─────────────────────────────────────────────────────────
+
+function FullReworkDialog({
+  entry, onClose, onSaved,
+}: { entry: OSPTrackingEntry | null; onClose: () => void; onSaved: () => void }) {
+  const [rejectedQty, setRejectedQty] = useState('')
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (entry) {
+      const remaining = entry.quantity - entry.receivedQty - entry.rejectedQty
+      setRejectedQty(String(remaining))
+      setReason('')
+    }
+  }, [entry])
+
+  if (!entry) return null
+
+  async function save() {
+    if (!entry) return
+    if (!reason.trim()) { toast.error('Reason is required'); return }
+    const qty = Number(rejectedQty)
+    if (!qty || qty <= 0) { toast.error('Enter rejected quantity'); return }
+
+    setSaving(true)
+    try {
+      // 1. Create rework job cards (all steps from Step 1)
+      const newIds = await schedulingPlannerService.createFullRework(
+        entry.jobCardId, qty, reason.trim(), 'Admin'
+      )
+      // 2. Close the OSP entry by marking all remaining qty as rejected
+      const remaining = entry.quantity - entry.receivedQty - entry.rejectedQty
+      await ospService.markReceived(entry.id, {
+        actualReturnDate: new Date().toISOString().slice(0, 10),
+        receivedQty: 0,
+        rejectedQty: remaining,
+        notes: `Full rework: ${reason.trim()}`,
+        updatedBy: 'Admin',
+      })
+      toast.success(`Full rework started — ${newIds.length} new job card(s) created. OSP entry closed.`)
+      onSaved(); onClose()
+    } catch (e: any) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  const remaining = entry.quantity - entry.receivedQty - entry.rejectedQty
+
+  return (
+    <Dialog open={!!entry} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle className="text-red-700">Report Rejection — Full Rework</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-1">
+          <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm space-y-0.5">
+            <p><span className="font-medium">{entry.jobCardNo}</span> · {entry.processName}</p>
+            <p className="text-muted-foreground">{entry.childPartName} · {entry.vendorName}</p>
+            <p className="text-xs text-red-700 font-medium mt-1">
+              This will close the OSP entry and trigger a full rework — all job cards for this child part will be re-created from Step 1.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Rejected Qty <span className="text-red-500">*</span> <span className="text-xs text-muted-foreground">(max {remaining})</span></Label>
+            <Input
+              type="number" min={1} max={remaining}
+              value={rejectedQty}
+              onChange={(e) => setRejectedQty(e.target.value)}
+              className="h-9"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Reason for Rejection <span className="text-red-500">*</span></Label>
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="h-9"
+              placeholder="e.g. Surface defect, dimension out of spec..."
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving || !reason.trim()} className="gap-1 bg-red-600 hover:bg-red-700 text-white">
+            {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+            Confirm Full Rework
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function OSPTrackingPage() {
@@ -300,6 +491,8 @@ export default function OSPTrackingPage() {
   const [loading, setLoading] = useState(true)
   const [logOpen, setLogOpen] = useState(false)
   const [receiveEntry, setReceiveEntry] = useState<OSPTrackingEntry | null>(null)
+  const [resendEntry, setResendEntry] = useState<OSPTrackingEntry | null>(null)
+  const [reworkEntry, setReworkEntry] = useState<OSPTrackingEntry | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
   const load = useCallback(async () => {
@@ -454,11 +647,23 @@ export default function OSPTrackingPage() {
                     </TableCell>
                     <TableCell>
                       {e.status === 'Sent' && (
-                        <Button size="sm" variant="outline"
-                          className="h-7 text-xs gap-1 text-green-700 border-green-300 hover:bg-green-50"
-                          onClick={() => setReceiveEntry(e)}>
-                          <CheckCircle className="h-3 w-3" /> Receive
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline"
+                            className="h-7 text-xs gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                            onClick={() => setReceiveEntry(e)}>
+                            <CheckCircle className="h-3 w-3" /> Receive
+                          </Button>
+                          <Button size="sm" variant="outline"
+                            className="h-7 text-xs gap-1 text-amber-700 border-amber-300 hover:bg-amber-50"
+                            onClick={() => setResendEntry(e)}>
+                            <RotateCcw className="h-3 w-3" /> Re-send
+                          </Button>
+                          <Button size="sm" variant="outline"
+                            className="h-7 text-xs gap-1 text-red-700 border-red-300 hover:bg-red-50"
+                            onClick={() => setReworkEntry(e)}>
+                            <XCircle className="h-3 w-3" /> Rejected
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -471,6 +676,8 @@ export default function OSPTrackingPage() {
 
       <LogDialog open={logOpen} onClose={() => setLogOpen(false)} onSaved={load} jobCards={jobCards} vendors={vendors} />
       <ReceiveDialog entry={receiveEntry} onClose={() => setReceiveEntry(null)} onSaved={load} />
+      <ResendDialog entry={resendEntry} onClose={() => setResendEntry(null)} onSaved={load} vendors={vendors} />
+      <FullReworkDialog entry={reworkEntry} onClose={() => setReworkEntry(null)} onSaved={load} />
     </div>
   )
 }

@@ -258,7 +258,7 @@ function CreateReworkOrderContent() {
     setIsSubmitting(false)
 
     // Navigate to job cards list
-    router.push('/production/job-cards')
+    router.push('/planning/job-cards')
   }
 
   if (loading) {
@@ -277,7 +277,7 @@ function CreateReworkOrderContent() {
         <h2 className="text-2xl font-bold text-primary mb-2">Parent Job Not Found</h2>
         <p className="text-muted-foreground mb-6">Cannot create rework order</p>
         <Button asChild>
-          <Link href="/production/job-cards">
+          <Link href="/planning/job-cards">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Job Cards
           </Link>
@@ -292,7 +292,7 @@ function CreateReworkOrderContent() {
       <div className="sticky top-0 z-10 bg-background p-4 border-b">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" asChild>
-            <Link href="/production/job-cards">
+            <Link href="/planning/job-cards">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

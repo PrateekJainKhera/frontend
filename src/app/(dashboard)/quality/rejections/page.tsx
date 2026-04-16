@@ -270,7 +270,7 @@ export default function RejectionsListPage() {
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Job Card:</span>
                     <Link
-                      href={`/production/job-cards/${rejection.jobCardId}`}
+                      href={`/planning/job-cards/${rejection.jobCardId}`}
                       className="font-medium text-primary hover:underline"
                     >
                       {rejection.jobCardId}

@@ -17,7 +17,7 @@ export default function OrdersPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="all-orders">All Orders</TabsTrigger>
-          <TabsTrigger value="live-tracking">Live Tracking</TabsTrigger>
+          {/* <TabsTrigger value="live-tracking">Live Tracking</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="all-orders" className="mt-6">

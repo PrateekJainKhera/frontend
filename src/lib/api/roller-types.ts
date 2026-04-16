@@ -43,6 +43,16 @@ class RollerTypeService {
     }
   }
 
+  async update(id: number, data: { typeName: string; isActive: boolean }): Promise<void> {
+    try {
+      const response = await apiClient.put<ApiResponse<boolean>>(`${this.baseUrl}/${id}`, data)
+      if (!response.data.success) throw new Error(response.data.message || 'Failed to update roller type')
+    } catch (error) {
+      if (axios.isAxiosError(error)) throw new Error(error.response?.data?.message || `Failed to update roller type: ${error.message}`)
+      throw error
+    }
+  }
+
   async delete(id: number): Promise<void> {
     try {
       await apiClient.delete(`${this.baseUrl}/${id}`)

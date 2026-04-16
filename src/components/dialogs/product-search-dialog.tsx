@@ -30,16 +30,17 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Product, RollerType } from '@/types'
+import { Product } from '@/types'
 import { MachineModel } from '@/types/machine-model'
 import { machineModelService } from '@/lib/api/machine-models'
 import { productService } from '@/lib/api/products'
+import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
 import { toast } from 'sonner'
 import { CreateProductDialog } from '@/components/forms/create-product-dialog'
 
 const searchSchema = z.object({
   modelId: z.string().min(1, 'Machine model is required'),
-  rollerType: z.nativeEnum(RollerType),
+  rollerType: z.string().min(1, 'Roller type is required'),
   numberOfTeeth: z.number().min(1, 'Number of teeth is required'),
 })
 
@@ -59,6 +60,7 @@ export function ProductSearchDialog({
   excludedProductIds = [],
 }: ProductSearchDialogProps) {
   const [machineModels, setMachineModels] = useState<MachineModel[]>([])
+  const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
   const [searchResults, setSearchResults] = useState<Product[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
@@ -71,23 +73,27 @@ export function ProductSearchDialog({
     resolver: zodResolver(searchSchema),
     defaultValues: {
       modelId: '',
-      rollerType: RollerType.MAGNETIC,
+      rollerType: '',
       numberOfTeeth: 1,
     },
   })
 
-  // Load machine models on mount
+  // Load machine models and roller types on mount
   useEffect(() => {
-    const loadModels = async () => {
+    const loadData = async () => {
       try {
-        const models = await machineModelService.getAll()
+        const [models, rts] = await Promise.all([
+          machineModelService.getAll(),
+          rollerTypeService.getAll(),
+        ])
         setMachineModels(models)
+        setRollerTypes(rts.filter(r => r.isActive))
       } catch (err) {
-        console.error('Failed to load machine models:', err)
+        console.error('Failed to load data:', err)
       }
     }
     if (open) {
-      loadModels()
+      loadData()
     }
   }, [open])
 
@@ -258,9 +264,9 @@ export function ProductSearchDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {Object.values(RollerType).map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type}
+                          {rollerTypes.map((rt) => (
+                            <SelectItem key={rt.id} value={rt.typeName}>
+                              {rt.typeName}
                             </SelectItem>
                           ))}
                         </SelectContent>

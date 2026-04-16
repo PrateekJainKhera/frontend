@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils"
 import { materialService, MaterialResponse } from "@/lib/api/materials"
 import { warehouseService, WarehouseResponse } from "@/lib/api/warehouses"
+import { vendorService, VendorResponse } from "@/lib/api/vendors"
 import { toast } from "sonner"
 import { grnService, CreateGRNRequest } from "@/lib/api/grn"
 
@@ -51,6 +52,8 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
     const [grnNumber, setGrnNumber] = useState("")
     const [grnDate, setGrnDate] = useState("")
     const [vendorName, setVendorName] = useState("")
+    const [vendors, setVendors] = useState<VendorResponse[]>([])
+    const [vendorOpen, setVendorOpen] = useState(false)
     const [invoiceNo, setInvoiceNo] = useState("")
     const [invoiceDate, setInvoiceDate] = useState("")
     const [poNo, setPoNo] = useState("")
@@ -70,12 +73,14 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
         const loadData = async () => {
             try {
                 setMaterialsLoading(true)
-                const [mats, whs] = await Promise.all([
+                const [mats, whs, vens] = await Promise.all([
                     materialService.getAll(),
                     warehouseService.getAll(),
+                    vendorService.getAll(),
                 ])
                 setMaterials(mats)
                 setWarehouses(whs.filter(w => w.isActive))
+                setVendors(vens)
             } catch (error) {
                 console.error('Failed to load data:', error)
                 toast.error('Failed to load materials or warehouses')
@@ -466,11 +471,44 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                         </div>
                         <div className="space-y-2">
                             <Label>Vendor Name *</Label>
-                            <Input
-                                placeholder="Enter vendor name"
-                                value={vendorName}
-                                onChange={(e) => setVendorName(e.target.value)}
-                            />
+                            <Popover open={vendorOpen} onOpenChange={setVendorOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className={cn("w-full justify-between font-normal", !vendorName && "text-muted-foreground")}
+                                    >
+                                        <span className="truncate">{vendorName || "Select vendor"}</span>
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[280px] p-0" align="start">
+                                    <Command>
+                                        <CommandInput placeholder="Search vendor..." />
+                                        <CommandList>
+                                            <CommandEmpty>No vendor found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {vendors.map(v => (
+                                                    <CommandItem
+                                                        key={v.id}
+                                                        value={v.vendorName}
+                                                        onSelect={() => {
+                                                            setVendorName(v.vendorName)
+                                                            setVendorOpen(false)
+                                                        }}
+                                                    >
+                                                        <Check className={cn("mr-2 h-4 w-4", vendorName === v.vendorName ? "opacity-100" : "opacity-0")} />
+                                                        <div>
+                                                            <p className="text-sm font-medium">{v.vendorName}</p>
+                                                            <p className="text-xs text-muted-foreground">{v.vendorCode}</p>
+                                                        </div>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     </div>
 

@@ -95,7 +95,7 @@ export default function OrderDetailPage() {
       <div className="text-center py-12">
         <p className="text-muted-foreground">Order not found</p>
         <Button asChild className="mt-4">
-          <Link href="/dashboard/orders">Back to Orders</Link>
+          <Link href="/orders">Back to Orders</Link>
         </Button>
       </div>
     )
@@ -109,7 +109,7 @@ export default function OrderDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/orders">
+          <Link href="/orders">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -133,7 +133,9 @@ export default function OrderDetailPage() {
               Reschedule
             </Button>
           )}
-          <Button variant="outline">Edit Order</Button>
+          <Button variant="outline" asChild>
+            <Link href={`/orders/${params.id}/edit`}>Edit Order</Link>
+          </Button>
         </div>
       </div>
 

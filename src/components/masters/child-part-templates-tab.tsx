@@ -76,7 +76,7 @@ export function ChildPartTemplatesTab() {
       template.description?.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesType = typeFilter === 'all' || template.childPartType === typeFilter
-    const matchesRollerType = rollerTypeFilter === 'all' || template.rollerType === rollerTypeFilter
+    const matchesRollerType = rollerTypeFilter === 'all' || template.rollerType.split(',').map(t => t.trim()).includes(rollerTypeFilter)
 
     return matchesSearch && matchesType && matchesRollerType
   })
@@ -210,10 +210,12 @@ export function ChildPartTemplatesTab() {
                     </Badge>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={getRollerTypeBadge(template.rollerType)} variant="outline">
-                    {template.rollerType}
-                  </Badge>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {template.rollerType.split(',').map(t => t.trim()).filter(Boolean).map((t, i) => (
+                    <Badge key={i} className={getRollerTypeBadge(t)} variant="outline">
+                      {t}
+                    </Badge>
+                  ))}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

@@ -42,6 +42,8 @@ export interface ExecutionViewRow {
   actualEndTime?: string | null
   isOsp: boolean
   ospStatus?: string | null   // null = not sent | 'Sent' = at vendor
+  isRework?: boolean
+  jobCardType?: string | null
 }
 
 export interface ExecutionViewChildPart {

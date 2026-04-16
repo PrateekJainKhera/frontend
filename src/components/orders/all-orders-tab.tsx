@@ -128,7 +128,7 @@ export function AllOrdersTab() {
   }
 
   const handleEdit = (orderId: string) => {
-    router.push(`/orders/${orderId}`)
+    router.push(`/orders/${orderId}/edit`)
   }
 
   const filteredOrders = orders.filter((order) => {

@@ -35,9 +35,9 @@ const getPageName = (pathname: string): string => {
   if (pathname === '/orders') return 'Orders'
 
   // Production
-  if (pathname === '/production/job-cards/create') return 'Create Job Card'
-  if (pathname.includes('/production/job-cards/')) return 'Job Card Details'
-  if (pathname === '/production/job-cards') return 'Job Cards'
+  if (pathname === '/planning/job-cards/create') return 'Create Job Card'
+  if (pathname.includes('/planning/job-cards/')) return 'Job Card Details'
+  if (pathname === '/planning/job-cards') return 'Job Cards'
   if (pathname.includes('/production/child-parts/')) return 'Child Part Details'
   if (pathname === '/production/child-parts') return 'Child Parts'
   if (pathname === '/production/machines') return 'Machines'

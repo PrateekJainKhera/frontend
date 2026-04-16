@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -168,6 +168,9 @@ function Step1({ orders, selectedOrderIds, onToggle, loading, loadingNext, onRef
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm">{order.orderNo}</span>
             {priorityBadge(order.priority)}
+            {order.reworkCount > 0 && (
+              <Badge className="bg-purple-100 text-purple-700 border border-purple-200 text-[10px] h-4 px-1.5 shrink-0">RW</Badge>
+            )}
             {order.customerName && (
               <span className="text-xs text-muted-foreground truncate">{order.customerName}</span>
             )}
@@ -394,6 +397,7 @@ function Step2({ jobGroups, selectedJcIds, onToggleJc, onToggleGroup, onBack, on
                         <span className="text-muted-foreground flex-1 truncate text-[11px]">{jc.processName}</span>
                         {jc.isOsp && <Badge className="bg-orange-100 text-orange-700 border border-orange-200 text-[10px] h-4 px-1 shrink-0">OSP</Badge>}
                         {jc.isManual && <Badge className="bg-blue-100 text-blue-700 border border-blue-200 text-[10px] h-4 px-1 shrink-0">Manual</Badge>}
+                        {jc.isRework && <Badge className="bg-purple-100 text-purple-700 border border-purple-200 text-[10px] h-4 px-1 shrink-0">RW</Badge>}
                         <span className="text-muted-foreground shrink-0">Qty {jc.quantity}</span>
                         <span className="text-muted-foreground shrink-0">{fmtMin(jc.estimatedDurationMinutes)}</span>
                         {jc.isAlreadyScheduled && (
@@ -929,7 +933,7 @@ function Step5({ results, onReset, jobGroups, scheduledDate }: Step5Props) {
 
         {ok.length > 0 && (
           <div className="mt-4 flex gap-2">
-            <Link href="/production/job-cards">
+            <Link href="/planning/job-cards">
               <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
                 <ArrowRight className="h-3.5 w-3.5" /> View in Production
               </Button>
@@ -1045,10 +1049,13 @@ function BatchRescheduleDialog({ open, scheduleIds, shifts, onClose, onSuccess }
 function ReworkTab() {
   const [allJcs, setAllJcs] = useState<Array<{
     id: number; jobCardNo: string; orderNo: string; childPartName: string
-    processName: string; quantity: number; status: string; priority: string
+    processName: string; quantity: number; rejectedQty: number; status: string; priority: string
   }>>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filterChildPart, setFilterChildPart] = useState('all')
+  const [filterOrderNo, setFilterOrderNo] = useState('all')
+  const [sortBy, setSortBy] = useState<'orderNo' | 'childPart' | 'status' | 'priority'>('orderNo')
   const [reworkJc, setReworkJc] = useState<{ id: number; jobCardNo: string; processName: string } | null>(null)
   const [reworkQty, setReworkQty] = useState(1)
   const [reworkNotes, setReworkNotes] = useState('')
@@ -1058,14 +1065,19 @@ function ReworkTab() {
     jobCardService.getAll()
       .then(jcs => {
         setAllJcs(jcs
-          .filter(jc => jc.status !== 'Cancelled' && jc.status !== 'Pending')
+          .filter(jc =>
+            jc.productionStatus === 'Completed' &&
+            jc.status !== 'Cancelled' &&
+            (jc.rejectedQty ?? 0) > 0
+          )
           .map(jc => ({
             id: jc.id,
             jobCardNo: jc.jobCardNo,
-            orderNo: jc.orderNo ?? '',
+            orderNo: (jc.orderNo ?? '') + (jc.itemSequence ? `-${jc.itemSequence}` : ''),
             childPartName: jc.childPartName ?? '',
             processName: jc.processName ?? '',
             quantity: jc.quantity,
+            rejectedQty: jc.rejectedQty ?? 0,
             status: jc.status,
             priority: jc.priority,
           }))
@@ -1075,11 +1087,25 @@ function ReworkTab() {
       .finally(() => setLoading(false))
   }, [])
 
-  const filtered = allJcs.filter(jc =>
-    jc.jobCardNo.toLowerCase().includes(search.toLowerCase()) ||
-    jc.orderNo.toLowerCase().includes(search.toLowerCase()) ||
-    jc.childPartName.toLowerCase().includes(search.toLowerCase())
-  )
+  const uniqueChildParts = useMemo(() => Array.from(new Set(allJcs.map(j => j.childPartName).filter(Boolean))).sort(), [allJcs])
+  const uniqueOrderNos = useMemo(() => Array.from(new Set(allJcs.map(j => j.orderNo).filter(Boolean))).sort(), [allJcs])
+
+  const filtered = useMemo(() => {
+    let list = allJcs.filter(jc =>
+      (jc.jobCardNo.toLowerCase().includes(search.toLowerCase()) ||
+       jc.orderNo.toLowerCase().includes(search.toLowerCase()) ||
+       jc.childPartName.toLowerCase().includes(search.toLowerCase())) &&
+      (filterChildPart === 'all' || jc.childPartName === filterChildPart) &&
+      (filterOrderNo === 'all' || jc.orderNo === filterOrderNo)
+    )
+    list = [...list].sort((a, b) => {
+      if (sortBy === 'childPart') return a.childPartName.localeCompare(b.childPartName)
+      if (sortBy === 'status') return a.status.localeCompare(b.status)
+      if (sortBy === 'priority') return a.priority.localeCompare(b.priority)
+      return a.orderNo.localeCompare(b.orderNo)
+    })
+    return list
+  }, [allJcs, search, filterChildPart, filterOrderNo, sortBy])
 
   const handleCreate = async () => {
     if (!reworkJc || reworkQty <= 0) return
@@ -1097,34 +1123,60 @@ function ReworkTab() {
     }
   }
 
-  const statusColor = (s: string) => {
-    if (s === 'Completed') return 'text-green-600'
-    if (s === 'Scheduled' || s === 'InProgress') return 'text-blue-600'
-    return 'text-muted-foreground'
-  }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 bg-background border rounded-lg px-3 py-1 flex-1 max-w-xs">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 bg-background border rounded-lg px-3 py-1 max-w-xs">
           <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <Input
             placeholder="Search job cards…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="border-0 shadow-none focus-visible:ring-0 h-6 px-0 text-xs"
+            className="border-0 shadow-none focus-visible:ring-0 h-6 px-0 text-xs w-40"
           />
         </div>
-        <span className="text-xs text-muted-foreground ml-auto">
-          Select a job card to create a rework copy
-        </span>
+
+        <Select value={filterOrderNo} onValueChange={setFilterOrderNo}>
+          <SelectTrigger className="h-7 text-xs w-44">
+            <SelectValue placeholder="Order No" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Orders</SelectItem>
+            {uniqueOrderNos.map((o: string) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterChildPart} onValueChange={setFilterChildPart}>
+          <SelectTrigger className="h-7 text-xs w-48">
+            <SelectValue placeholder="Child Part" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Child Parts</SelectItem>
+            {uniqueChildParts.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={sortBy} onValueChange={v => setSortBy(v as typeof sortBy)}>
+          <SelectTrigger className="h-7 text-xs w-36">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="orderNo">Order No</SelectItem>
+            <SelectItem value="childPart">Child Part</SelectItem>
+            <SelectItem value="status">Status</SelectItem>
+            <SelectItem value="priority">Priority</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <span className="text-xs text-muted-foreground ml-auto">{filtered.length} job cards</span>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="space-y-1">
-          {filtered.map(jc => (
+          {filtered.map((jc: typeof allJcs[0]) => (
             <div
               key={jc.id}
               className="flex items-center gap-3 rounded-lg border px-4 py-2.5 bg-card text-xs hover:bg-muted/30 transition-colors"
@@ -1133,7 +1185,7 @@ function ReworkTab() {
               <span className="text-muted-foreground w-24 shrink-0">{jc.orderNo}</span>
               <span className="flex-1 truncate">{jc.childPartName || jc.processName}</span>
               <span className="text-muted-foreground shrink-0">Qty {jc.quantity}</span>
-              <span className={`shrink-0 font-medium ${statusColor(jc.status)}`}>{jc.status}</span>
+              <span className="shrink-0 text-red-600 font-medium">{jc.rejectedQty} rejected</span>
               <Button
                 size="sm"
                 variant="outline"
@@ -1315,7 +1367,8 @@ function ViewScheduledTab() {
     try {
       const allJcs = await jobCardService.getAll()
       const relevant = allJcs.filter(jc =>
-        jc.status === 'Scheduled' || jc.status === 'PLANNED' || jc.status === 'Planned'
+        (jc.status === 'Scheduled' || jc.status === 'PLANNED' || jc.status === 'Planned') &&
+        jc.productionStatus !== 'Completed'
       )
       const map = new Map<string, { orderItemId: number | null; orderId: number; orderNo: string; itemSequence: string | null; priority: string }>()
       for (const jc of relevant) {

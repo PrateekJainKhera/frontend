@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RawMaterialsTab } from '@/components/masters/raw-materials-tab'
 import { ComponentsTab } from '@/components/masters/components-tab'
-import { MaterialCategoriesTab } from '@/components/masters/material-categories-tab'
+// import { MaterialCategoriesTab } from '@/components/masters/material-categories-tab'
 
 export default function MaterialsPage() {
   const [activeTab, setActiveTab] = useState('raw-materials')
@@ -22,10 +22,10 @@ export default function MaterialsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Tabs and Search on same row */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList className="grid max-w-lg grid-cols-3">
+          <TabsList className="grid max-w-sm grid-cols-2">
             <TabsTrigger value="raw-materials">Raw Materials</TabsTrigger>
             <TabsTrigger value="components">Components</TabsTrigger>
-            <TabsTrigger value="categories">Material Categories</TabsTrigger>
+            {/* <TabsTrigger value="categories">Material Categories</TabsTrigger> */}
           </TabsList>
 
           {/* Search Bar next to Tabs */}
@@ -57,9 +57,9 @@ export default function MaterialsPage() {
           <ComponentsTab />
         </TabsContent>
 
-        <TabsContent value="categories" className="mt-4">
+        {/* <TabsContent value="categories" className="mt-4">
           <MaterialCategoriesTab />
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
     </div>
   )

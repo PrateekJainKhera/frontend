@@ -60,6 +60,31 @@ class EstimationService {
     }
   }
 
+  async update(id: number, request: CreateEstimationRequest): Promise<EstimationResponse> {
+    try {
+      const response = await apiClient.put<ApiResponse<EstimationResponse>>(`${this.baseUrl}/${id}`, request)
+      if (!response.data.data) throw new Error(response.data.message || 'Failed to update estimation')
+      return response.data.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to update estimation: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getRevisionHistory(id: number): Promise<EstimationResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<EstimationResponse[]>>(`${this.baseUrl}/${id}/revision-history`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch revision history: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async revise(id: number, request: CreateEstimationRequest): Promise<EstimationResponse> {
     try {
       const response = await apiClient.post<ApiResponse<EstimationResponse>>(`${this.baseUrl}/${id}/revise`, request)

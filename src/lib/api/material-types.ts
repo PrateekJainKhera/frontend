@@ -42,6 +42,16 @@ class MaterialTypeService {
     }
   }
 
+  async update(id: number, data: { name: string; isActive: boolean }): Promise<void> {
+    try {
+      const response = await apiClient.put<ApiResponse<boolean>>(`${this.baseUrl}/${id}`, data)
+      if (!response.data.success) throw new Error(response.data.message || 'Failed to update material type')
+    } catch (error) {
+      if (axios.isAxiosError(error)) throw new Error(error.response?.data?.message || `Failed to update material type: ${error.message}`)
+      throw error
+    }
+  }
+
   async delete(id: number): Promise<void> {
     try {
       await apiClient.delete(`${this.baseUrl}/${id}`)

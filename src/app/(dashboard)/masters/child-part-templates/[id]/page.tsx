@@ -98,7 +98,7 @@ export default function ChildPartTemplateDetailPage() {
               The child part template you're looking for doesn't exist
             </p>
             <Button asChild>
-              <Link href="/masters/child-part-templates">
+              <Link href="/masters/products">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Templates
               </Link>
@@ -115,7 +115,7 @@ export default function ChildPartTemplateDetailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
-            <Link href="/masters/child-part-templates">
+            <Link href="/masters/products">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -126,7 +126,7 @@ export default function ChildPartTemplateDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href={`/masters/child-part-templates/${params.id}/edit`}>
+            <Link href={`/masters/products/${params.id}/edit`}>
               <Edit className="mr-2 h-4 w-4" />
               Edit
             </Link>
@@ -146,13 +146,15 @@ export default function ChildPartTemplateDetailPage() {
               <CardTitle>Template Information</CardTitle>
               <CardDescription>Basic details about this child part template</CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Badge className={getChildPartTypeBadge(template.childPartType)}>
                 {template.childPartType}
               </Badge>
-              <Badge className={getRollerTypeBadge(template.rollerType)}>
-                {template.rollerType}
-              </Badge>
+              {template.rollerType.split(',').map(t => t.trim()).filter(Boolean).map((t, i) => (
+                <Badge key={i} className={getRollerTypeBadge(t)}>
+                  {t}
+                </Badge>
+              ))}
             </div>
           </div>
         </CardHeader>

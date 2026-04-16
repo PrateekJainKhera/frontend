@@ -86,13 +86,8 @@ export default function CreateProductTemplatePage() {
   const loadProcessTemplates = async () => {
     setLoadingProcessTemplates(true)
     try {
-      // Get all process templates and filter for assembly type
-      const templates = await processTemplateService.getAll()
-      // Filter for assembly templates (those with "Assembly" or "Assembling" in the name)
-      const assemblyTemplates = templates.filter(t =>
-        t.templateName.toLowerCase().includes('assembl')
-      )
-      setProcessTemplates(assemblyTemplates)
+      const templates = await processTemplateService.getByApplicableType(rollerType)
+      setProcessTemplates(templates.filter(t => t.isActive))
     } catch (error) {
       console.error('Failed to load process templates:', error)
       toast.error('Failed to load process templates')

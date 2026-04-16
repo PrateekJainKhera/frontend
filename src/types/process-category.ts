@@ -18,7 +18,7 @@ export interface CreateProcessCategoryRequest {
 
 export interface UpdateProcessCategoryRequest {
   id: number;
-  categoryCode: string;
+  categoryCode?: string;
   categoryName: string;
   description?: string;
   isActive: boolean;
