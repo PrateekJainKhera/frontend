@@ -72,9 +72,11 @@ export default function GenerateJobCardsPage() {
   const searchParams = useSearchParams()
   const orderId = params.orderId as string
 
-  // Get itemId and itemSequence from URL query params
-  const [itemId, setItemId] = useState<number | null>(null)
-  const [itemSequence, setItemSequence] = useState<string | null>(null)
+  // Read itemId and itemSequence directly from URL params (avoid race condition with useEffect)
+  const itemIdParam = searchParams.get('itemId')
+  const itemSequenceParam = searchParams.get('itemSequence')
+  const [itemId] = useState<number | null>(() => itemIdParam ? Number(itemIdParam) : null)
+  const [itemSequence] = useState<string | null>(() => itemSequenceParam)
   const [productId, setProductId] = useState<number | null>(null)
 
   const [loading, setLoading] = useState(true)
@@ -142,19 +144,6 @@ export default function GenerateJobCardsPage() {
     fileType: string
     fileUrl: string
   } | null>(null)
-
-  // Read URL query params on mount
-  useEffect(() => {
-    const itemIdParam = searchParams.get('itemId')
-    const itemSeqParam = searchParams.get('itemSequence')
-
-    if (itemIdParam) {
-      setItemId(Number(itemIdParam))
-    }
-    if (itemSeqParam) {
-      setItemSequence(itemSeqParam)
-    }
-  }, [searchParams])
 
   useEffect(() => {
     loadData()

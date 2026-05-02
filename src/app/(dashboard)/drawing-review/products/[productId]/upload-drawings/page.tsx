@@ -11,10 +11,9 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
 import { productService } from '@/lib/api/products'
-import { productTemplateService, ProductTemplateResponse, ProductTemplateBOMItemResponse } from '@/lib/api/product-templates'
+import { productTemplateService, ProductTemplateBOMItemResponse } from '@/lib/api/product-templates'
 import { drawingService } from '@/lib/api/drawings'
 import { Product } from '@/types/product'
-import { formatDate } from '@/lib/utils/formatters'
 import { toast } from 'sonner'
 
 export default function DrawingUploadPage() {
@@ -25,7 +24,6 @@ export default function DrawingUploadPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
-  const [template, setTemplate] = useState<ProductTemplateResponse | null>(null)
   const [bomItems, setBomItems] = useState<ProductTemplateBOMItemResponse[]>([])
 
   // Track uploaded drawings
@@ -59,7 +57,6 @@ export default function DrawingUploadPage() {
       // Load product template to get child parts
       if (productData.productTemplateId) {
         const templateData = await productTemplateService.getById(productData.productTemplateId)
-        setTemplate(templateData)
         setBomItems(templateData.bomItems || [])
       }
 
@@ -211,9 +208,6 @@ export default function DrawingUploadPage() {
     setPreviewOpen(true)
   }
 
-  const nonPurchasedBomItems = bomItems.filter(cp => !cp.isPurchased)
-  const allChildPartsUploaded = nonPurchasedBomItems.length === 0 ||
-    nonPurchasedBomItems.every(cp => childPartDrawings[cp.childPartTemplateId])
 
   if (loading) {
     return (
@@ -267,8 +261,7 @@ export default function DrawingUploadPage() {
       <Alert>
         <FileText className="h-4 w-4" />
         <AlertDescription>
-          Upload the assembly drawing and child part drawings based on the product template.
-          Purchased parts do not require drawings. All other drawings are required before submission.
+          Upload the assembly drawing (required) and child part drawings (optional) based on the product template.
         </AlertDescription>
       </Alert>
 
@@ -560,7 +553,7 @@ export default function DrawingUploadPage() {
         </Button>
         <Button
           onClick={handleSubmitForReview}
-          disabled={!assemblyDrawingId || !allChildPartsUploaded || uploading}
+          disabled={!assemblyDrawingId || uploading}
         >
           {uploading ? (
             <>
@@ -579,11 +572,6 @@ export default function DrawingUploadPage() {
       {!assemblyDrawingId && (
         <p className="text-sm text-muted-foreground text-center">
           Assembly drawing is required before submission
-        </p>
-      )}
-      {!allChildPartsUploaded && nonPurchasedBomItems.length > 0 && (
-        <p className="text-sm text-muted-foreground text-center">
-          {nonPurchasedBomItems.length - Object.keys(childPartDrawings).length} child part drawing(s) remaining
         </p>
       )}
 

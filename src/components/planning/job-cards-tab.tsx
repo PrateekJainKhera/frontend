@@ -329,7 +329,7 @@ export function JobCardsTab() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-sm">
                         <div>
                           <span className="text-muted-foreground">Child Part:</span>
                           <p className="font-medium">{jc.childPartName || 'N/A'}</p>
@@ -344,6 +344,10 @@ export function JobCardsTab() {
                             <p className="font-medium">Step {jc.stepNo}</p>
                           </div>
                         )}
+                        <div>
+                          <span className="text-muted-foreground">No. of Teeth:</span>
+                          <p className="font-medium">{(jc.numberOfTeeth ?? 0) > 0 ? jc.numberOfTeeth : '—'}</p>
+                        </div>
                         <div>
                           <span className="text-muted-foreground">Quantity:</span>
                           {editingId === jc.id ? (

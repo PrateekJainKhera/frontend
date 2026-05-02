@@ -37,7 +37,9 @@ export default function DrawingReviewDashboardPage() {
     return products.filter(p =>
       p.partCode.toLowerCase().includes(q) ||
       (p.customerName ?? '').toLowerCase().includes(q) ||
-      (p.modelName ?? '').toLowerCase().includes(q)
+      (p.modelName ?? '').toLowerCase().includes(q) ||
+      (p.rollerType ?? '').toLowerCase().includes(q) ||
+      String(p.numberOfTeeth ?? '').includes(q)
     )
   }, [products, searchQuery])
 
@@ -204,7 +206,7 @@ export default function DrawingReviewDashboardPage() {
                       <p className="font-semibold">{product.partCode}</p>
                       {getStatusBadge(product.drawingReviewStatus)}
                     </div>
-                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
+                    <div className="grid grid-cols-5 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
                         <span className="ml-2">{product.customerName}</span>
@@ -216,6 +218,10 @@ export default function DrawingReviewDashboardPage() {
                       <div>
                         <span className="text-muted-foreground">Type:</span>
                         <span className="ml-2">{product.rollerType}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">No. of Teeth:</span>
+                        <span className="ml-2">{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Created:</span>
@@ -264,7 +270,7 @@ export default function DrawingReviewDashboardPage() {
                       <p className="font-semibold">{product.partCode}</p>
                       {getStatusBadge(product.drawingReviewStatus)}
                     </div>
-                    <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
                         <span className="ml-2">{product.customerName}</span>
@@ -273,8 +279,16 @@ export default function DrawingReviewDashboardPage() {
                         <span className="text-muted-foreground">Model:</span>
                         <span className="ml-2">{product.modelName}</span>
                       </div>
+                      <div>
+                        <span className="text-muted-foreground">Type:</span>
+                        <span className="ml-2">{product.rollerType}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">No. of Teeth:</span>
+                        <span className="ml-2">{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</span>
+                      </div>
                       {product.drawingReviewNotes && (
-                        <div className="col-span-3">
+                        <div className="col-span-4">
                           <span className="text-muted-foreground">Notes:</span>
                           <span className="ml-2 text-xs">{product.drawingReviewNotes}</span>
                         </div>
@@ -322,7 +336,7 @@ export default function DrawingReviewDashboardPage() {
                       <p className="font-semibold">{product.partCode}</p>
                       {getStatusBadge(product.drawingReviewStatus)}
                     </div>
-                    <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Customer:</span>
                         <span className="ml-2">{product.customerName}</span>
@@ -331,8 +345,16 @@ export default function DrawingReviewDashboardPage() {
                         <span className="text-muted-foreground">Model:</span>
                         <span className="ml-2">{product.modelName}</span>
                       </div>
+                      <div>
+                        <span className="text-muted-foreground">Type:</span>
+                        <span className="ml-2">{product.rollerType}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">No. of Teeth:</span>
+                        <span className="ml-2">{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</span>
+                      </div>
                       {product.drawingReviewNotes && (
-                        <div className="col-span-3">
+                        <div className="col-span-4">
                           <span className="text-muted-foreground">Revision Notes:</span>
                           <span className="ml-2 text-xs text-orange-700">{product.drawingReviewNotes}</span>
                         </div>
@@ -391,7 +413,7 @@ export default function DrawingReviewDashboardPage() {
                         </Badge>
                       )}
                     </div>
-                    <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Model:</span>
                         <span className="ml-2">{product.modelName}</span>
@@ -399,6 +421,10 @@ export default function DrawingReviewDashboardPage() {
                       <div>
                         <span className="text-muted-foreground">Type:</span>
                         <span className="ml-2">{product.rollerType}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">No. of Teeth:</span>
+                        <span className="ml-2">{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Reviewed By:</span>

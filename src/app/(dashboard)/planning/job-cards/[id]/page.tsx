@@ -149,6 +149,18 @@ export default function JobCardDetailPage() {
               <span className="text-muted-foreground">Quantity:</span>
               <p className="font-semibold mt-1">{jobCard.quantity} pcs</p>
             </div>
+            {jobCard.machineModelName && (
+              <div>
+                <span className="text-muted-foreground">Machine Model:</span>
+                <p className="font-semibold mt-1">{jobCard.machineModelName}</p>
+              </div>
+            )}
+            {(jobCard.numberOfTeeth ?? 0) > 0 && (
+              <div>
+                <span className="text-muted-foreground">No. of Teeth:</span>
+                <p className="font-semibold mt-1">{jobCard.numberOfTeeth}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

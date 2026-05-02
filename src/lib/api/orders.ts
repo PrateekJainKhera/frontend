@@ -8,6 +8,7 @@ export interface OrderItemResponse {
   productId: number
   productName?: string
   partCode?: string
+  numberOfTeeth?: number
   quantity: number
   originalQuantity: number
   qtyCompleted: number
@@ -47,6 +48,7 @@ export interface OrderResponse {
   productId: number
   productName?: string
   productCode?: string
+  numberOfTeeth?: number
 
   quantity: number
   originalQuantity: number

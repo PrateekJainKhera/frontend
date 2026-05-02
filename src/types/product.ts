@@ -37,7 +37,7 @@ export interface Product {
   drawingRequestedAt?: Date
   drawingRequestedBy?: string
 
-  numberOfTeeth: number
+  numberOfTeeth: number 
   surfaceFinish?: string
   hardness?: string
   productTemplateId?: number

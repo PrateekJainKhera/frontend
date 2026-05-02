@@ -57,7 +57,7 @@ export function AllOrdersTab() {
         ...baseFields,
         orderNo: `${r.orderNo}-${item.itemSequence}`,
         productId: String(item.productId),
-        product: item.partCode ? { partCode: item.partCode, modelName: item.productName } as any : undefined,
+        product: { partCode: item.partCode ?? '', modelName: item.productName ?? '', numberOfTeeth: item.numberOfTeeth ?? 0 } as any,
         quantity: item.quantity,
         originalQuantity: item.originalQuantity,
         qtyCompleted: item.qtyCompleted,
@@ -75,7 +75,7 @@ export function AllOrdersTab() {
       ...baseFields,
       orderNo: r.orderNo,
       productId: String(r.productId),
-      product: r.productCode ? { partCode: r.productCode, modelName: r.productName } as any : undefined,
+      product: { partCode: r.productCode ?? '', modelName: r.productName ?? '', numberOfTeeth: r.numberOfTeeth ?? 0 } as any,
       quantity: r.quantity,
       originalQuantity: r.originalQuantity,
       qtyCompleted: r.qtyCompleted,
@@ -135,6 +135,7 @@ export function AllOrdersTab() {
     const matchesSearch =
       order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer?.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.product?.modelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.product?.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.agentCustomer?.customerName.toLowerCase().includes(searchQuery.toLowerCase())
 
@@ -165,7 +166,7 @@ export function AllOrdersTab() {
           <div className="flex-1 flex items-center gap-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by order number, customer, or part code..."
+              placeholder="Search by order number, customer, or product name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

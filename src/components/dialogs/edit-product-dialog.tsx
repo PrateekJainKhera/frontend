@@ -34,6 +34,7 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { productService } from '@/lib/api/products'
 import { rollerTypeService, RollerTypeResponse } from '@/lib/api/roller-types'
+import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
 
 const formSchema = z.object({
   partCode: z.string().min(2, 'Part code is required'),
@@ -50,6 +51,7 @@ const formSchema = z.object({
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
   processTemplateId: z.number(),
+  productTemplateId: z.number().optional(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -69,6 +71,7 @@ export function EditProductDialog({
 }: EditProductDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
+  const [productTemplates, setProductTemplates] = useState<ProductTemplateResponse[]>([])
   const [showAddRollerTypeDialog, setShowAddRollerTypeDialog] = useState(false)
   const [newRollerTypeName, setNewRollerTypeName] = useState('')
   const [isAddingRollerType, setIsAddingRollerType] = useState(false)
@@ -76,6 +79,7 @@ export function EditProductDialog({
   useEffect(() => {
     if (open) {
       rollerTypeService.getAll().then(setRollerTypes).catch(console.error)
+      productTemplateService.getAll().then(setProductTemplates).catch(console.error)
     }
   }, [open])
 
@@ -100,20 +104,21 @@ export function EditProductDialog({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      partCode: product.partCode,
-      customerName: product.customerName,
+      partCode: product.partCode ?? '',
+      customerName: product.customerName ?? '',
       modelId: product.modelId,
-      rollerType: product.rollerType,
+      rollerType: product.rollerType ?? '',
       diameter: product.diameter ?? undefined,
       length: product.length ?? undefined,
-      materialGrade: product.materialGrade,
-      drawingNo: product.drawingNo || '',
-      revisionNo: product.revisionNo || '',
-      revisionDate: product.revisionDate || '',
-      numberOfTeeth: product.numberOfTeeth,
-      surfaceFinish: product.surfaceFinish || '',
-      hardness: product.hardness || '',
+      materialGrade: product.materialGrade ?? '',
+      drawingNo: product.drawingNo ?? '',
+      revisionNo: product.revisionNo ?? '',
+      revisionDate: product.revisionDate ?? '',
+      numberOfTeeth: product.numberOfTeeth ?? 0,
+      surfaceFinish: product.surfaceFinish ?? '',
+      hardness: product.hardness ?? '',
       processTemplateId: product.processTemplateId || 1,
+      productTemplateId: product.productTemplateId ?? undefined,
     },
   })
 
@@ -138,6 +143,7 @@ export function EditProductDialog({
         surfaceFinish: data.surfaceFinish,
         hardness: data.hardness,
         processTemplateId: data.processTemplateId,
+        productTemplateId: data.productTemplateId,
       })
 
       toast.dismiss(loadingToast)
@@ -408,6 +414,37 @@ export function EditProductDialog({
                 )}
               />
             </div>
+
+            {/* Product Template */}
+            <FormField
+              control={form.control}
+              name="productTemplateId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product Template</FormLabel>
+                  <Select
+                    onValueChange={(v) => field.onChange(v === 'none' ? undefined : Number(v))}
+                    value={field.value ? String(field.value) : 'none'}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select product template (optional)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">— No template —</SelectItem>
+                      {productTemplates.map(t => (
+                        <SelectItem key={t.id} value={String(t.id)}>
+                          {t.templateName} ({t.templateCode})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Links the BOM and process steps for job card generation</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button

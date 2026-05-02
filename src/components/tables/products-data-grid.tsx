@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+
 import {
     MaterialReactTable,
     useMaterialReactTable,
@@ -16,6 +16,7 @@ import { Edit, Eye, Package } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
 import { ViewProductDialog } from '@/components/dialogs/view-product-dialog'
 import { EditProductDialog } from '@/components/dialogs/edit-product-dialog'
+import { ProductBOMDialog } from '@/components/dialogs/product-bom-dialog'
 
 interface ProductsDataGridProps {
     products: Product[]
@@ -50,11 +51,11 @@ const muiTheme = createTheme({
 })
 
 export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) {
-    const router = useRouter()
     const [data, setData] = useState<Product[]>(products)
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
     const [viewDialogOpen, setViewDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [bomDialogOpen, setBomDialogOpen] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
@@ -75,8 +76,9 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
         setEditDialogOpen(true)
     }
 
-    const handleViewBOM = (productId: number) => {
-        router.push(`/masters/products/${productId}`)
+    const handleViewBOM = (product: Product) => {
+        setSelectedProduct(product)
+        setBomDialogOpen(true)
     }
 
     // Define columns
@@ -119,9 +121,28 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
                 ),
             },
             {
+                accessorKey: 'numberOfTeeth',
+                header: 'No. of Teeth',
+                size: 100,
+                Cell: ({ cell }) => {
+                    const val = cell.getValue<number>()
+                    return <span className="text-sm">{val > 0 ? val : '—'}</span>
+                },
+            },
+            {
                 accessorKey: 'materialGrade',
                 header: 'Material',
                 size: 100,
+            },
+            {
+                id: 'templateLinked',
+                header: 'Template',
+                size: 100,
+                Cell: ({ row }) => (
+                    row.original.productTemplateId
+                        ? <Badge variant="outline" className="border-green-500 text-green-700 text-xs">Linked</Badge>
+                        : <Badge variant="outline" className="border-orange-400 text-orange-600 text-xs">Not Linked</Badge>
+                ),
             },
             {
                 accessorKey: 'drawingNo',
@@ -186,7 +207,7 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
                 <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleViewBOM(row.original.id)}
+                    onClick={() => handleViewBOM(row.original)}
                     title="View BOM"
                 >
                     <Package className="h-4 w-4" />
@@ -231,6 +252,12 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
                             setEditDialogOpen(false)
                             onUpdate?.()
                         }}
+                    />
+                    <ProductBOMDialog
+                        product={selectedProduct}
+                        open={bomDialogOpen}
+                        onOpenChange={setBomDialogOpen}
+                        onLinked={() => { setBomDialogOpen(false); onUpdate?.() }}
                     />
                 </>
             )}

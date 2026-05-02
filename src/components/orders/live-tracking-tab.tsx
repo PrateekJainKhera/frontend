@@ -130,7 +130,7 @@ export function LiveTrackingTab() {
                     <Badge variant="secondary">In Progress</Badge>
                   </div>
                   <CardDescription>
-                    {order.customer?.customerName} • {order.product?.partCode}
+                    {order.customer?.customerName} • {order.product?.modelName || order.product?.partCode}{(order.product?.numberOfTeeth ?? 0) > 0 ? ` (${order.product!.numberOfTeeth}T)` : ''}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

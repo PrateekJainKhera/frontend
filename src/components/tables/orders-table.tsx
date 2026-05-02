@@ -59,7 +59,7 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
             <TableHead>Order No</TableHead>
             <TableHead>Customer</TableHead>
             <TableHead>Source</TableHead>
-            <TableHead>Part Code</TableHead>
+            <TableHead>Product</TableHead>
             <TableHead>Quantity</TableHead>
             <TableHead>Progress</TableHead>
             <TableHead>Status</TableHead>
@@ -97,8 +97,13 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
                     </div>
                   )}
                 </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {order.product?.partCode}
+                <TableCell className="text-sm">
+                  <div className="font-medium">
+                    {order.product?.modelName || order.product?.partCode || '—'}
+                    {(order.product?.numberOfTeeth ?? 0) > 0 && (
+                      <span className="ml-1 text-xs text-muted-foreground">({order.product!.numberOfTeeth}T)</span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="text-sm">

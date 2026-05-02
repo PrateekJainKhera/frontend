@@ -25,6 +25,7 @@ interface OrderItemWithContext {
   productId: number
   productName?: string
   partCode?: string
+  numberOfTeeth?: number
   quantity: number
   dueDate: string
   itemPriority: string
@@ -70,6 +71,7 @@ export function PlanningDashboardTab() {
               productId: item.productId,
               productName: item.productName,
               partCode: item.partCode,
+              numberOfTeeth: item.numberOfTeeth,
               quantity: item.quantity,
               dueDate: item.dueDate,
               itemPriority: item.priority,
@@ -91,6 +93,7 @@ export function PlanningDashboardTab() {
             productId: order.productId,
             productName: order.productName,
             partCode: order.productCode,
+            numberOfTeeth: order.numberOfTeeth,
             quantity: order.quantity,
             dueDate: order.dueDate,
             itemPriority: order.priority,
@@ -298,7 +301,12 @@ export function PlanningDashboardTab() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">Product:</span>
-                        <span className="ml-2">{item.partCode || item.productName}</span>
+                        <span className="ml-2">
+                          {item.productName || item.partCode}
+                          {(item.numberOfTeeth ?? 0) > 0 && (
+                            <span className="ml-1 text-xs text-muted-foreground">({item.numberOfTeeth}T)</span>
+                          )}
+                        </span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Quantity:</span>
@@ -380,7 +388,12 @@ export function PlanningDashboardTab() {
                       <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Product:</span>
-                          <span className="ml-2">{item.partCode || item.productName}</span>
+                          <span className="ml-2">
+                            {item.productName || item.partCode}
+                            {(item.numberOfTeeth ?? 0) > 0 && (
+                              <span className="ml-1 text-xs text-muted-foreground">({item.numberOfTeeth}T)</span>
+                            )}
+                          </span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Progress:</span>
