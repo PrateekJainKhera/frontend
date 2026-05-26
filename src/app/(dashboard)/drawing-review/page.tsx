@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { FileText, CheckCircle2, Clock, AlertTriangle, Eye, Upload, Search } from 'lucide-react'
+import { FileText, CheckCircle2, Clock, AlertTriangle, Eye, Upload, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { productService } from '@/lib/api/products'
 import { Product } from '@/types/product'
 import { formatDate } from '@/lib/utils/formatters'
@@ -15,6 +16,8 @@ export default function DrawingReviewDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterRollerType, setFilterRollerType] = useState('')
+  const [filterDateFrom, setFilterDateFrom] = useState('')
 
   useEffect(() => {
     loadData()
@@ -31,17 +34,48 @@ export default function DrawingReviewDashboardPage() {
     setLoading(false)
   }
 
+  const rollerTypes = useMemo(() =>
+    [...new Set(products.map(p => p.rollerType).filter(Boolean))].sort() as string[]
+  , [products])
+
   const visibleProducts = useMemo(() => {
+    let result = [...products]
+
+    // Text search
     const q = searchQuery.toLowerCase()
-    if (!q) return products
-    return products.filter(p =>
-      p.partCode.toLowerCase().includes(q) ||
-      (p.customerName ?? '').toLowerCase().includes(q) ||
-      (p.modelName ?? '').toLowerCase().includes(q) ||
-      (p.rollerType ?? '').toLowerCase().includes(q) ||
-      String(p.numberOfTeeth ?? '').includes(q)
-    )
-  }, [products, searchQuery])
+    if (q) {
+      result = result.filter(p =>
+        p.partCode.toLowerCase().includes(q) ||
+        (p.customerName ?? '').toLowerCase().includes(q) ||
+        (p.modelName ?? '').toLowerCase().includes(q) ||
+        (p.rollerType ?? '').toLowerCase().includes(q) ||
+        String(p.numberOfTeeth ?? '').includes(q)
+      )
+    }
+
+    // Roller type filter
+    if (filterRollerType) {
+      result = result.filter(p => p.rollerType === filterRollerType)
+    }
+
+    // Date from filter
+    if (filterDateFrom) {
+      const from = new Date(filterDateFrom)
+      result = result.filter(p => new Date(p.createdAt) >= from)
+    }
+
+    // Sort newest first; use id as tiebreaker when dates are equal (higher id = newer row)
+    result.sort((a, b) => {
+      const da = new Date(a.createdAt).getTime()
+      const db = new Date(b.createdAt).getTime()
+      if (!isNaN(db - da) && db !== da) return db - da
+      return b.id - a.id
+    })
+
+    return result
+  }, [products, searchQuery, filterRollerType, filterDateFrom])
+
+  const hasFilters = !!(searchQuery || filterRollerType || filterDateFrom)
 
   // Filter products by drawing review status
   const pendingReviewProducts = visibleProducts.filter(product =>
@@ -113,7 +147,11 @@ export default function DrawingReviewDashboardPage() {
             Manage and approve product drawings before production planning
           </p>
         </div>
-        <div className="relative shrink-0">
+      </div>
+
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
@@ -123,6 +161,44 @@ export default function DrawingReviewDashboardPage() {
             className="flex h-9 w-64 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
+
+        <Select value={filterRollerType || 'all'} onValueChange={v => setFilterRollerType(v === 'all' ? '' : v)}>
+          <SelectTrigger className="h-9 w-44">
+            <SelectValue placeholder="All Roller Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roller Types</SelectItem>
+            {rollerTypes.map(rt => (
+              <SelectItem key={rt} value={rt}>{rt}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-1.5">
+          <label className="text-sm text-muted-foreground shrink-0">From</label>
+          <input
+            type="date"
+            value={filterDateFrom}
+            onChange={e => setFilterDateFrom(e.target.value)}
+            className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 gap-1.5 text-muted-foreground border border-dashed"
+            onClick={() => { setSearchQuery(''); setFilterRollerType(''); setFilterDateFrom('') }}
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear
+          </Button>
+        )}
+
+        <span className="text-xs text-muted-foreground ml-auto">
+          {visibleProducts.length} product{visibleProducts.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {/* KPI Cards */}
