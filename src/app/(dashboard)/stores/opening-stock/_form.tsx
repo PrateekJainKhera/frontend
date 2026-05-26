@@ -46,6 +46,7 @@ interface RMLine {
   warehouseId: string
   unitCost: number
   batches: PieceBatch[]
+  inputMode: 'weight' | 'length'
 }
 
 interface CompLine {
@@ -69,6 +70,7 @@ function newRM(): RMLine {
     materialType: 'rod', diameter: 0, outerDiameter: 0, innerDiameter: 0,
     materialDensity: 7.85, totalWeightKG: 0, calculatedLengthM: 0,
     weightPerMeterKG: 0, warehouseId: '', unitCost: 0, batches: [],
+    inputMode: 'weight',
   }
 }
 
@@ -80,21 +82,26 @@ function newComp(): CompLine {
   }
 }
 
-function calcLength(line: RMLine): { lengthM: number; wpm: number } {
-  const { materialType, diameter, outerDiameter, innerDiameter, totalWeightKG, materialDensity } = line
-  if (totalWeightKG <= 0 || materialDensity <= 0) return { lengthM: 0, wpm: 0 }
+function calcWpm(line: RMLine): number {
+  const { materialType, diameter, outerDiameter, innerDiameter, materialDensity } = line
+  if (materialDensity <= 0) return 0
   let area = 0
   if (materialType === 'rod') {
-    if (diameter <= 0) return { lengthM: 0, wpm: 0 }
+    if (diameter <= 0) return 0
     const d = diameter / 10
     area = (Math.PI / 4) * d * d
   } else {
-    if (outerDiameter <= 0) return { lengthM: 0, wpm: 0 }
+    if (outerDiameter <= 0) return 0
     const od = outerDiameter / 10, id = innerDiameter / 10
     area = (Math.PI / 4) * (od * od - id * id)
   }
-  const wpm = (area * materialDensity * 100) / 1000
-  return wpm > 0 ? { lengthM: totalWeightKG / wpm, wpm } : { lengthM: 0, wpm: 0 }
+  return (area * materialDensity * 100) / 1000
+}
+
+function calcLength(line: RMLine): { lengthM: number; wpm: number } {
+  const wpm = calcWpm(line)
+  if (wpm <= 0 || line.totalWeightKG <= 0) return { lengthM: 0, wpm }
+  return { lengthM: line.totalWeightKG / wpm, wpm }
 }
 
 function totalBatchLength(batches: PieceBatch[]) {
@@ -118,7 +125,7 @@ export default function OpeningStockForm({ id }: Props) {
 
   const [entryDate, setEntryDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [remarks, setRemarks] = useState('')
-  const [activeTab, setActiveTab] = useState<'rm' | 'comp'>('rm')
+  const [activeTab, setActiveTab] = useState<'rm-weight' | 'rm-length' | 'comp'>('rm-weight')
 
   const [rmLines, setRmLines] = useState<RMLine[]>([newRM()])
   const [compLines, setCompLines] = useState<CompLine[]>([newComp()])
@@ -151,30 +158,51 @@ export default function OpeningStockForm({ id }: Props) {
         setEntryDate(data.entryDate.split('T')[0])
         setRemarks(data.remarks ?? '')
 
-        // Rebuild RM lines — group items by materialId + grade + diameter
+        // Rebuild RM lines — group items by materialId so multiple batches merge into one card
         const rmItems = data.items.filter(i => i.itemType === 'RawMaterial')
         if (rmItems.length > 0) {
-          const lines: RMLine[] = rmItems.map(item => {
-            const calc = { lengthM: 0, wpm: 0 }
-            return {
-              id: `rm-${item.id}`,
-              materialId: item.materialId?.toString() ?? '',
-              materialName: item.materialName ?? '',
-              grade: item.grade ?? '',
-              materialType: ((item.materialType ?? '').toLowerCase() === 'pipe' ? 'pipe' : 'rod') as 'rod' | 'pipe',
-              diameter: item.diameter ?? 0,
-              outerDiameter: item.outerDiameter ?? item.diameter ?? 0,
-              innerDiameter: item.innerDiameter ?? 0,
-              materialDensity: item.materialDensity ?? 7.85,
-              totalWeightKG: item.totalWeightKG ?? 0,
-              calculatedLengthM: (item.calculatedLengthMM ?? 0) / 1000,
-              weightPerMeterKG: item.weightPerMeterKG ?? calc.wpm,
-              warehouseId: item.warehouseId?.toString() ?? '',
-              unitCost: item.unitCost ?? 0,
-              batches: item.numberOfPieces && item.lengthPerPieceMM
-                ? [{ id: `batch-${item.id}`, lengthM: item.lengthPerPieceMM / 1000, quantity: item.numberOfPieces }]
-                : [],
+          const grouped = rmItems.reduce((acc, item) => {
+            const key = item.materialId?.toString() ?? 'unknown'
+            if (!acc[key]) acc[key] = []
+            acc[key].push(item)
+            return acc
+          }, {} as Record<string, typeof rmItems>)
+
+          const lines: RMLine[] = Object.entries(grouped).map(([, items]) => {
+            const first = items[0]
+            const mtype: 'rod' | 'pipe' = ((first.materialType ?? '').toLowerCase() === 'pipe' ? 'pipe' : 'rod')
+            const batches = items
+              .filter(item => item.numberOfPieces && item.lengthPerPieceMM)
+              .map(item => ({
+                id: `batch-${item.id}`,
+                lengthM: (item.lengthPerPieceMM ?? 0) / 1000,
+                quantity: item.numberOfPieces ?? 1,
+              }))
+            const totalWeightKG = items.reduce((sum, i) => sum + (i.totalWeightKG ?? 0), 0)
+            // Derive length from batches if available, otherwise from DB
+            const calculatedLengthM = batches.length > 0
+              ? batches.reduce((sum, b) => sum + b.lengthM * b.quantity, 0)
+              : (first.calculatedLengthMM ?? 0) / 1000
+            const tempLine: RMLine = {
+              id: `rm-${first.id}`,
+              materialId: first.materialId?.toString() ?? '',
+              materialName: first.materialName ?? '',
+              grade: first.grade ?? '',
+              materialType: mtype,
+              diameter: first.diameter ?? 0,
+              outerDiameter: first.outerDiameter ?? first.diameter ?? 0,
+              innerDiameter: first.innerDiameter ?? 0,
+              materialDensity: first.materialDensity ?? 7.85,
+              totalWeightKG,
+              calculatedLengthM,
+              weightPerMeterKG: first.weightPerMeterKG ?? 0,
+              warehouseId: first.warehouseId?.toString() ?? '',
+              unitCost: first.unitCost ?? 0,
+              batches,
+              inputMode: 'weight',
             }
+            const wpm = calcWpm(tempLine)
+            return { ...tempLine, weightPerMeterKG: wpm || first.weightPerMeterKG || 0, inputMode: 'weight' as const }
           })
           setRmLines(lines)
         }
@@ -206,7 +234,13 @@ export default function OpeningStockForm({ id }: Props) {
     setRmLines(prev => prev.map(l => {
       if (l.id !== lineId) return l
       const updated = { ...l, ...patch }
-      const { lengthM, wpm } = calcLength(updated)
+      const wpm = calcWpm(updated)
+      if (updated.inputMode === 'length') {
+        const totalLengthM = totalBatchLength(updated.batches)
+        const totalWeightKG = totalLengthM * wpm
+        return { ...updated, calculatedLengthM: totalLengthM, weightPerMeterKG: wpm, totalWeightKG }
+      }
+      const { lengthM } = calcLength(updated)
       return { ...updated, calculatedLengthM: lengthM, weightPerMeterKG: wpm }
     }))
   }
@@ -230,18 +264,30 @@ export default function OpeningStockForm({ id }: Props) {
 
   const addBatch = (lineId: string) =>
     setRmLines(prev => prev.map(l => l.id === lineId
-      ? { ...l, batches: [...l.batches, { id: `b-${Date.now()}`, lengthM: 0, quantity: 1 }] }
+      ? { ...l, batches: [...l.batches, { id: `b-${Date.now()}`, lengthM: 0, quantity: 0 }] }
       : l))
 
   const removeBatch = (lineId: string, batchId: string) =>
-    setRmLines(prev => prev.map(l => l.id === lineId
-      ? { ...l, batches: l.batches.filter(b => b.id !== batchId) }
-      : l))
+    setRmLines(prev => prev.map(l => {
+      if (l.id !== lineId) return l
+      const batches = l.batches.filter(b => b.id !== batchId)
+      if (l.inputMode === 'length') {
+        const totalLengthM = totalBatchLength(batches)
+        return { ...l, batches, calculatedLengthM: totalLengthM, totalWeightKG: totalLengthM * l.weightPerMeterKG }
+      }
+      return { ...l, batches }
+    }))
 
   const updateBatch = (lineId: string, batchId: string, field: 'lengthM' | 'quantity', val: number) =>
-    setRmLines(prev => prev.map(l => l.id === lineId
-      ? { ...l, batches: l.batches.map(b => b.id === batchId ? { ...b, [field]: val } : b) }
-      : l))
+    setRmLines(prev => prev.map(l => {
+      if (l.id !== lineId) return l
+      const batches = l.batches.map(b => b.id === batchId ? { ...b, [field]: val } : b)
+      if (l.inputMode === 'length') {
+        const totalLengthM = totalBatchLength(batches)
+        return { ...l, batches, calculatedLengthM: totalLengthM, totalWeightKG: totalLengthM * l.weightPerMeterKG }
+      }
+      return { ...l, batches }
+    }))
 
   // ── Comp helpers ───────────────────────────────────────────────────────────
 
@@ -420,33 +466,48 @@ export default function OpeningStockForm({ id }: Props) {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-muted rounded-lg p-1 w-fit">
-        {(['rm', 'comp'] as const).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === tab
+        {([
+          { key: 'rm-weight', label: 'By Weight', icon: <Package className="h-4 w-4" />, count: rmLines.filter(l => l.inputMode === 'weight' && l.materialId).length },
+          { key: 'rm-length', label: 'By Length', icon: <Layers className="h-4 w-4" />, count: rmLines.filter(l => l.inputMode === 'length' && l.materialId).length },
+          { key: 'comp', label: 'Components', icon: <Layers className="h-4 w-4" />, count: compLines.filter(l => l.componentId).length },
+        ] as const).map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === tab.key
               ? 'bg-background shadow text-foreground'
               : 'text-muted-foreground hover:text-foreground'}`}>
-            {tab === 'rm' ? <Package className="h-4 w-4" /> : <Layers className="h-4 w-4" />}
-            {tab === 'rm' ? 'Raw Materials' : 'Components'}
-            <span className="text-xs bg-muted-foreground/20 rounded-full px-1.5 py-0.5">
-              {tab === 'rm' ? rmLines.filter(l => l.materialId).length : compLines.filter(l => l.componentId).length}
-            </span>
+            {tab.icon}
+            {tab.label}
+            <span className="text-xs bg-muted-foreground/20 rounded-full px-1.5 py-0.5">{tab.count}</span>
           </button>
         ))}
       </div>
 
       {/* ── RAW MATERIALS ──────────────────────────────────────────────────────── */}
-      {activeTab === 'rm' && (
+      {(activeTab === 'rm-weight' || activeTab === 'rm-length') && (() => {
+        const currentMode: 'weight' | 'length' = activeTab === 'rm-weight' ? 'weight' : 'length'
+        const visibleLines = rmLines.filter(l => l.inputMode === currentMode)
+        const addNewLine = () => setRmLines(p => [...p, { ...newRM(), inputMode: currentMode }])
+
+        return (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">Raw Materials</h3>
+            <h3 className="font-semibold text-lg">
+              {currentMode === 'weight' ? 'Raw Materials — Enter by Weight' : 'Raw Materials — Enter by Length'}
+            </h3>
             {!isReadonly && (
-              <Button variant="outline" size="sm" onClick={() => setRmLines(p => [...p, newRM()])}>
+              <Button variant="outline" size="sm" onClick={addNewLine}>
                 <Plus className="mr-1.5 h-4 w-4" /> Add Material
               </Button>
             )}
           </div>
 
-          {rmLines.map((line, lineIdx) => {
+          {currentMode === 'length' && visibleLines.length === 0 && (
+            <p className="text-sm text-muted-foreground py-2">
+              Click &quot;Add Material&quot; to start entering pieces by length. Weight will be calculated automatically from the piece dimensions.
+            </p>
+          )}
+
+          {visibleLines.map((line, lineIdx) => {
             const batLen = totalBatchLength(line.batches)
             const batPcs = totalBatchPieces(line.batches)
             const lenMatch = line.batches.length > 0 && Math.abs(batLen - line.calculatedLengthM) < 0.05
@@ -457,7 +518,7 @@ export default function OpeningStockForm({ id }: Props) {
                   {/* Card header */}
                   <div className="flex items-center justify-between">
                     <Badge variant="outline">Material #{lineIdx + 1}</Badge>
-                    {!isReadonly && rmLines.length > 1 && (
+                    {!isReadonly && visibleLines.length > 1 && (
                       <Button variant="ghost" size="sm"
                         onClick={() => setRmLines(p => p.filter(l => l.id !== line.id))}
                         className="text-destructive hover:text-destructive">
@@ -515,12 +576,21 @@ export default function OpeningStockForm({ id }: Props) {
 
                     {/* Total weight */}
                     <div className="space-y-2">
-                      <Label>Total Weight (kg) *</Label>
+                      <Label>
+                        Total Weight (kg)
+                        {line.inputMode === 'length'
+                          ? <span className="ml-1 text-xs text-blue-600 font-normal">auto-calculated</span>
+                          : <span className="ml-1 text-xs text-muted-foreground font-normal">*</span>
+                        }
+                      </Label>
                       <Input type="number" step="0.01" min={0}
-                        placeholder="Enter total weight"
-                        value={line.totalWeightKG || ''}
+                        placeholder={line.inputMode === 'length' ? 'Calculated from batches' : 'Enter total weight'}
+                        value={line.inputMode === 'length'
+                          ? (line.totalWeightKG > 0 ? +line.totalWeightKG.toFixed(3) : '')
+                          : (line.totalWeightKG || '')}
                         onChange={e => updateRM(line.id, { totalWeightKG: parseFloat(e.target.value) || 0 })}
-                        disabled={isReadonly} />
+                        disabled={isReadonly || line.inputMode === 'length'}
+                        className={line.inputMode === 'length' ? 'bg-blue-50 text-blue-700 font-medium' : ''} />
                     </div>
 
                     {/* Warehouse */}
@@ -607,16 +677,19 @@ export default function OpeningStockForm({ id }: Props) {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Total Length</p>
+                        <p className="text-xs text-muted-foreground">
+                          Total Length
+                          {line.inputMode === 'length' && <span className="ml-1 text-blue-500">(from batches)</span>}
+                        </p>
                         <p className="text-lg font-semibold text-blue-600">
-                          {line.calculatedLengthM > 0 ? `${line.calculatedLengthM.toFixed(2)} m` : '0.00 m'}
+                          {line.calculatedLengthM > 0 ? `${line.calculatedLengthM.toFixed(4)} m` : '0.00 m'}
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Row 3: Piece Breakdown */}
-                  {line.calculatedLengthM > 0 && (
+                  {(line.inputMode === 'length' ? !!line.materialId : (line.calculatedLengthM > 0 || line.batches.length > 0)) && (
                     <div className="space-y-3 border-t pt-4">
                       <div className="flex items-center justify-between">
                         <Label>Piece Breakdown ({line.materialType === 'rod' ? 'Rods' : 'Pipes'})</Label>
@@ -627,11 +700,7 @@ export default function OpeningStockForm({ id }: Props) {
                         )}
                       </div>
 
-                      {line.batches.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-2">
-                          Click "Add Batch" to specify piece lengths. Example: 6m × 5 pieces = 30m
-                        </p>
-                      ) : (
+                      {line.batches.length > 0 && (
                         <div className="space-y-2">
                           {line.batches.map((batch, bi) => (
                             <div key={batch.id} className="flex items-center gap-3">
@@ -643,10 +712,10 @@ export default function OpeningStockForm({ id }: Props) {
                                 disabled={isReadonly}
                                 className="w-28" />
                               <span className="text-sm text-muted-foreground">m ×</span>
-                              <Input type="number" min={1} step={1}
+                              <Input type="number" min={0} step={1}
                                 placeholder="Qty"
                                 value={batch.quantity || ''}
-                                onChange={e => updateBatch(line.id, batch.id, 'quantity', parseInt(e.target.value) || 1)}
+                                onChange={e => updateBatch(line.id, batch.id, 'quantity', parseInt(e.target.value) || 0)}
                                 disabled={isReadonly}
                                 className="w-20" />
                               <span className="text-sm text-muted-foreground">pcs</span>
@@ -678,14 +747,14 @@ export default function OpeningStockForm({ id }: Props) {
                             </div>
                           </div>
 
-                          {/* Mismatch warning */}
-                          {line.batches.length > 0 && !lenMatch && (
+                          {/* Mismatch warning — only in weight mode */}
+                          {line.inputMode === 'weight' && line.batches.length > 0 && !lenMatch && (
                             <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm space-y-1">
                               <p className="font-semibold text-amber-800">⚠ Length mismatch</p>
                               <p className="text-amber-700">
                                 Your batches total <strong>{batLen.toFixed(2)} m</strong> but the weight-calculated
-                                length is <strong>{line.calculatedLengthM.toFixed(2)} m</strong>{' '}
-                                (difference: {Math.abs(batLen - line.calculatedLengthM).toFixed(2)} m).
+                                length is <strong>{line.calculatedLengthM.toFixed(4)} m</strong>{' '}
+                                (difference: {Math.abs(batLen - line.calculatedLengthM).toFixed(4)} m).
                               </p>
                               <p className="text-amber-700">
                                 The <strong>{line.totalWeightKG} kg</strong> will be distributed proportionally
@@ -694,7 +763,7 @@ export default function OpeningStockForm({ id }: Props) {
                               </p>
                               <p className="text-amber-600 text-xs">
                                 Tip: adjust your batch lengths to add up to{' '}
-                                <strong>{line.calculatedLengthM.toFixed(2)} m</strong> to eliminate this warning.
+                                <strong>{line.calculatedLengthM.toFixed(4)} m</strong> to eliminate this warning.
                               </p>
                             </div>
                           )}
@@ -719,13 +788,14 @@ export default function OpeningStockForm({ id }: Props) {
           })}
 
           {!isReadonly && (
-            <button onClick={() => setRmLines(p => [...p, newRM()])}
+            <button onClick={addNewLine}
               className="w-full border-2 border-dashed border-border rounded-lg py-4 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2">
               <Plus className="h-4 w-4" /> Add Another Material
             </button>
           )}
         </div>
-      )}
+        )
+      })()}
 
       {/* ── COMPONENTS ────────────────────────────────────────────────────────── */}
       {activeTab === 'comp' && (

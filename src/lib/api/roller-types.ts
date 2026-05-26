@@ -19,7 +19,14 @@ class RollerTypeService {
   async getAll(): Promise<RollerTypeResponse[]> {
     try {
       const response = await apiClient.get<ApiResponse<RollerTypeResponse[]>>(this.baseUrl)
-      return response.data.data || []
+      const data = response.data.data || []
+      // Deduplicate by typeName — keep first occurrence (lowest id)
+      const seen = new Set<string>()
+      return data.filter(t => {
+        if (seen.has(t.typeName)) return false
+        seen.add(t.typeName)
+        return true
+      })
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to fetch roller types: ${error.message}`)
