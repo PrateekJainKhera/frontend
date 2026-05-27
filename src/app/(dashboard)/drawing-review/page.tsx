@@ -4,10 +4,11 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { FileText, CheckCircle2, Clock, AlertTriangle, Eye, Upload, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { productService } from '@/lib/api/products'
 import { Product } from '@/types/product'
 import { formatDate } from '@/lib/utils/formatters'
@@ -15,6 +16,7 @@ import { formatDate } from '@/lib/utils/formatters'
 export default function DrawingReviewDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
+  const [activeTab, setActiveTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRollerType, setFilterRollerType] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
@@ -137,391 +139,202 @@ export default function DrawingReviewDashboardPage() {
     )
   }
 
+  // Shared product row renderer
+  const renderRow = (product: Product) => {
+    const isPending = product.drawingReviewStatus === 'Pending'
+    const isUnderReview = product.drawingReviewStatus === 'UnderReview'
+    const isApproved = product.drawingReviewStatus === 'Approved'
+    const needsAttention = product.drawingReviewStatus === 'RevisionRequired' || product.drawingReviewStatus === 'Rejected'
+
+    return (
+      <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="font-semibold font-mono">{product.partCode}</p>
+            {getStatusBadge(product.drawingReviewStatus)}
+            {isApproved && product.assemblyDrawingId && (
+              <Badge variant="secondary" className="text-xs">Drawings Linked</Badge>
+            )}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-1 mt-2 text-sm">
+            <div><span className="text-muted-foreground">Customer: </span>{product.customerName}</div>
+            <div><span className="text-muted-foreground">Model: </span>{product.modelName}</div>
+            <div><span className="text-muted-foreground">Type: </span>{product.rollerType}</div>
+            <div><span className="text-muted-foreground">Teeth: </span>{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</div>
+            <div><span className="text-muted-foreground">Created: </span>{formatDate(product.createdAt)}</div>
+            {(needsAttention || isUnderReview) && product.drawingReviewNotes && (
+              <div className="col-span-2 md:col-span-5">
+                <span className={`text-xs ${needsAttention ? 'text-orange-700' : 'text-muted-foreground'}`}>
+                  Notes: {product.drawingReviewNotes}
+                </span>
+              </div>
+            )}
+            {isApproved && product.drawingReviewedBy && (
+              <div className="col-span-2 md:col-span-5 text-xs text-muted-foreground">
+                Reviewed by: {product.drawingReviewedBy}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="ml-4 shrink-0">
+          {isPending ? (
+            <Link href={`/drawing-review/products/${product.id}/upload-drawings`}>
+              <Button size="sm">
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Drawing
+              </Button>
+            </Link>
+          ) : isUnderReview ? (
+            <Link href={`/drawing-review/products/${product.id}`}>
+              <Button size="sm" variant="outline">
+                <Eye className="mr-2 h-4 w-4" />
+                Review & Approve
+              </Button>
+            </Link>
+          ) : (
+            <Link href={`/drawing-review/products/${product.id}`}>
+              <Button size="sm" variant="outline">
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </Button>
+            </Link>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const emptyState = (icon: React.ReactNode, msg: string) => (
+    <div className="text-center py-12 text-muted-foreground">
+      <div className="flex justify-center mb-3">{icon}</div>
+      <p className="text-sm">{msg}</p>
+    </div>
+  )
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Product Drawing Review</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage and approve product drawings before production planning
-          </p>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search part code, customer, model..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="flex h-9 w-64 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </div>
+        {/* Row 1: Tabs + Search (matches masters/products pattern) */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList className="grid grid-cols-5 max-w-2xl">
+            <TabsTrigger value="all">All ({visibleProducts.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({stats.totalPending})</TabsTrigger>
+            <TabsTrigger value="under-review">Under Review ({stats.underReview})</TabsTrigger>
+            <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
+            <TabsTrigger value="attention">Needs Attention ({stats.revisionRequired})</TabsTrigger>
+          </TabsList>
 
-        <Select value={filterRollerType || 'all'} onValueChange={v => setFilterRollerType(v === 'all' ? '' : v)}>
-          <SelectTrigger className="h-9 w-44">
-            <SelectValue placeholder="All Roller Types" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Roller Types</SelectItem>
-            {rollerTypes.map(rt => (
-              <SelectItem key={rt} value={rt}>{rt}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center gap-1.5">
-          <label className="text-sm text-muted-foreground shrink-0">From</label>
-          <input
-            type="date"
-            value={filterDateFrom}
-            onChange={e => setFilterDateFrom(e.target.value)}
-            className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </div>
-
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 gap-1.5 text-muted-foreground border border-dashed"
-            onClick={() => { setSearchQuery(''); setFilterRollerType(''); setFilterDateFrom('') }}
-          >
-            <X className="h-3.5 w-3.5" />
-            Clear
-          </Button>
-        )}
-
-        <span className="text-xs text-muted-foreground ml-auto">
-          {visibleProducts.length} product{visibleProducts.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-gray-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalPending}</div>
-            <p className="text-xs text-muted-foreground">Awaiting drawing upload</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Under Review</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.underReview}</div>
-            <p className="text-xs text-muted-foreground">Currently reviewing</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.revisionRequired}</div>
-            <p className="text-xs text-muted-foreground">Revision/Rejected</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.approved}</div>
-            <p className="text-xs text-muted-foreground">Ready for planning</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Pending Review Products */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Products Pending Drawing Review</CardTitle>
-              <CardDescription>
-                Products awaiting drawing upload and linkage
-              </CardDescription>
-            </div>
-            <Badge variant="outline">
-              {pendingReviewProducts.length}
-            </Badge>
+          {/* Search bar — same style as masters/products */}
+          <div className="flex items-center gap-2 bg-background border-2 border-border rounded-lg px-4 py-1 shadow-sm flex-1 max-w-sm">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              placeholder="Search part code, customer, model..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="border-0 shadow-none focus:outline-none h-8 px-0 text-sm flex-1 placeholder:text-muted-foreground/40 bg-transparent"
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          {pendingReviewProducts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-600" />
-              <p>All products have been reviewed!</p>
-              <p className="text-sm mt-1">No products awaiting drawing review</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingReviewProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold">{product.partCode}</p>
-                      {getStatusBadge(product.drawingReviewStatus)}
-                    </div>
-                    <div className="grid grid-cols-5 gap-4 mt-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{product.customerName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Model:</span>
-                        <span className="ml-2">{product.modelName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Type:</span>
-                        <span className="ml-2">{product.rollerType}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">No. of Teeth:</span>
-                        <span className="ml-2">{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Created:</span>
-                        <span className="ml-2">{formatDate(product.createdAt)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Link href={`/drawing-review/products/${product.id}/upload-drawings`}>
-                    <Button>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Drawing
-                    </Button>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Under Review Products */}
-      {underReviewProducts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Products Under Review</CardTitle>
-                <CardDescription>
-                  Currently being reviewed by engineering team
-                </CardDescription>
-              </div>
-              <Badge variant="outline">
-                {underReviewProducts.length}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {underReviewProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold">{product.partCode}</p>
-                      {getStatusBadge(product.drawingReviewStatus)}
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{product.customerName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Model:</span>
-                        <span className="ml-2">{product.modelName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Type:</span>
-                        <span className="ml-2">{product.rollerType}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">No. of Teeth:</span>
-                        <span className="ml-2">{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</span>
-                      </div>
-                      {product.drawingReviewNotes && (
-                        <div className="col-span-4">
-                          <span className="text-muted-foreground">Notes:</span>
-                          <span className="ml-2 text-xs">{product.drawingReviewNotes}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <Link href={`/drawing-review/products/${product.id}`}>
-                    <Button variant="outline">
-                      <Eye className="mr-2 h-4 w-4" />
-                      Review & Approve
-                    </Button>
-                  </Link>
-                </div>
+        {/* Row 2: Extra filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={filterRollerType || 'all'} onValueChange={v => setFilterRollerType(v === 'all' ? '' : v)}>
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue placeholder="All Roller Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roller Types</SelectItem>
+              {rollerTypes.map(rt => (
+                <SelectItem key={rt} value={rt}>{rt}</SelectItem>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </SelectContent>
+          </Select>
 
-      {/* Revision Required / Rejected Products */}
-      {(revisionRequiredProducts.length > 0 || rejectedProducts.length > 0) && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Products Needing Attention</CardTitle>
-                <CardDescription>
-                  Drawings require modifications or have been rejected
-                </CardDescription>
-              </div>
-              <Badge variant="destructive">
-                {revisionRequiredProducts.length + rejectedProducts.length}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[...revisionRequiredProducts, ...rejectedProducts].map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold">{product.partCode}</p>
-                      {getStatusBadge(product.drawingReviewStatus)}
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Customer:</span>
-                        <span className="ml-2">{product.customerName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Model:</span>
-                        <span className="ml-2">{product.modelName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Type:</span>
-                        <span className="ml-2">{product.rollerType}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">No. of Teeth:</span>
-                        <span className="ml-2">{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</span>
-                      </div>
-                      {product.drawingReviewNotes && (
-                        <div className="col-span-4">
-                          <span className="text-muted-foreground">Revision Notes:</span>
-                          <span className="ml-2 text-xs text-orange-700">{product.drawingReviewNotes}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <Link href={`/drawing-review/products/${product.id}`}>
-                    <Button variant="outline">
-                      View Details
-                    </Button>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recently Approved Products */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Recently Approved Products</CardTitle>
-              <CardDescription>
-                Drawings approved and ready for production planning
-              </CardDescription>
-            </div>
-            <Badge variant="outline">
-              {approvedProducts.length}
-            </Badge>
+          <div className="flex items-center gap-1.5">
+            <label className="text-sm text-muted-foreground shrink-0">From</label>
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={e => setFilterDateFrom(e.target.value)}
+              className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          {approvedProducts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-3" />
-              <p>No approved products yet</p>
-              <p className="text-sm mt-1">Review and approve products above</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {approvedProducts.slice(0, 10).map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold">{product.partCode}</p>
-                      <Badge variant="outline">{product.customerName}</Badge>
-                      {getStatusBadge(product.drawingReviewStatus)}
-                      {product.assemblyDrawingId && (
-                        <Badge variant="secondary" className="text-xs">
-                          Drawings Linked
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Model:</span>
-                        <span className="ml-2">{product.modelName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Type:</span>
-                        <span className="ml-2">{product.rollerType}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">No. of Teeth:</span>
-                        <span className="ml-2">{product.numberOfTeeth > 0 ? product.numberOfTeeth : '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Reviewed By:</span>
-                        <span className="ml-2">{product.drawingReviewedBy || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Link href={`/drawing-review/products/${product.id}`}>
-                      <Button variant="outline" size="sm">
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
+
+          {hasFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 gap-1.5 text-muted-foreground border border-dashed"
+              onClick={() => { setSearchQuery(''); setFilterRollerType(''); setFilterDateFrom('') }}
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear filters
+            </Button>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* All */}
+        <TabsContent value="all" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              {visibleProducts.length === 0
+                ? emptyState(<FileText className="h-12 w-12 opacity-30" />, 'No products found')
+                : <div className="space-y-3">{visibleProducts.map(renderRow)}</div>
+              }
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Pending */}
+        <TabsContent value="pending" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              {pendingReviewProducts.length === 0
+                ? emptyState(<CheckCircle2 className="h-12 w-12 text-green-500 opacity-60" />, 'All products have been reviewed — none pending')
+                : <div className="space-y-3">{pendingReviewProducts.map(renderRow)}</div>
+              }
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Under Review */}
+        <TabsContent value="under-review" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              {underReviewProducts.length === 0
+                ? emptyState(<Clock className="h-12 w-12 opacity-30" />, 'No products currently under review')
+                : <div className="space-y-3">{underReviewProducts.map(renderRow)}</div>
+              }
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Approved */}
+        <TabsContent value="approved" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              {approvedProducts.length === 0
+                ? emptyState(<FileText className="h-12 w-12 opacity-30" />, 'No approved products yet')
+                : <div className="space-y-3">{approvedProducts.map(renderRow)}</div>
+              }
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Needs Attention */}
+        <TabsContent value="attention" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              {(revisionRequiredProducts.length + rejectedProducts.length) === 0
+                ? emptyState(<AlertTriangle className="h-12 w-12 opacity-30" />, 'No products needing attention')
+                : <div className="space-y-3">{[...revisionRequiredProducts, ...rejectedProducts].map(renderRow)}</div>
+              }
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </Tabs>
     </div>
   )
 }
