@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Calendar, Clock, AlertTriangle, CheckCircle2, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,8 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { formatDate, formatDateTime } from '@/lib/utils/formatters'
 import { Order, OrderStatus, Priority, PlanningStatus, DrawingReviewStatus } from '@/types'
-import { orderService, OrderResponse } from '@/lib/api/orders'
+import { orderService, OrderResponse, OrderItemResponse } from '@/lib/api/orders'
 import { productService } from '@/lib/api/products'
+import { Product } from '@/types/product'
 
 import { getDelayDays, getOrderProgress } from '@/lib/mock-data/orders'
 import { RescheduleOrderDialog } from '@/components/dialogs/reschedule-order-dialog'
@@ -22,13 +23,27 @@ import { format } from 'date-fns'
 
 export default function OrderDetailPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
   const [order, setOrder] = useState<Order | null>(null)
+  const [orderResponse, setOrderResponse] = useState<OrderResponse | null>(null)
+  const [activeProduct, setActiveProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+
+  // Which item sequence is selected (e.g. 'A', 'B', or null for legacy single)
+  const itemParam = searchParams.get('item')
 
   useEffect(() => {
     loadOrder()
   }, [params.id])
+
+  // When item param or order changes, load the right product
+  useEffect(() => {
+    if (!orderResponse) return
+    loadActiveProduct(orderResponse)
+  }, [itemParam, orderResponse])
 
   const mapToOrder = (r: OrderResponse): Order => ({
     id: String(r.id),
@@ -61,21 +76,34 @@ export default function OrderDetailPage() {
     setLoading(true)
     try {
       const data = await orderService.getById(Number(params.id))
-      const mapped = mapToOrder(data)
-
-      // Load full product details
-      try {
-        const product = await productService.getById(data.productId)
-        mapped.product = product as any
-      } catch {}
-
-      setOrder(mapped)
-
+      setOrderResponse(data)
+      setOrder(mapToOrder(data))
     } catch (err) {
       console.error('Failed to load order:', err)
       setOrder(null)
     }
     setLoading(false)
+  }
+
+  const loadActiveProduct = async (data: OrderResponse) => {
+    try {
+      const isMulti = data.items && data.items.length > 0
+      let productId: number
+
+      if (isMulti) {
+        // Find item by sequence param, default to first item
+        const seq = itemParam || data.items![0].itemSequence
+        const item = data.items!.find(i => i.itemSequence === seq) ?? data.items![0]
+        productId = item.productId
+      } else {
+        productId = data.productId
+      }
+
+      const product = await productService.getById(productId)
+      setActiveProduct(product)
+    } catch {
+      setActiveProduct(null)
+    }
   }
 
   if (loading) {
@@ -90,7 +118,7 @@ export default function OrderDetailPage() {
     )
   }
 
-  if (!order) {
+  if (!order || !orderResponse) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">Order not found</p>
@@ -101,8 +129,35 @@ export default function OrderDetailPage() {
     )
   }
 
-  const progress = getOrderProgress(order)
+  const isMultiItem = !!(orderResponse.items && orderResponse.items.length > 0)
+  const activeSeq = itemParam || (isMultiItem ? orderResponse.items![0].itemSequence : null)
+
+  // Active item for quantities / dates / status
+  const activeItem: OrderItemResponse | null = isMultiItem
+    ? (orderResponse.items!.find(i => i.itemSequence === activeSeq) ?? orderResponse.items![0])
+    : null
+
+  // Quantities to show (item-specific for multi, root for legacy)
+  const qty = activeItem ?? {
+    quantity: orderResponse.quantity,
+    originalQuantity: orderResponse.originalQuantity,
+    qtyCompleted: orderResponse.qtyCompleted,
+    qtyRejected: orderResponse.qtyRejected,
+    qtyInProgress: orderResponse.qtyInProgress,
+    status: orderResponse.status,
+    priority: orderResponse.priority,
+    dueDate: orderResponse.dueDate,
+    adjustedDueDate: orderResponse.adjustedDueDate,
+  }
+
+  const qtyProgress = qty.quantity > 0 ? Math.round((qty.qtyCompleted / qty.quantity) * 100) : 0
+  const overallProgress = getOrderProgress(order)
   const delayDays = getDelayDays(order)
+
+  // Display order number (show -A suffix for multi-item)
+  const displayOrderNo = isMultiItem && activeSeq
+    ? `${orderResponse.orderNo}-${activeSeq}`
+    : orderResponse.orderNo
 
   return (
     <div className="space-y-6">
@@ -115,13 +170,13 @@ export default function OrderDetailPage() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-primary">{order.orderNo}</h1>
+            <h1 className="text-3xl font-bold text-primary">{displayOrderNo}</h1>
             <Badge variant={
-              order.status === 'Completed' ? 'default' :
-              order.status === 'In Progress' ? 'secondary' :
+              qty.status === 'Completed' ? 'default' :
+              qty.status === 'In Progress' ? 'secondary' :
               'outline'
             }>
-              {order.status}
+              {qty.status}
             </Badge>
           </div>
           <p className="text-muted-foreground">{order.customer?.customerName}</p>
@@ -138,6 +193,27 @@ export default function OrderDetailPage() {
           </Button>
         </div>
       </div>
+
+      {/* Item selector — only for multi-item orders */}
+      {isMultiItem && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-muted-foreground">Item:</span>
+          {orderResponse.items!.map(item => (
+            <button
+              key={item.itemSequence}
+              onClick={() => router.push(`/orders/${params.id}?item=${item.itemSequence}`)}
+              className={`px-3 py-1 rounded-full text-sm font-mono font-semibold border transition-colors ${
+                activeSeq === item.itemSequence
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border hover:border-primary hover:text-primary'
+              }`}
+            >
+              {item.itemSequence}
+              {item.partCode && <span className="ml-1 font-normal text-xs opacity-70">{item.partCode}</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Reschedule Warning */}
       {!order.canReschedule && order.status !== 'Completed' && (
@@ -163,40 +239,71 @@ export default function OrderDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Product Information */}
+
+          {/* Product Information — original format */}
           <Card>
             <CardHeader>
               <CardTitle>Product Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Part Code</p>
-                  <p className="font-mono font-bold text-lg">{order.product?.partCode}</p>
+              {activeProduct ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Part Code</p>
+                    <p className="font-mono font-bold text-lg">{activeProduct.partCode}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Model</p>
+                    <p className="font-semibold">{activeProduct.modelName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Roller Type</p>
+                    <p className="font-semibold">{activeProduct.rollerType}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dimensions</p>
+                    <p className="font-semibold">
+                      ⌀{activeProduct.diameter} × {activeProduct.length}mm
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Number of Teeth</p>
+                    <p className="font-semibold">
+                      {activeProduct.numberOfTeeth > 0 ? `${activeProduct.numberOfTeeth}T` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Material Grade</p>
+                    <p className="font-semibold">{activeProduct.materialGrade}</p>
+                  </div>
+                  {activeProduct.surfaceFinish && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Surface Finish</p>
+                      <p className="font-semibold">{activeProduct.surfaceFinish}</p>
+                    </div>
+                  )}
+                  {activeProduct.hardness && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Hardness</p>
+                      <p className="font-semibold">{activeProduct.hardness}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-muted-foreground">Drawing No</p>
+                    <p className="font-mono text-sm">{activeProduct.drawingNo || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Drawing Review</p>
+                    <p className="font-semibold">{activeProduct.drawingReviewStatus}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Model</p>
-                  <p className="font-semibold">{order.product?.modelName}</p>
+              ) : (
+                <div className="space-y-3">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-5 w-40" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Roller Type</p>
-                  <p className="font-semibold">{order.product?.rollerType}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Dimensions</p>
-                  <p className="font-semibold">
-                    ⌀{order.product?.diameter} × {order.product?.length}mm
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Material Grade</p>
-                  <p className="font-semibold">{order.product?.materialGrade}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Drawing No</p>
-                  <p className="font-mono text-sm">{order.product?.drawingNo}</p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -233,29 +340,29 @@ export default function OrderDetailPage() {
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-semibold">Production Progress</p>
                   <p className="text-sm text-muted-foreground">
-                    {order.qtyCompleted} / {order.quantity} pcs
+                    {qty.qtyCompleted} / {qty.quantity} pcs
                   </p>
                 </div>
-                <Progress value={progress} className="h-3" />
+                <Progress value={qtyProgress} className="h-3" />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round(progress)}% Complete
+                  {qtyProgress}% Complete
                 </p>
               </div>
 
-              {order.qtyRejected > 0 && (
+              {qty.qtyRejected > 0 && (
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>{order.qtyRejected} units rejected</strong>
+                    <strong>{qty.qtyRejected} units rejected</strong>
                     <br />
-                    Original quantity adjusted from {order.originalQuantity} to {order.quantity} pcs
+                    Original quantity adjusted from {qty.originalQuantity} to {qty.quantity} pcs
                   </AlertDescription>
                 </Alert>
               )}
             </CardContent>
           </Card>
 
-          {/* Process History (Placeholder) */}
+          {/* Process Timeline */}
           <Card>
             <CardHeader>
               <CardTitle>Process Timeline</CardTitle>
@@ -263,7 +370,6 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Timeline would go here - using placeholder for now */}
                 <div className="flex gap-4">
                   <div className="flex flex-col items-center">
                     <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
@@ -316,22 +422,22 @@ export default function OrderDetailPage() {
                   <Package className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">Total Ordered</span>
                 </div>
-                <span className="font-bold">{order.originalQuantity}</span>
+                <span className="font-bold">{qty.originalQuantity}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <span className="text-sm text-green-900">Completed</span>
                 </div>
-                <span className="font-bold text-green-900">{order.qtyCompleted}</span>
+                <span className="font-bold text-green-900">{qty.qtyCompleted}</span>
               </div>
-              {order.qtyRejected > 0 && (
+              {qty.qtyRejected > 0 && (
                 <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-red-600" />
                     <span className="text-sm text-red-900">Rejected</span>
                   </div>
-                  <span className="font-bold text-red-900">{order.qtyRejected}</span>
+                  <span className="font-bold text-red-900">{qty.qtyRejected}</span>
                 </div>
               )}
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
@@ -339,7 +445,7 @@ export default function OrderDetailPage() {
                   <Clock className="h-4 w-4 text-blue-600" />
                   <span className="text-sm text-blue-900">Pending</span>
                 </div>
-                <span className="font-bold text-blue-900">{order.qtyInProgress}</span>
+                <span className="font-bold text-blue-900">{qty.qtyInProgress}</span>
               </div>
             </CardContent>
           </Card>
@@ -350,21 +456,30 @@ export default function OrderDetailPage() {
               <CardTitle className="text-lg">Drawing Review</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Status:</span>
-                <Badge variant={
-                  order.drawingReviewStatus === 'Approved' ? 'default' :
-                  order.drawingReviewStatus === 'RevisionRequired' ? 'destructive' : 'secondary'
-                }>
-                  {order.drawingReviewStatus}
-                </Badge>
-              </div>
-              {order.drawingReviewStatus !== 'Approved' && (
-                <Button asChild variant="outline" className="w-full mt-2">
-                  <Link href={`/drawing-review/review/${order.id}`}>
-                    Go to Drawing Review
-                  </Link>
-                </Button>
+              {activeProduct ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Status:</span>
+                    <Badge variant={
+                      activeProduct.drawingReviewStatus === 'Approved' ? 'default' :
+                      activeProduct.drawingReviewStatus === 'RevisionRequired' ? 'destructive' : 'secondary'
+                    }>
+                      {activeProduct.drawingReviewStatus}
+                    </Badge>
+                  </div>
+                  {activeProduct.drawingReviewedBy && (
+                    <p className="text-xs text-muted-foreground">
+                      Reviewed by: {activeProduct.drawingReviewedBy}
+                    </p>
+                  )}
+                  <Button asChild variant="outline" className="w-full mt-2">
+                    <Link href={`/drawing-review/products/${activeProduct.id}`}>
+                      Go to Drawing Review
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <Skeleton className="h-8 w-full" />
               )}
             </CardContent>
           </Card>
@@ -380,14 +495,14 @@ export default function OrderDetailPage() {
                 <span className="font-semibold">{formatDate(order.orderDate)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Original Due:</span>
-                <span className="font-semibold">{formatDate(order.dueDate)}</span>
+                <span className="text-muted-foreground">Due Date:</span>
+                <span className="font-semibold">{formatDate(qty.dueDate)}</span>
               </div>
-              {order.adjustedDueDate && (
+              {qty.adjustedDueDate && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Adjusted Due:</span>
                   <span className="font-semibold text-amber-600">
-                    {formatDate(order.adjustedDueDate)}
+                    {formatDate(qty.adjustedDueDate)}
                   </span>
                 </div>
               )}
@@ -415,8 +530,8 @@ export default function OrderDetailPage() {
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Priority:</span>
-                <Badge variant={order.priority === 'Urgent' ? 'destructive' : 'outline'}>
-                  {order.priority}
+                <Badge variant={qty.priority === 'Urgent' ? 'destructive' : 'outline'}>
+                  {qty.priority}
                 </Badge>
               </div>
             </CardContent>

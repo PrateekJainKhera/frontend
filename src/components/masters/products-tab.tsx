@@ -38,12 +38,13 @@ export function ProductsTab({ searchQuery = '' }: ProductsTabProps) {
     }
   }
 
+  const q = searchQuery.toLowerCase()
   const filteredProducts = products.filter(
     (product) =>
-      product.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.modelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.rollerType.toLowerCase().includes(searchQuery.toLowerCase())
+      (product.partCode ?? '').toLowerCase().includes(q) ||
+      (product.customerName ?? '').toLowerCase().includes(q) ||
+      (product.modelName ?? '').toLowerCase().includes(q) ||
+      (product.rollerType ?? '').toLowerCase().includes(q)
   )
 
   // Get unique roller types for stats

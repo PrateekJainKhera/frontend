@@ -39,8 +39,14 @@ const getStatusVariant = (status: string) => {
 export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
   const router = useRouter()
 
-  const handleViewOrder = (orderId: string) => {
-    router.push(`/orders/${orderId}`)
+  const handleViewOrder = (order: Order) => {
+    // For expanded multi-item rows the orderNo ends in -A, -B, -C, etc.
+    const match = order.orderNo.match(/-([A-Z])$/)
+    if (match) {
+      router.push(`/orders/${order.id}?item=${match[1]}`)
+    } else {
+      router.push(`/orders/${order.id}`)
+    }
   }
 
   if (orders.length === 0) {
@@ -148,7 +154,7 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleViewOrder(order.id)} title="View">
+                    <Button variant="ghost" size="icon" onClick={() => handleViewOrder(order)} title="View">
                       <Eye className="h-4 w-4" />
                     </Button>
                     {onEdit && (
