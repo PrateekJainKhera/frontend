@@ -13,6 +13,7 @@ export interface ProductionOrderSummary {
   completedSteps: number
   inProgressSteps: number
   readySteps: number
+  machineScheduledSteps: number
   totalChildParts: number
   completedChildParts: number
   productionStatus: string     // "Pending" | "InProgress" | "Completed"
@@ -105,6 +106,19 @@ class ProductionService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to load execution view: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  /** POST /api/production/order-items/{id}/complete-all */
+  async completeAll(orderItemId: number): Promise<void> {
+    try {
+      const response = await apiClient.post(`/production/order-items/${orderItemId}/complete-all`)
+      if (!response.data.success) throw new Error(response.data.message)
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to complete all: ${error.message}`)
       }
       throw error
     }

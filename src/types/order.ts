@@ -106,6 +106,9 @@ export interface Order {
 
   // Multi-product support
   items?: OrderItem[]
+
+  // Set on expanded multi-item rows — the DB id of the specific order item
+  _itemId?: number
 }
 
 export interface ProcessHistory {

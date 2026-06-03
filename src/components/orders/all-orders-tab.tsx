@@ -67,6 +67,8 @@ export function AllOrdersTab() {
         adjustedDueDate: item.adjustedDueDate ? new Date(item.adjustedDueDate) : null,
         status: item.status as OrderStatus,
         priority: item.priority as Priority,
+        _itemId: item.id,
+        _totalItems: r.items!.length,
       }))
     }
 
@@ -116,14 +118,23 @@ export function AllOrdersTab() {
     setLoading(false)
   }
 
-  const handleDelete = async (orderId: string) => {
-    if (!confirm('Are you sure you want to delete this order? This cannot be undone.')) return
+  const handleDelete = async (order: Order) => {
+    const isMultiItemRow = !!order._itemId
+    const msg = isMultiItemRow
+      ? `Delete item ${order.orderNo}? This cannot be undone.`
+      : `Delete order ${order.orderNo}? This cannot be undone.`
+    if (!confirm(msg)) return
     try {
-      await orderService.delete(Number(orderId))
-      toast.success('Order deleted')
+      if (isMultiItemRow) {
+        await orderService.deleteOrderItem(Number(order.id), order._itemId!)
+        toast.success(`Item ${order.orderNo} deleted`)
+      } else {
+        await orderService.delete(Number(order.id))
+        toast.success('Order deleted')
+      }
       loadOrders()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete order')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete')
     }
   }
 

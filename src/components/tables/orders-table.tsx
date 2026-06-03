@@ -19,7 +19,7 @@ import { getOrderProgress, getDelayDays } from '@/lib/mock-data/orders'
 
 interface OrdersTableProps {
   orders: Order[]
-  onDelete?: (orderId: string) => void
+  onDelete?: (order: Order) => void
   onEdit?: (orderId: string) => void
 }
 
@@ -163,7 +163,7 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
                       </Button>
                     )}
                     {onDelete && (
-                      <Button variant="ghost" size="icon" onClick={() => onDelete(order.id)} title="Delete" className="text-destructive hover:text-destructive">
+                      <Button variant="ghost" size="icon" onClick={() => onDelete(order)} title="Delete" className="text-destructive hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}

@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Package, Truck, CheckCircle2, AlertTriangle, RefreshCw, X, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,8 @@ export default function DispatchDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [readyItems, setReadyItems] = useState<ReadyToDispatchItem[]>([])
   const [challans, setChallans] = useState<DeliveryChallanApi[]>([])
+  const [activeTab, setActiveTab] = useState('ready')
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Dialog state
   const [dispatchOpen, setDispatchOpen] = useState(false)
@@ -108,8 +111,6 @@ export default function DispatchDashboardPage() {
     }
   }
 
-  const [searchQuery, setSearchQuery] = useState('')
-
   const dispatchedChallans = challans.filter(c => c.status === 'Dispatched')
 
   const filteredReadyItems = useMemo(() => {
@@ -144,7 +145,6 @@ export default function DispatchDashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6 p-6">
-        <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
@@ -155,57 +155,33 @@ export default function DispatchDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dispatch</h1>
-          <p className="text-muted-foreground">Dispatch completed products to customers</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search order, customer, product..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="flex h-9 w-60 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-          </div>
-          <Button variant="outline" onClick={loadData}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ready to Dispatch</CardTitle>
+          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+            <p className="text-sm font-medium">Ready to Dispatch</p>
             <Package className="h-4 w-4 text-blue-600" />
-          </CardHeader>
+          </div>
           <CardContent>
             <div className="text-2xl font-bold">{stats.readyCount}</div>
             <p className="text-xs text-muted-foreground">Order items with completed qty</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Qty</CardTitle>
+          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+            <p className="text-sm font-medium">Pending Qty</p>
             <AlertTriangle className="h-4 w-4 text-orange-600" />
-          </CardHeader>
+          </div>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalPendingQty}</div>
             <p className="text-xs text-muted-foreground">Units awaiting dispatch</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dispatched</CardTitle>
+          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+            <p className="text-sm font-medium">Dispatched Challans</p>
             <Truck className="h-4 w-4 text-green-600" />
-          </CardHeader>
+          </div>
           <CardContent>
             <div className="text-2xl font-bold">{stats.dispatched}</div>
             <p className="text-xs text-muted-foreground">Total challans created</p>
@@ -213,26 +189,40 @@ export default function DispatchDashboardPage() {
         </Card>
       </div>
 
-      {/* Ready to Dispatch */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Ready to Dispatch</CardTitle>
-              <CardDescription>Completed products waiting to be dispatched to customers</CardDescription>
-            </div>
-            <Badge variant="outline">{readyItems.length}</Badge>
+      {/* Tabs + Search */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList className="grid max-w-md grid-cols-2">
+            <TabsTrigger value="ready">Ready to Dispatch</TabsTrigger>
+            <TabsTrigger value="challans">Dispatched Challans</TabsTrigger>
+          </TabsList>
+
+          <div className="flex items-center gap-2 bg-background border-2 border-border rounded-lg px-4 py-1 shadow-sm flex-1 max-w-md">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Input
+              placeholder="Search order, customer, product..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="border-0 shadow-none focus-visible:ring-0 h-8 px-0 text-sm flex-1 placeholder:text-muted-foreground/40 focus:placeholder:text-transparent caret-foreground"
+            />
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={loadData} title="Refresh">
+              <RefreshCw className="h-4 w-4 text-muted-foreground" />
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+
+        {/* Ready to Dispatch Tab */}
+        <TabsContent value="ready" className="mt-4">
           {readyItems.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-16 text-muted-foreground border rounded-lg">
               <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-500" />
               <p className="font-medium">All dispatched!</p>
               <p className="text-sm">No items waiting for dispatch</p>
             </div>
           ) : filteredReadyItems.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">No items match your search.</div>
+            <div className="text-center py-8 text-muted-foreground text-sm border rounded-lg">
+              No items match your search.
+            </div>
           ) : (
             <div className="space-y-3">
               {filteredReadyItems.map((item) => (
@@ -277,27 +267,26 @@ export default function DispatchDashboardPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Recent Dispatched Challans */}
-      {dispatchedChallans.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Dispatched Challans</CardTitle>
-                <CardDescription>Recently created delivery challans</CardDescription>
-              </div>
-              <Badge variant="outline">{dispatchedChallans.length}</Badge>
+        {/* Dispatched Challans Tab */}
+        <TabsContent value="challans" className="mt-4">
+          {dispatchedChallans.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground border rounded-lg">
+              <Truck className="h-12 w-12 mx-auto mb-3 text-muted-foreground/40" />
+              <p className="font-medium">No challans yet</p>
+              <p className="text-sm">Dispatched challans will appear here</p>
             </div>
-          </CardHeader>
-          <CardContent>
+          ) : filteredChallans.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm border rounded-lg">
+              No challans match your search.
+            </div>
+          ) : (
             <div className="space-y-3">
-              {filteredChallans.slice(0, 10).map((challan) => (
+              {filteredChallans.map((challan) => (
                 <div
                   key={challan.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
@@ -336,9 +325,9 @@ export default function DispatchDashboardPage() {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Dispatch Dialog */}
       <Dialog open={dispatchOpen} onOpenChange={setDispatchOpen}>
@@ -352,7 +341,6 @@ export default function DispatchDashboardPage() {
 
           {selectedItem && (
             <div className="space-y-4">
-              {/* Order Summary */}
               <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Customer</span>
@@ -376,7 +364,6 @@ export default function DispatchDashboardPage() {
                 </div>
               </div>
 
-              {/* Form Fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="qty">Qty to Dispatch *</Label>

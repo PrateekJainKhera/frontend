@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, Clock, AlertTriangle, CheckCircle2, Package } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, AlertTriangle, CheckCircle2, Package, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +30,7 @@ export default function OrderDetailPage() {
   const [orderResponse, setOrderResponse] = useState<OrderResponse | null>(null)
   const [activeProduct, setActiveProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
 
   // Which item sequence is selected (e.g. 'A', 'B', or null for legacy single)
@@ -106,6 +107,18 @@ export default function OrderDetailPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm(`Delete order ${orderResponse?.orderNo}? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await orderService.delete(Number(params.id))
+      router.push('/orders')
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete order')
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -151,7 +164,7 @@ export default function OrderDetailPage() {
   }
 
   const qtyProgress = qty.quantity > 0 ? Math.round((qty.qtyCompleted / qty.quantity) * 100) : 0
-  const overallProgress = getOrderProgress(order)
+
   const delayDays = getDelayDays(order)
 
   // Display order number (show -A suffix for multi-item)
@@ -543,16 +556,36 @@ export default function OrderDetailPage() {
               <CardTitle className="text-lg">Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full">
-                <Calendar className="mr-2 h-4 w-4" />
-                Extend Due Date
-              </Button>
-              <Button variant="outline" className="w-full">
-                View Process Flow
-              </Button>
-              <Button variant="outline" className="w-full">
-                Download Report
-              </Button>
+              {isMultiItem ? (
+                <>
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href={`/orders/${params.id}/edit`}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete an Item
+                    </Link>
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Open Edit Order to remove individual items
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={handleDelete}
+                    disabled={deleting || order.status === 'In Progress' || order.status === 'Completed'}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {deleting ? 'Deleting...' : 'Delete Order'}
+                  </Button>
+                  {(order.status === 'In Progress' || order.status === 'Completed') && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Cannot delete — production has started
+                    </p>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

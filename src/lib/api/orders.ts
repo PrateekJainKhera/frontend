@@ -362,7 +362,21 @@ class OrderService {
     }
   }
 
+  async deleteOrderItem(orderId: number, itemId: number): Promise<void> {
+    try {
+      const response = await apiClient.delete<ApiResponse<boolean>>(`${this.baseUrl}/${orderId}/items/${itemId}`)
+      if (!response.data.success) throw new Error(response.data.message)
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to delete order item: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async updateOrderItem(orderId: number, itemId: number, data: {
+    productId?: number
+    productName?: string
     quantity?: number
     dueDate?: string
     priority?: string

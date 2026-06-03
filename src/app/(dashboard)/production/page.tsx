@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -20,27 +21,38 @@ import {
   PackageCheck,
   Search,
   FileText,
-  ArrowRight,
+  Eye,
   User,
   Package,
   Loader2,
-  Truck,
-  ChevronDown,
-  ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
 import { productionService, ProductionOrderSummary } from '@/lib/api/production'
+import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 export default function ProductionDashboardPage() {
   const [orders, setOrders] = useState<ProductionOrderSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [showDispatched, setShowDispatched] = useState(false)
+  const [activeTab, setActiveTab] = useState('active')
 
   const load = async () => {
     setLoading(true)
     try {
-      // order-items endpoint now handles both multi-product (per item) and single-product orders
       const data = await productionService.getOrderItems()
       setOrders(data)
     } catch (err) {
@@ -74,21 +86,13 @@ export default function ProductionDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Production Dashboard</h1>
-        <p className="text-muted-foreground">
-          Monitor and execute orders through complete production workflow
-        </p>
-      </div>
-
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+            <p className="text-sm font-medium">Total Orders</p>
             <FileText className="h-4 w-4 text-gray-600" />
-          </CardHeader>
+          </div>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalOrders}</div>
             <p className="text-xs text-muted-foreground">Active production orders</p>
@@ -96,10 +100,10 @@ export default function ProductionDashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+            <p className="text-sm font-medium">In Progress</p>
             <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
+          </div>
           <CardContent>
             <div className="text-2xl font-bold">{stats.inProgress}</div>
             <p className="text-xs text-muted-foreground">Orders with active work</p>
@@ -107,10 +111,10 @@ export default function ProductionDashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+            <p className="text-sm font-medium">Completed</p>
             <CheckCircle2 className="h-4 w-4 text-green-600" />
-          </CardHeader>
+          </div>
           <CardContent>
             <div className="text-2xl font-bold">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">Finished orders</p>
@@ -118,10 +122,10 @@ export default function ProductionDashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Progress</CardTitle>
+          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+            <p className="text-sm font-medium">Total Progress</p>
             <PackageCheck className="h-4 w-4 text-purple-600" />
-          </CardHeader>
+          </div>
           <CardContent>
             <div className="text-2xl font-bold">
               {stats.totalSteps > 0 ? Math.round((stats.completedSteps / stats.totalSteps) * 100) : 0}%
@@ -133,26 +137,71 @@ export default function ProductionDashboardPage() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search orders, customers, products..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-8"
-        />
-      </div>
+      {/* Tabs + Search on same row */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList className="grid max-w-md grid-cols-2">
+            <TabsTrigger value="active">Active Orders</TabsTrigger>
+            <TabsTrigger value="dispatched">Dispatched Orders</TabsTrigger>
+          </TabsList>
 
-      {/* Active Orders */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Active Production Orders</CardTitle>
-          <CardDescription>
-            Click on an order to view complete workflow and control processes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          <div className="flex items-center gap-2 bg-background border-2 border-border rounded-lg px-4 py-1 shadow-sm flex-1 max-w-md">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Input
+              placeholder="Search orders, customers, products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="border-0 shadow-none focus-visible:ring-0 h-8 px-0 text-sm flex-1 placeholder:text-muted-foreground/40 focus:placeholder:text-transparent caret-foreground"
+            />
+          </div>
+        </div>
+
+        {/* Active Orders Tab */}
+        <TabsContent value="active" className="mt-4">
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order No</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Child Parts</TableHead>
+                  <TableHead>Progress</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Scheduling</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : activeOrders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
+                      No active orders
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  activeOrders.map((order) => (
+                    <OrderRow
+                      key={order.orderItemId ?? order.orderId}
+                      order={order}
+                      onRefresh={load}
+                      showScheduling
+                    />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {/* Dispatched Orders Tab */}
+        <TabsContent value="dispatched" className="mt-4">
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -173,71 +222,42 @@ export default function ProductionDashboardPage() {
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
-                ) : activeOrders.length === 0 ? (
+                ) : dispatchedOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                      No active orders
+                      No dispatched orders
                     </TableCell>
                   </TableRow>
                 ) : (
-                  activeOrders.map((order) => <OrderRow key={order.orderItemId ?? order.orderId} order={order} />)
+                  dispatchedOrders.map((order) => (
+                    <OrderRow
+                      key={order.orderItemId ?? order.orderId}
+                      order={order}
+                      onRefresh={load}
+                      showScheduling={false}
+                    />
+                  ))
                 )}
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Dispatched Orders — collapsible */}
-      {dispatchedOrders.length > 0 && (
-        <Card>
-          <CardHeader
-            className="cursor-pointer select-none"
-            onClick={() => setShowDispatched(v => !v)}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-green-600" />
-                  Dispatched Orders
-                  <Badge variant="secondary">{dispatchedOrders.length}</Badge>
-                </CardTitle>
-                <CardDescription>Production complete and fully dispatched</CardDescription>
-              </div>
-              {showDispatched
-                ? <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
-            </div>
-          </CardHeader>
-          {showDispatched && (
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order No</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Child Parts</TableHead>
-                      <TableHead>Progress</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dispatchedOrders.map((order) => <OrderRow key={order.orderItemId ?? order.orderId} order={order} />)}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
 
-function OrderRow({ order }: { order: import('@/lib/api/production').ProductionOrderSummary }) {
+function OrderRow({
+  order,
+  onRefresh,
+  showScheduling,
+}: {
+  order: ProductionOrderSummary
+  onRefresh: () => void
+  showScheduling: boolean
+}) {
+  const [completing, setCompleting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const progress = order.totalSteps > 0
     ? Math.round((order.completedSteps / order.totalSteps) * 100)
     : 0
@@ -246,6 +266,24 @@ function OrderRow({ order }: { order: import('@/lib/api/production').ProductionO
   const detailUrl = order.orderItemId
     ? `/production/order-items/${order.orderItemId}`
     : `/production/orders/${order.orderId}`
+
+  const scheduled = order.machineScheduledSteps
+  const pending = order.totalSteps - scheduled
+  const canCompleteAll = !isComplete && pending === 0 && order.totalSteps > 0 && !!order.orderItemId
+
+  const handleCompleteAll = async () => {
+    setCompleting(true)
+    try {
+      await productionService.completeAll(order.orderItemId!)
+      toast.success(`${order.orderNo} — all processes completed. Ready for QC.`)
+      onRefresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to complete all')
+    } finally {
+      setCompleting(false)
+      setConfirmOpen(false)
+    }
+  }
 
   return (
     <TableRow>
@@ -302,13 +340,82 @@ function OrderRow({ order }: { order: import('@/lib/api/production').ProductionO
           </Badge>
         )}
       </TableCell>
+      {showScheduling && (
+        <TableCell>
+          <div className="text-sm space-y-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-green-700 font-medium">{scheduled} / {order.totalSteps} Scheduled</span>
+            </div>
+            {pending > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-gray-300" />
+                <span className="text-muted-foreground">{pending} Remaining</span>
+              </div>
+            )}
+          </div>
+        </TableCell>
+      )}
       <TableCell className="text-right">
-        <Link href={detailUrl}>
-          <Button size="sm" variant="ghost">
-            View Workflow
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </Link>
+        <TooltipProvider delayDuration={200}>
+          <div className="flex items-center justify-end gap-1">
+            {canCompleteAll && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8 border-green-500 text-green-700 hover:bg-green-50"
+                      onClick={() => setConfirmOpen(true)}
+                      disabled={completing}
+                    >
+                      {completing
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <CheckCircle2 className="h-4 w-4" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Complete All Processes</TooltipContent>
+                </Tooltip>
+                <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Complete All Processes</DialogTitle>
+                      <DialogDescription>
+                        Force-complete all <strong>{order.totalSteps}</strong> processes for order <strong>{order.orderNo}</strong>?
+                        This will mark all job cards as done and send the order to QC.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={completing}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={handleCompleteAll}
+                        disabled={completing}
+                      >
+                        {completing
+                          ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Completing...</>
+                          : 'Confirm'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href={detailUrl}>
+                  <Button size="icon" variant="ghost" className="h-8 w-8">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>View Workflow</TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       </TableCell>
     </TableRow>
   )
