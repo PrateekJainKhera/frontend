@@ -63,6 +63,7 @@ export function AllOrdersTab() {
         qtyCompleted: item.qtyCompleted,
         qtyRejected: item.qtyRejected,
         qtyInProgress: item.qtyInProgress,
+        qtyDispatched: item.qtyDispatched ?? 0,
         dueDate: new Date(item.dueDate),
         adjustedDueDate: item.adjustedDueDate ? new Date(item.adjustedDueDate) : null,
         status: item.status as OrderStatus,
@@ -83,6 +84,7 @@ export function AllOrdersTab() {
       qtyCompleted: r.qtyCompleted,
       qtyRejected: r.qtyRejected,
       qtyInProgress: r.qtyInProgress,
+      qtyDispatched: r.qtyDispatched ?? 0,
       dueDate: new Date(r.dueDate),
       adjustedDueDate: r.adjustedDueDate ? new Date(r.adjustedDueDate) : null,
       status: r.status as OrderStatus,
@@ -163,10 +165,11 @@ export function AllOrdersTab() {
   const dispatchedOrders = filteredOrders.filter(o => dispatchedOrderNos.has(o.orderNo))
 
   // Derive effective status from quantity fields (DB status may be stale)
-  const getEffectiveStatus = (o: Order): OrderStatus => {
-    if (o.qtyCompleted >= o.quantity && o.quantity > 0) return OrderStatus.COMPLETED
-    if ((o.qtyInProgress ?? 0) > 0 || (o.qtyCompleted ?? 0) > 0) return OrderStatus.IN_PROGRESS
-    return o.status as OrderStatus
+  const getEffectiveStatus = (o: Order): string => {
+    if (o.qtyDispatched >= o.quantity && o.quantity > 0) return 'Completed'
+    if (o.qtyCompleted >= o.quantity && o.quantity > 0) return 'Ready to Dispatch'
+    if ((o.qtyInProgress ?? 0) > 0 || (o.qtyCompleted ?? 0) > 0) return 'In Progress'
+    return o.status
   }
 
   return (
@@ -226,19 +229,19 @@ export function AllOrdersTab() {
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">In Progress</p>
           <p className="text-2xl font-bold text-blue-600">
-            {orders.filter((o) => getEffectiveStatus(o) === OrderStatus.IN_PROGRESS).length}
+            {orders.filter((o) => getEffectiveStatus(o) === 'In Progress').length}
           </p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Completed</p>
           <p className="text-2xl font-bold text-green-600">
-            {orders.filter((o) => getEffectiveStatus(o) === OrderStatus.COMPLETED).length}
+            {orders.filter((o) => getEffectiveStatus(o) === 'Completed').length}
           </p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Pending</p>
           <p className="text-2xl font-bold text-amber-600">
-            {orders.filter((o) => getEffectiveStatus(o) === OrderStatus.PENDING).length}
+            {orders.filter((o) => getEffectiveStatus(o) === 'Pending').length}
           </p>
         </Card>
       </div>

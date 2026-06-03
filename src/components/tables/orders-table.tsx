@@ -23,16 +23,29 @@ interface OrdersTableProps {
   onEdit?: (orderId: string) => void
 }
 
+const getEffectiveStatus = (order: Order): string => {
+  if (order.qtyDispatched >= order.quantity && order.quantity > 0) return 'Completed'
+  if (order.qtyCompleted >= order.quantity && order.quantity > 0) return 'Ready to Dispatch'
+  if ((order.qtyInProgress ?? 0) > 0 || (order.qtyCompleted ?? 0) > 0) return 'In Progress'
+  return order.status
+}
+
 const getStatusVariant = (status: string) => {
   switch (status) {
-    case 'Completed':
-      return 'default'
-    case 'In Progress':
-      return 'secondary'
-    case 'Pending':
-      return 'outline'
-    default:
-      return 'destructive'
+    case 'Completed':      return 'default'
+    case 'Ready to Dispatch': return 'outline'
+    case 'In Progress':   return 'secondary'
+    case 'Pending':       return 'outline'
+    default:              return 'outline'
+  }
+}
+
+const getStatusClass = (status: string) => {
+  switch (status) {
+    case 'Completed':         return 'border-green-500 text-green-700 bg-green-50'
+    case 'Ready to Dispatch': return 'border-blue-500 text-blue-700 bg-blue-50'
+    case 'In Progress':       return 'border-yellow-500 text-yellow-700 bg-yellow-50'
+    default:                  return ''
   }
 }
 
@@ -131,9 +144,14 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={getStatusVariant(order.status)}>
-                    {order.status}
-                  </Badge>
+                  {(() => {
+                    const s = getEffectiveStatus(order)
+                    return (
+                      <Badge variant={getStatusVariant(s)} className={getStatusClass(s)}>
+                        {s}
+                      </Badge>
+                    )
+                  })()}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">

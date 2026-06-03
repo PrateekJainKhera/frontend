@@ -17,6 +17,7 @@ export interface OrderItem {
   qtyRejected: number
   qtyInProgress: number
   qtyScrap: number
+  qtyDispatched: number
   dueDate: string
   adjustedDueDate?: string | null
   priority: Priority
@@ -46,6 +47,7 @@ export interface Order {
   qtyCompleted: number
   qtyRejected: number
   qtyInProgress: number
+  qtyDispatched: number
   orderDate: Date
   dueDate: Date
   adjustedDueDate?: Date | null
