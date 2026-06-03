@@ -21,6 +21,7 @@ export interface OrderItemResponse {
   priority: string
   status: string
   planningStatus: string
+  drawingReviewStatus: string
   primaryDrawingId?: number | null
   linkedProductTemplateId?: number | null
   materialGradeApproved: boolean

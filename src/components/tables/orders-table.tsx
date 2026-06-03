@@ -24,7 +24,8 @@ interface OrdersTableProps {
 }
 
 const getEffectiveStatus = (order: Order): string => {
-  if (order.qtyDispatched >= order.quantity && order.quantity > 0) return 'Completed'
+  const dispatched = order.qtyDispatched ?? 0
+  if (dispatched >= order.quantity && order.quantity > 0) return 'Completed'
   if (order.qtyCompleted >= order.quantity && order.quantity > 0) return 'Ready to Dispatch'
   if ((order.qtyInProgress ?? 0) > 0 || (order.qtyCompleted ?? 0) > 0) return 'In Progress'
   return order.status

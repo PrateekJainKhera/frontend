@@ -1187,6 +1187,9 @@ export default function GenerateJobCardsPage() {
   )
   const purchasedParts = childPartItems.filter(item => item.childPartTemplate?.isPurchased)
 
+  // Use item-level drawing review status for multi-product orders; fall back to order-level
+  const effectiveDrawingStatus = currentOrderItem?.drawingReviewStatus ?? order.drawingReviewStatus
+
   return (
     <div className="px-3 sm:px-6 pb-6 space-y-4 max-w-5xl w-full">
       {/* Back Button */}
@@ -1261,10 +1264,10 @@ export default function GenerateJobCardsPage() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Drawing Review:</span>
               <Badge
-                variant={order.drawingReviewStatus === 'Approved' ? 'default' : 'destructive'}
-                className={order.drawingReviewStatus === 'Approved' ? 'bg-green-600' : ''}
+                variant={effectiveDrawingStatus === 'Approved' ? 'default' : 'destructive'}
+                className={effectiveDrawingStatus === 'Approved' ? 'bg-green-600' : ''}
               >
-                {order.drawingReviewStatus}
+                {effectiveDrawingStatus}
               </Badge>
             </div>
           </div>
@@ -1425,16 +1428,16 @@ export default function GenerateJobCardsPage() {
       )}
 
       {/* Drawing Review Alert */}
-      {order.drawingReviewStatus !== 'Approved' && (
+      {effectiveDrawingStatus !== 'Approved' && (
         <Alert variant="destructive">
           <AlertCircle className="h-5 w-5" />
           <AlertDescription>
             <strong>Drawing Review Required:</strong> This order cannot proceed to planning until the drawing is reviewed and approved.
-            Current status: <strong>{order.drawingReviewStatus}</strong>
-            {order.drawingReviewStatus === 'Pending' && ' - Awaiting review'}
-            {order.drawingReviewStatus === 'UnderReview' && ' - Currently under review'}
-            {order.drawingReviewStatus === 'Rejected' && ' - Drawing has been rejected, revisions needed'}
-            {order.drawingReviewStatus === 'RevisionRequired' && ' - Revisions required before approval'}
+            Current status: <strong>{effectiveDrawingStatus}</strong>
+            {effectiveDrawingStatus === 'Pending' && ' - Awaiting review'}
+            {effectiveDrawingStatus === 'UnderReview' && ' - Currently under review'}
+            {effectiveDrawingStatus === 'Rejected' && ' - Drawing has been rejected, revisions needed'}
+            {effectiveDrawingStatus === 'RevisionRequired' && ' - Revisions required before approval'}
           </AlertDescription>
         </Alert>
       )}
@@ -2214,7 +2217,7 @@ export default function GenerateJobCardsPage() {
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button
               onClick={handleGenerateJobCards}
-              disabled={order.drawingReviewStatus !== 'Approved' || partsWithoutProcesses.length > 0}
+              disabled={effectiveDrawingStatus !== 'Approved' || partsWithoutProcesses.length > 0}
               className="flex-1"
               size="lg"
             >
@@ -2226,16 +2229,16 @@ export default function GenerateJobCardsPage() {
             </Button>
           </div>
 
-          {order.drawingReviewStatus !== 'Approved' && (
+          {effectiveDrawingStatus !== 'Approved' && (
             <Alert className="mt-4" variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                Drawing must be reviewed and approved before job cards can be generated. Current status: <strong>{order.drawingReviewStatus}</strong>
+                Drawing must be reviewed and approved before job cards can be generated. Current status: <strong>{effectiveDrawingStatus}</strong>
               </AlertDescription>
             </Alert>
           )}
 
-          {order.drawingReviewStatus === 'Approved' && partsWithoutProcesses.length > 0 && (
+          {effectiveDrawingStatus === 'Approved' && partsWithoutProcesses.length > 0 && (
             <Alert className="mt-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">

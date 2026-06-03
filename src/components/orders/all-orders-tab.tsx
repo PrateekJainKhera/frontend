@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Filter, Truck, ChevronDown, ChevronRight } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -21,12 +22,10 @@ import { toast } from 'sonner'
 export function AllOrdersTab() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
-  const [dispatchedOrderNos, setDispatchedOrderNos] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
-  const [showDispatched, setShowDispatched] = useState(false)
+  const [activeTab, setActiveTab] = useState('all')
 
   useEffect(() => {
     loadOrders()
@@ -98,22 +97,6 @@ export function AllOrdersTab() {
       const data = await orderService.getAll()
       setOrders(data.flatMap(expandOrder))
 
-      // Track which expanded order rows are fully dispatched
-      const dispatched = new Set<string>()
-      data.forEach(r => {
-        if (r.items && r.items.length > 0) {
-          r.items.forEach(item => {
-            if (item.qtyDispatched > 0 && item.qtyDispatched >= item.quantity) {
-              dispatched.add(`${r.orderNo}-${item.itemSequence}`)
-            }
-          })
-        } else {
-          if (r.qtyDispatched > 0 && r.qtyDispatched >= r.quantity) {
-            dispatched.add(r.orderNo)
-          }
-        }
-      })
-      setDispatchedOrderNos(dispatched)
     } catch (err) {
       console.error('Failed to load orders:', err)
     }
@@ -152,21 +135,16 @@ export function AllOrdersTab() {
       order.product?.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.agentCustomer?.customerName.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesStatus =
-      statusFilter === 'all' || order.status === statusFilter
-
     const matchesSource =
       sourceFilter === 'all' || order.orderSource === sourceFilter
 
-    return matchesSearch && matchesStatus && matchesSource
+    return matchesSearch && matchesSource
   })
-
-  const activeOrders = filteredOrders.filter(o => !dispatchedOrderNos.has(o.orderNo))
-  const dispatchedOrders = filteredOrders.filter(o => dispatchedOrderNos.has(o.orderNo))
 
   // Derive effective status from quantity fields (DB status may be stale)
   const getEffectiveStatus = (o: Order): string => {
-    if (o.qtyDispatched >= o.quantity && o.quantity > 0) return 'Completed'
+    const dispatched = o.qtyDispatched ?? 0
+    if (dispatched >= o.quantity && o.quantity > 0) return 'Completed'
     if (o.qtyCompleted >= o.quantity && o.quantity > 0) return 'Ready to Dispatch'
     if ((o.qtyInProgress ?? 0) > 0 || (o.qtyCompleted ?? 0) > 0) return 'In Progress'
     return o.status
@@ -174,52 +152,6 @@ export function AllOrdersTab() {
 
   return (
     <div className="space-y-6">
-      {/* Search & Filters */}
-      <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by order number, customer, or product name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-45">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                {Object.values(OrderStatus).map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="w-45">
-                <SelectValue placeholder="Order source" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sources</SelectItem>
-                {Object.values(OrderSource).map((source) => (
-                  <SelectItem key={source} value={source}>
-                    {source}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </Card>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
@@ -246,35 +178,76 @@ export function AllOrdersTab() {
         </Card>
       </div>
 
-      {/* Active Orders Table */}
-      {loading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-      ) : (
-        <OrdersTable orders={activeOrders} onDelete={handleDelete} onEdit={handleEdit} />
-      )}
+      {/* Tabs + Search on same row — same format as /masters/products */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList className="grid max-w-xl grid-cols-4">
+            <TabsTrigger value="all">All Orders</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="ready">Ready to Dispatch</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+          </TabsList>
 
-      {/* Dispatched Orders — collapsible */}
-      {!loading && dispatchedOrders.length > 0 && (
-        <div>
-          <button
-            onClick={() => setShowDispatched(v => !v)}
-            className="w-full flex items-center gap-2 px-4 py-3 rounded-lg border border-green-200 bg-green-50 text-green-800 text-sm font-medium hover:bg-green-100 transition-colors"
-          >
-            {showDispatched ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <Truck className="h-4 w-4" />
-            Dispatched Orders ({dispatchedOrders.length})
-          </button>
-          {showDispatched && (
-            <div className="mt-2">
-              <OrdersTable orders={dispatchedOrders} onDelete={handleDelete} onEdit={handleEdit} />
+          <div className="flex items-center gap-2 flex-1 max-w-lg">
+            <div className="flex items-center gap-2 bg-background border-2 border-border rounded-lg px-4 py-1 shadow-sm flex-1">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                placeholder="Search order, customer, product..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="border-0 shadow-none focus-visible:ring-0 h-8 px-0 text-sm flex-1 placeholder:text-muted-foreground/40 focus:placeholder:text-transparent caret-foreground"
+              />
             </div>
-          )}
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="All Sources" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                {Object.values(OrderSource).map((source) => (
+                  <SelectItem key={source} value={source}>{source}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      )}
+
+        {loading ? (
+          <div className="space-y-3 mt-4">
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+          </div>
+        ) : (
+          <>
+            <TabsContent value="all" className="mt-4">
+              <OrdersTable orders={filteredOrders} onDelete={handleDelete} onEdit={handleEdit} />
+            </TabsContent>
+
+            <TabsContent value="pending" className="mt-4">
+              <OrdersTable
+                orders={filteredOrders.filter(o => getEffectiveStatus(o) === 'Pending')}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+              />
+            </TabsContent>
+
+            <TabsContent value="ready" className="mt-4">
+              <OrdersTable
+                orders={filteredOrders.filter(o => getEffectiveStatus(o) === 'Ready to Dispatch')}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+              />
+            </TabsContent>
+
+            <TabsContent value="completed" className="mt-4">
+              <OrdersTable
+                orders={filteredOrders.filter(o => getEffectiveStatus(o) === 'Completed')}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+              />
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
     </div>
   )
 }

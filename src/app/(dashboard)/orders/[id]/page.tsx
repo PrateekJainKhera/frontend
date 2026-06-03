@@ -58,6 +58,7 @@ export default function OrderDetailPage() {
     qtyCompleted: r.qtyCompleted,
     qtyRejected: r.qtyRejected,
     qtyInProgress: r.qtyInProgress,
+    qtyDispatched: r.qtyDispatched ?? 0,
     orderDate: new Date(r.orderDate),
     dueDate: new Date(r.dueDate),
     adjustedDueDate: r.adjustedDueDate ? new Date(r.adjustedDueDate) : null,
