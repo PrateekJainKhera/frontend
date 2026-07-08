@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { productionService, ProductionOrderSummary } from '@/lib/api/production'
+import { orderService, OrderResponse } from '@/lib/api/orders'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -44,9 +45,20 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
+interface DispatchedRow {
+  orderId: number
+  orderNo: string
+  customerName: string
+  productName: string
+  quantity: number
+  qtyDispatched: number
+}
+
 export default function ProductionDashboardPage() {
   const [orders, setOrders] = useState<ProductionOrderSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [allOrders, setAllOrders] = useState<OrderResponse[]>([])
+  const [allOrdersLoaded, setAllOrdersLoaded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('active')
 
@@ -62,12 +74,35 @@ export default function ProductionDashboardPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  const loadAllOrders = async () => {
+    try {
+      const data = await orderService.getAll()
+      setAllOrders(data)
+      setAllOrdersLoaded(true)
+    } catch (err) {
+      console.error('Failed to load orders:', err)
+    }
+  }
+
+  useEffect(() => {
+    load()
+    loadAllOrders()
+  }, [])
+
+  const totalOrderItemsCount = allOrders.reduce((count, order) =>
+    count + (order.items && order.items.length > 0 ? order.items.length : 1), 0)
+
+  const totalDispatchedCount = allOrders.reduce((count, order) => {
+    if (order.items && order.items.length > 0) {
+      return count + order.items.filter(item => (item.qtyDispatched ?? 0) >= item.quantity && item.quantity > 0).length
+    }
+    return count + ((order.qtyDispatched ?? 0) >= order.quantity && order.quantity > 0 ? 1 : 0)
+  }, 0)
 
   const stats = {
-    totalOrders: orders.length,
+    totalOrders: totalOrderItemsCount || orders.length,
     inProgress: orders.filter(o => o.productionStatus === 'InProgress').length,
-    completed: orders.filter(o => o.productionStatus === 'Completed').length,
+    completed: totalDispatchedCount || orders.filter(o => o.productionStatus === 'Completed').length,
     totalSteps: orders.reduce((sum, o) => sum + o.totalSteps, 0),
     completedSteps: orders.reduce((sum, o) => sum + o.completedSteps, 0),
   }
@@ -82,7 +117,46 @@ export default function ProductionDashboardPage() {
   })
 
   const activeOrders = filtered.filter(o => !(o.qtyDispatched > 0 && o.qtyDispatched >= o.quantity))
-  const dispatchedOrders = filtered.filter(o => o.qtyDispatched > 0 && o.qtyDispatched >= o.quantity)
+
+  // Build dispatched rows from ALL orders (includes bulk-completed ones without job cards)
+  const allDispatchedRows: DispatchedRow[] = []
+  allOrders.forEach(order => {
+    if (order.items && order.items.length > 0) {
+      order.items.forEach(item => {
+        const dispatched = item.qtyDispatched ?? 0
+        if (dispatched >= item.quantity && item.quantity > 0) {
+          allDispatchedRows.push({
+            orderId: order.id,
+            orderNo: `${order.orderNo}-${item.itemSequence}`,
+            customerName: order.customerName ?? '—',
+            productName: item.productName ?? item.partCode ?? '—',
+            quantity: item.quantity,
+            qtyDispatched: dispatched,
+          })
+        }
+      })
+    } else {
+      const dispatched = order.qtyDispatched ?? 0
+      if (dispatched >= order.quantity && order.quantity > 0) {
+        allDispatchedRows.push({
+          orderId: order.id,
+          orderNo: order.orderNo,
+          customerName: order.customerName ?? '—',
+          productName: order.productName ?? order.productCode ?? '—',
+          quantity: order.quantity,
+          qtyDispatched: dispatched,
+        })
+      }
+    }
+  })
+
+  const q = searchQuery.toLowerCase()
+  const filteredDispatched = allDispatchedRows.filter(r =>
+    !q ||
+    r.orderNo.toLowerCase().includes(q) ||
+    r.customerName.toLowerCase().includes(q) ||
+    r.productName.toLowerCase().includes(q)
+  )
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -209,33 +283,48 @@ export default function ProductionDashboardPage() {
                   <TableHead>Order No</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Product</TableHead>
-                  <TableHead>Child Parts</TableHead>
-                  <TableHead>Progress</TableHead>
+                  <TableHead>Qty Dispatched</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {!allOrdersLoaded ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
-                ) : dispatchedOrders.length === 0 ? (
+                ) : filteredDispatched.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
                       No dispatched orders
                     </TableCell>
                   </TableRow>
                 ) : (
-                  dispatchedOrders.map((order) => (
-                    <OrderRow
-                      key={order.orderItemId ?? order.orderId}
-                      order={order}
-                      onRefresh={load}
-                      showScheduling={false}
-                    />
+                  filteredDispatched.map((row) => (
+                    <TableRow key={`${row.orderId}-${row.orderNo}`}>
+                      <TableCell className="font-medium">{row.orderNo}</TableCell>
+                      <TableCell>{row.customerName}</TableCell>
+                      <TableCell>{row.productName}</TableCell>
+                      <TableCell>
+                        <span className="font-semibold">{row.qtyDispatched}</span>
+                        <span className="text-muted-foreground"> / {row.quantity}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
+                          <CheckCircle2 className="mr-1 h-3 w-3" />
+                          Completed
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link href={`/orders/${row.orderId}`}>
+                          <Button size="icon" variant="ghost" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
               </TableBody>

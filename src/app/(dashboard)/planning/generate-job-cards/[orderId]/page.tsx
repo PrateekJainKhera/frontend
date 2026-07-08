@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, AlertTriangle, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Save, Pencil, Check, X } from 'lucide-react'
+import { ArrowLeft, Package, AlertTriangle, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Save, Pencil, Check, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -33,7 +33,7 @@ import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 import { productDefaultMaterialService, ProductDefaultMaterialResponse } from '@/lib/api/product-default-materials'
 import { PieceSelectionDialog } from '@/components/planning/PieceSelectionDialog'
 import { formatDate } from '@/lib/utils/formatters'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MaterialCombobox } from '@/components/planning/material-combobox'
 import { Eye, Download, FileText } from 'lucide-react'
 import {
   Dialog,
@@ -99,6 +99,9 @@ export default function GenerateJobCardsPage() {
 
   // Inventory data - Map of materialId to InventoryResponse
   const [inventoryData, setInventoryData] = useState<Map<number, InventoryResponse>>(new Map())
+  // Actual available raw-material stock (mm) summed from Stores_MaterialPieces (Available pieces).
+  // This is the source of truth for raw materials — Inventory_Stock only reflects GRN aggregates.
+  const [materialPieceStock, setMaterialPieceStock] = useState<Map<number, number>>(new Map())
 
   // Component inventory data - Map of componentId to InventoryResponse
   const [componentInventoryData, setComponentInventoryData] = useState<Map<number, InventoryResponse>>(new Map())
@@ -115,6 +118,7 @@ export default function GenerateJobCardsPage() {
   const [editingQty, setEditingQty] = useState(false)
   const [editQtyValue, setEditQtyValue] = useState('')
   const [savingQty, setSavingQty] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const qtyInputRef = useRef<HTMLInputElement>(null)
 
   // Piece selection dialog state
@@ -379,10 +383,12 @@ export default function GenerateJobCardsPage() {
   const loadInventoryData = async (materials: MaterialResponse[]) => {
     try {
       const inventoryMap = new Map<number, InventoryResponse>()
+      const pieceStockMap = new Map<number, number>()
 
-      // Fetch inventory for each material
+      // Fetch inventory + actual piece stock for each material
       await Promise.all(
         materials.map(async (material) => {
+          // Inventory_Stock (GRN aggregate) — used as fallback only
           try {
             const inventory = await inventoryService.getByMaterialId(material.id)
             if (inventory) {
@@ -392,14 +398,40 @@ export default function GenerateJobCardsPage() {
             // Material not in inventory yet, skip
             console.log(`No inventory data for material ${material.id}`)
           }
+
+          // MaterialPieces available stock (mm) — the source of truth for raw materials
+          try {
+            const availableMM = await materialPieceService.getAvailableStock(material.id)
+            pieceStockMap.set(material.id, availableMM)
+          } catch (error) {
+            // Piece stock fetch failed — will fall back to Inventory_Stock
+            console.log(`No piece stock for material ${material.id}`)
+          }
         })
       )
 
       setInventoryData(inventoryMap)
+      setMaterialPieceStock(pieceStockMap)
     } catch (error) {
       console.error('Failed to load inventory data:', error)
       // Don't show error to user - just won't show stock levels
     }
+  }
+
+  // Available raw-material stock (mm): prefer MaterialPieces sum; fall back to Inventory_Stock.
+  const getAvailableStockMM = (
+    materialId: number,
+    matchingMaterial: MaterialResponse | undefined,
+    inventory: InventoryResponse | null | undefined
+  ): number => {
+    if (materialPieceStock.has(materialId)) {
+      return materialPieceStock.get(materialId)!
+    }
+    if (!inventory) return 0
+    if (inventory.uom === 'kg' && matchingMaterial) {
+      return convertWeightToLength(inventory.availableQuantity, matchingMaterial)
+    }
+    return inventory.availableQuantity
   }
 
   const loadComponentInventoryData = async () => {
@@ -506,7 +538,8 @@ export default function GenerateJobCardsPage() {
       if (!matchingMaterial) continue
 
       const inventory = inventoryData.get(matchingMaterial.id)
-      if (!inventory) continue
+      // Skip only if we have neither piece stock nor inventory data for this material
+      if (!inventory && !materialPieceStock.has(matchingMaterial.id)) continue
 
       const childPart = childPartItems.find(item => item.childPartTemplate?.id === childPartTemplateId)
       if (!childPart) continue
@@ -516,11 +549,8 @@ export default function GenerateJobCardsPage() {
       // Wastage is now in mm, not percentage — multiply by piece count
       const totalWithWastage = requiredQty + (material.wastageMM || 0) * itemQuantity * childPart.bomItem.quantity
 
-      // Convert inventory quantity to length if stored as weight
-      let availableQty = inventory.availableQuantity
-      if (inventory.uom === 'kg') {
-        availableQty = convertWeightToLength(inventory.availableQuantity, matchingMaterial)
-      }
+      // Available stock from MaterialPieces (source of truth), fallback to Inventory_Stock
+      const availableQty = getAvailableStockMM(matchingMaterial.id, matchingMaterial, inventory)
 
       if (availableQty < totalWithWastage) {
         return false
@@ -820,6 +850,10 @@ export default function GenerateJobCardsPage() {
   const handleGenerateJobCards = async () => {
     if (!order || !productTemplate) return
 
+    // Prevent double-submit: a second click while the create-loop is running would
+    // re-create the same deterministic job card numbers → 400 "already exists".
+    if (generating) return
+
     // For multi-product orders, ensure a specific item is selected
     if (order.items && order.items.length > 0 && !currentOrderItem) {
       toast.error('No Order Item Selected', {
@@ -846,6 +880,7 @@ export default function GenerateJobCardsPage() {
       return
     }
 
+    setGenerating(true)
     toast.loading('Generating job cards...')
 
     try {
@@ -1144,6 +1179,8 @@ export default function GenerateJobCardsPage() {
         description: error instanceof Error ? error.message : 'An error occurred while generating job cards.',
         duration: 4000,
       })
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -1258,6 +1295,18 @@ export default function GenerateJobCardsPage() {
             <div>
               <span className="text-muted-foreground">Child Parts:</span>
               <span className="ml-2 font-medium">{childPartItems.length}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Product:</span>
+              <span className="ml-2 font-medium">{currentOrderItem?.productName ?? order.productName ?? '—'}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">No. of Teeth:</span>
+              <span className="ml-2 font-medium">
+                {(currentOrderItem?.numberOfTeeth ?? order.numberOfTeeth)
+                  ? `${currentOrderItem?.numberOfTeeth ?? order.numberOfTeeth}T`
+                  : '—'}
+              </span>
             </div>
           </div>
           <div className="mt-4 pt-3 border-t">
@@ -1641,7 +1690,8 @@ export default function GenerateJobCardsPage() {
                                 <tr className="border-b border-blue-200">
                                   <th className="text-left p-2 font-semibold text-blue-900">Material</th>
                                   <th className="text-left p-2 font-semibold text-blue-900">Grade</th>
-                                  <th className="text-right p-2 font-semibold text-blue-900">Qty/Unit</th>
+                                  <th className="text-right p-2 font-semibold text-blue-900">Size</th>
+                                  <th className="text-left p-2 font-semibold text-blue-900">Unit</th>
                                   <th className="text-right p-2 font-semibold text-blue-900">Wastage (mm)</th>
                                   <th className="text-right p-2 font-semibold text-blue-900">Total</th>
                                   <th className="text-center p-2 font-semibold text-blue-900 w-16">Action</th>
@@ -1656,36 +1706,14 @@ export default function GenerateJobCardsPage() {
 
                                   return (
                                     <tr key={material.tempId} className="border-b border-blue-100 bg-white">
-                                      <td className="p-2">
-                                        <Select
-                                          value={material.rawMaterialId?.toString() || ''}
-                                          onValueChange={(value) => {
-                                            if (value === 'custom') {
-                                              updateMaterial(item.childPartTemplate!.id, material.tempId, { rawMaterialId: null, rawMaterialName: '' })
-                                            } else {
-                                              selectMaterialFromMaster(item.childPartTemplate!.id, material.tempId, parseInt(value))
-                                            }
-                                          }}
-                                        >
-                                          <SelectTrigger className="h-8 text-xs">
-                                            <SelectValue placeholder="Select material">
-                                              {material.rawMaterialName || 'Select material'}
-                                            </SelectValue>
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="custom">
-                                              <span className="text-blue-600 font-medium">+ Custom Material</span>
-                                            </SelectItem>
-                                            {availableMaterials.map((mat) => (
-                                              <SelectItem key={mat.id} value={mat.id.toString()}>
-                                                <div className="flex flex-col">
-                                                  <span className="font-medium">{mat.materialName}</span>
-                                                  <span className="text-xs text-gray-500">{mat.materialType} • {mat.shape} • {mat.grade}</span>
-                                                </div>
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                      <td className="p-2 align-top">
+                                        <MaterialCombobox
+                                          materials={availableMaterials}
+                                          selectedId={material.rawMaterialId}
+                                          selectedName={material.rawMaterialName}
+                                          onSelectMaterial={(id) => selectMaterialFromMaster(item.childPartTemplate!.id, material.tempId, id)}
+                                          onSelectCustom={() => updateMaterial(item.childPartTemplate!.id, material.tempId, { rawMaterialId: null, rawMaterialName: '' })}
+                                        />
                                         {!material.rawMaterialId && (
                                           <input
                                             type="text"
@@ -1702,7 +1730,7 @@ export default function GenerateJobCardsPage() {
                                           </div>
                                         )}
                                       </td>
-                                      <td className="p-2">
+                                      <td className="p-2 align-top">
                                         <input
                                           type="text"
                                           value={material.materialGrade || ''}
@@ -1713,25 +1741,25 @@ export default function GenerateJobCardsPage() {
                                           title={material.rawMaterialId ? 'Auto-filled from material master' : 'Enter grade manually'}
                                         />
                                       </td>
-                                      <td className="p-2">
-                                        <div className="flex gap-1">
-                                          <input
-                                            type="number"
-                                            value={material.requiredQuantity}
-                                            onChange={(e) => updateMaterial(item.childPartTemplate!.id, material.tempId, { requiredQuantity: parseFloat(e.target.value) || 0 })}
-                                            className="w-16 px-2 py-1 text-xs border rounded text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                          />
-                                          <input
-                                            type="text"
-                                            value={material.unit}
-                                            onChange={(e) => updateMaterial(item.childPartTemplate!.id, material.tempId, { unit: e.target.value })}
-                                            className="w-12 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                            placeholder="unit"
-                                          />
-                                        </div>
+                                      <td className="p-2 align-top text-right">
+                                        <input
+                                          type="number"
+                                          value={material.requiredQuantity}
+                                          onChange={(e) => updateMaterial(item.childPartTemplate!.id, material.tempId, { requiredQuantity: parseFloat(e.target.value) || 0 })}
+                                          className="w-16 px-2 py-1 text-xs border rounded text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
                                         <div className="text-gray-500 text-xs mt-0.5">× {itemQuantity} × {item.bomItem.quantity}</div>
                                       </td>
-                                      <td className="p-2">
+                                      <td className="p-2 align-top">
+                                        <input
+                                          type="text"
+                                          value={material.unit}
+                                          onChange={(e) => updateMaterial(item.childPartTemplate!.id, material.tempId, { unit: e.target.value })}
+                                          className="w-14 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          placeholder="unit"
+                                        />
+                                      </td>
+                                      <td className="p-2 align-top text-right">
                                         <input
                                           type="number"
                                           value={material.wastageMM ?? 0}
@@ -1740,15 +1768,15 @@ export default function GenerateJobCardsPage() {
                                         />
                                         <div className="text-gray-500 text-xs mt-0.5">× {itemQuantity} × {item.bomItem.quantity}</div>
                                       </td>
-                                      <td className="p-2 text-right">
-                                        <div className="font-semibold text-gray-900">
+                                      <td className="p-2 text-right align-top">
+                                        <div className="font-semibold text-gray-900 py-1">
                                           {totalWithWastage.toFixed(2)}
                                         </div>
                                         <div className="text-gray-500 text-xs">
                                           {material.unit}
                                         </div>
                                       </td>
-                                      <td className="p-2 text-center">
+                                      <td className="p-2 text-center align-top">
                                         <Button
                                           size="sm"
                                           variant="ghost"
@@ -1828,20 +1856,13 @@ export default function GenerateJobCardsPage() {
 
                       const inventory = matchingMaterial ? inventoryData.get(matchingMaterial.id) : null
 
-                      // Convert weight (kg) from inventory to length (mm) for comparison
-                      let inStock = 0
-                      if (inventory && matchingMaterial) {
-                        if (inventory.uom === 'kg') {
-                          // Convert weight to length
-                          inStock = convertWeightToLength(inventory.availableQuantity, matchingMaterial)
-                        } else {
-                          // Already in mm or other unit
-                          inStock = inventory.availableQuantity
-                        }
-                      }
+                      // Available stock from MaterialPieces (source of truth), fallback to Inventory_Stock
+                      const inStock = matchingMaterial
+                        ? getAvailableStockMM(matchingMaterial.id, matchingMaterial, inventory)
+                        : 0
 
                       const isShortage = inStock < material.totalRequired
-                      const hasInventoryData = inventory !== null
+                      const hasInventoryData = inventory != null || (matchingMaterial ? materialPieceStock.has(matchingMaterial.id) : false)
 
                       return (
                         <React.Fragment key={idx}>
@@ -2217,12 +2238,21 @@ export default function GenerateJobCardsPage() {
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button
               onClick={handleGenerateJobCards}
-              disabled={effectiveDrawingStatus !== 'Approved' || partsWithoutProcesses.length > 0}
+              disabled={effectiveDrawingStatus !== 'Approved' || partsWithoutProcesses.length > 0 || generating}
               className="flex-1"
               size="lg"
             >
-              <Package className="mr-2 h-4 w-4" />
-              Generate {totalProcessSteps} Job Cards
+              {generating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating Job Cards...
+                </>
+              ) : (
+                <>
+                  <Package className="mr-2 h-4 w-4" />
+                  Generate {totalProcessSteps} Job Cards
+                </>
+              )}
             </Button>
             <Button variant="outline" onClick={() => router.push('/planning')} className="sm:w-auto">
               Cancel

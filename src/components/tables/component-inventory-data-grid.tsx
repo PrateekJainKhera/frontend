@@ -46,13 +46,16 @@ const muiTheme = createTheme({
     },
 })
 
-export function ComponentInventoryDataGrid({ inventory }: ComponentInventoryDataGridProps) {
+export function ComponentInventoryDataGrid({ inventory: initialInventory }: ComponentInventoryDataGridProps) {
+    const [inventory, setInventory] = useState<InventoryResponse[]>(initialInventory)
     const [selectedInventory, setSelectedInventory] = useState<InventoryResponse | null>(null)
     const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
     const [pagination, setPagination] = useState<MRT_PaginationState>({
         pageIndex: 0,
         pageSize: 10,
     })
+
+    useMemo(() => { setInventory(initialInventory) }, [initialInventory])
 
     const handleView = (item: InventoryResponse) => {
         setSelectedInventory(item)
@@ -201,7 +204,7 @@ export function ComponentInventoryDataGrid({ inventory }: ComponentInventoryData
     const table = useMaterialReactTable({
         columns,
         data: inventory,
-        enableColumnActions: true,
+        enableColumnActions: false,
         enableColumnFilters: true,
         enableSorting: true,
         enableGlobalFilter: true,
@@ -210,19 +213,18 @@ export function ComponentInventoryDataGrid({ inventory }: ComponentInventoryData
         enableRowActions: true,
         positionActionsColumn: 'last',
 
-        // Enable Column Reordering
         enableColumnOrdering: true,
+        autoResetPageIndex: false,
 
         onPaginationChange: setPagination,
         state: { pagination },
         muiPaginationProps: {
-            rowsPerPageOptions: [10, 25, 50, 100],
+            rowsPerPageOptions: [10, 25, 50],
             showFirstButton: true,
             showLastButton: true,
         },
         paginationDisplayMode: 'pages',
 
-        // Global filter (search)
         muiSearchTextFieldProps: {
             placeholder: 'Search components...',
             sx: { minWidth: '300px' },

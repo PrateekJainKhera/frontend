@@ -692,14 +692,40 @@ function extractOrderItem(jobCardNo?: string): string {
   return parts.slice(0, 4).join('-') // e.g. "ORD-202602-0004-A"
 }
 
+/** Abbreviate roller type: Magnetic→MG, Printing→PR, else initials of words */
+function abbreviateRollerType(rollerType?: string): string {
+  if (!rollerType) return ''
+  const rt = rollerType.toLowerCase()
+  if (rt.includes('magnetic') || rt.startsWith('mg')) return 'MG'
+  if (rt.includes('print') || rt.startsWith('pr')) return 'PR'
+  // Fallback: initials of each word, uppercase, max 3 chars
+  const initials = rollerType
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+  return (initials.length >= 2 ? initials : rollerType.slice(0, 2).toUpperCase()).slice(0, 3)
+}
+
 function PrintSlip({ drafts }: { drafts: DraftDetail[] }) {
   if (!drafts.length) return null
 
   // Merge all drafts into one slip
   const allDraftNos = drafts.map(d => d.draftNo).join(', ')
+
+  // Build rich order labels: ORD-...-A-{Grade}-{Model}-{Teeth}T
   const allOrderItems = new Set<string>()
   drafts.forEach(d => d.barAssignments.forEach(bar =>
-    bar.cuts.forEach(cut => allOrderItems.add(extractOrderItem(cut.jobCardNo)))
+    bar.cuts.forEach(cut => {
+      const parts = [
+        extractOrderItem(cut.jobCardNo),
+        abbreviateRollerType(cut.rollerType),
+        cut.modelName,
+        cut.numberOfTeeth ? `${cut.numberOfTeeth}T` : undefined,
+      ].filter(Boolean)
+      allOrderItems.add(parts.join('-'))
+    })
   ))
   const allBars = drafts.flatMap(d => d.barAssignments)
 
@@ -1172,7 +1198,7 @@ export default function MaterialIssuePage() {
       : p === 'Low'
       ? 'bg-green-50 text-green-700 border-green-200'
       : 'bg-blue-50 text-blue-700 border-blue-200'
-    return <Badge className={`text-[10px] px-1 py-0 ${cls}`}>{p === 'Medium' ? 'Med' : p}</Badge>
+    return <Badge className={`text-[10px] px-1 py-0 shrink-0 ${cls}`}>{p === 'Medium' ? 'Med' : p}</Badge>
   }
 
   const pendingDrafts = allDrafts.filter(d => d.status === 'Draft')
@@ -1205,7 +1231,7 @@ export default function MaterialIssuePage() {
         </div>
       )}
 
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-[calc(100vh-6rem)]">
         {/* Tab bar */}
         <div className="flex items-center justify-between px-4 py-2 border-b bg-background shrink-0 gap-4">
           {/* Tabs — left */}
@@ -1250,8 +1276,11 @@ export default function MaterialIssuePage() {
         {/* ── Tab: Cutting Planning ──────────────────────────────────────────── */}
         {activeTab === 'planning' && (
           <div className="flex flex-1 overflow-hidden">
-            {/* Left panel — requisition list */}
-            <div className="w-64 shrink-0 flex flex-col border-r bg-background">
+            {/* Left panel — requisition list (wide when idle, shrinks once groups load) */}
+            <div className={cn(
+              'shrink-0 flex flex-col border-r bg-background transition-all duration-300',
+              groupsLoaded ? 'w-80' : 'w-[480px]'
+            )}>
               <div className="px-4 py-3 border-b bg-muted/20">
                 <h2 className="text-sm font-semibold">Requisitions</h2>
                 <p className="text-[11px] text-muted-foreground">{selectedReqIds.size} selected</p>
@@ -1278,9 +1307,16 @@ export default function MaterialIssuePage() {
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 justify-between">
-                          <span className="text-xs font-semibold truncate">{req.requisitionNo}</span>
+                          <span className="text-xs font-semibold break-all">{req.requisitionNo}</span>
                           {priorityBadge(req.priority)}
                         </div>
+                        {(req.modelName || req.numberOfTeeth || req.rollerType) && (
+                          <div className="text-[11px] font-medium text-foreground mt-0.5">
+                            {req.rollerType && <span className="text-blue-600">{abbreviateRollerType(req.rollerType)} </span>}
+                            {req.modelName}
+                            {req.numberOfTeeth ? <span className="text-muted-foreground"> · {req.numberOfTeeth}T</span> : null}
+                          </div>
+                        )}
                         <div className="text-[11px] text-muted-foreground mt-0.5 flex gap-2">
                           {req.dueDate && <span>{new Date(req.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
                           <span>{req.itemCount} items</span>

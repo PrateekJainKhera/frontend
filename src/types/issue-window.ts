@@ -9,6 +9,9 @@ export interface IssueWindowRequisition {
   dueDate?: string
   createdAt: string
   itemCount: number
+  modelName?: string
+  numberOfTeeth?: number
+  rollerType?: string
 }
 
 // Material group: all cuts of same material across selected requisitions
@@ -155,6 +158,10 @@ export interface DraftCut {
   requisitionNo?: string
   materialId?: number
   sortOrder: number
+  numberOfTeeth?: number
+  jobCardType?: string
+  modelName?: string
+  rollerType?: string
 }
 
 // ── API request types ─────────────────────────────────────────────────────

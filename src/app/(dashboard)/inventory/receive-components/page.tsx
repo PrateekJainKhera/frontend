@@ -16,7 +16,6 @@ export default function ReceiveComponentsPage() {
   const [loading, setLoading] = useState(true)
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
   const [lowStockComponents, setLowStockComponents] = useState<ComponentLowStockItem[]>([])
-
   useEffect(() => {
     loadInventory()
     componentService.getLowStock()
@@ -39,11 +38,9 @@ export default function ReceiveComponentsPage() {
   }
 
   // Filter inventory for components (non raw materials)
-  const componentInventory = inventory.filter((item) => {
-    // Assuming components have UOM as PCS, SET, etc. (not mm or kg)
-    const isComponent = item.uom !== 'mm' && item.uom !== 'kg'
-    return isComponent
-  })
+  const componentInventory = inventory.filter((item) =>
+    item.uom !== 'mm' && item.uom !== 'kg'
+  )
 
   const totalComponents = componentInventory.length
   const lowStock = componentInventory.filter(i => i.isLowStock).length
