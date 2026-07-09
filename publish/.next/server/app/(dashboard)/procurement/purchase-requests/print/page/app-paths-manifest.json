@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/procurement/purchase-requests/print/page": "app/(dashboard)/procurement/purchase-requests/print/page.js"
+}

@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/inventory/layout,_N_T_/(dashboard)/inventory/grn-approvals/layout,_N_T_/(dashboard)/inventory/grn-approvals/page,_N_T_/inventory/grn-approvals"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/inventory/grn-approvals/__PAGE__",
+    "/!KGRhc2hib2FyZCk/inventory/grn-approvals",
+    "/!KGRhc2hib2FyZCk/inventory",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

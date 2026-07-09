@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/masters/material-categories/[id]/edit/page": "app/(dashboard)/masters/material-categories/[id]/edit/page.js"
+}

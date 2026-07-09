@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/production/layout,_N_T_/(dashboard)/production/orders/layout,_N_T_/(dashboard)/production/orders/page,_N_T_/production/orders"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/production/orders/__PAGE__",
+    "/!KGRhc2hib2FyZCk/production/orders",
+    "/!KGRhc2hib2FyZCk/production",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

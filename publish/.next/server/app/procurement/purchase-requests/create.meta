@@ -1,0 +1,18 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/procurement/layout,_N_T_/(dashboard)/procurement/purchase-requests/layout,_N_T_/(dashboard)/procurement/purchase-requests/create/layout,_N_T_/(dashboard)/procurement/purchase-requests/create/page,_N_T_/procurement/purchase-requests/create"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/procurement/purchase-requests/create/__PAGE__",
+    "/!KGRhc2hib2FyZCk/procurement/purchase-requests/create",
+    "/!KGRhc2hib2FyZCk/procurement/purchase-requests",
+    "/!KGRhc2hib2FyZCk/procurement",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

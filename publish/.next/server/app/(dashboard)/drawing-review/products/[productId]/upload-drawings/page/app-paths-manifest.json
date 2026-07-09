@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/drawing-review/products/[productId]/upload-drawings/page": "app/(dashboard)/drawing-review/products/[productId]/upload-drawings/page.js"
+}

@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/inventory/layout,_N_T_/(dashboard)/inventory/raw-materials/layout,_N_T_/(dashboard)/inventory/raw-materials/page,_N_T_/inventory/raw-materials"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/inventory/raw-materials/__PAGE__",
+    "/!KGRhc2hib2FyZCk/inventory/raw-materials",
+    "/!KGRhc2hib2FyZCk/inventory",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

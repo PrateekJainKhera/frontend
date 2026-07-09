@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/masters/product-templates/[id]/page": "app/(dashboard)/masters/product-templates/[id]/page.js"
+}

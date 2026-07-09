@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/quality/layout,_N_T_/(dashboard)/quality/rework/layout,_N_T_/(dashboard)/quality/rework/page,_N_T_/quality/rework"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/quality/rework/__PAGE__",
+    "/!KGRhc2hib2FyZCk/quality/rework",
+    "/!KGRhc2hib2FyZCk/quality",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}
