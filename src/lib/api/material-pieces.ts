@@ -282,6 +282,24 @@ class MaterialPieceService {
     }
   }
 
+  // Release orphaned 'Reserved' pieces (not tied to any live draft) back to Available.
+  async releaseOrphanedReservations(): Promise<number> {
+    try {
+      const response = await apiClient.post<ApiResponse<{ released: number }>>(
+        `${this.baseUrl}/release-orphaned-reservations`
+      )
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to release reservations')
+      }
+      return response.data.data?.released ?? 0
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to release reservations: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async adjustLength(id: number, newLengthMM: number, remark: string, adjustedBy = 'Admin'): Promise<void> {
     try {
       const response = await apiClient.patch<ApiResponse<object>>(`/material-pieces/${id}/adjust-length`, {

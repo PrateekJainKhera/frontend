@@ -279,8 +279,16 @@ export default function DrawingReviewDetailPage() {
                   <p className="font-medium">{order.customerName}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Product</Label>
+                  <Label className="text-muted-foreground">Machine Model</Label>
                   <p className="font-medium">{order.productName}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Roller Type</Label>
+                  <p className="font-medium">{order.rollerType || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">No. of Teeth</Label>
+                  <p className="font-medium">{(order.numberOfTeeth ?? 0) > 0 ? order.numberOfTeeth : 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Product Code</Label>

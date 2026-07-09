@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Package, TrendingDown, AlertTriangle, BarChart3, ChevronDown, ChevronUp, MoveRight } from "lucide-react";
+import { Package, TrendingDown, AlertTriangle, BarChart3, ChevronDown, ChevronUp, MoveRight, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,7 @@ export default function RawMaterialInventoryPage() {
   const [selectedMaterial, setSelectedMaterial] = useState<AggregatedMaterial | null>(null);
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedForm, setSelectedForm] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
   const [isGRNOpen, setIsGRNOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<WarehouseResponse[]>([]);
@@ -216,13 +218,22 @@ export default function RawMaterialInventoryPage() {
   const materialTypes = ["all", ...new Set(materials.map(m => m.materialType))];
   const materialForms = ["all", ...new Set(materials.map(m => m.materialForm))];
 
-  // Filter materials by selected type and form
+  // Filter materials by selected type, form, and search text
   let filteredMaterials = materials;
   if (selectedType !== "all") {
     filteredMaterials = filteredMaterials.filter(m => m.materialType === selectedType);
   }
   if (selectedForm !== "all") {
     filteredMaterials = filteredMaterials.filter(m => m.materialForm === selectedForm);
+  }
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase();
+    filteredMaterials = filteredMaterials.filter(m =>
+      m.materialName.toLowerCase().includes(q) ||
+      (m.grade ?? "").toLowerCase().includes(q) ||
+      m.materialType.toLowerCase().includes(q) ||
+      m.materialForm.toLowerCase().includes(q)
+    );
   }
 
   // Get overall stats
@@ -392,6 +403,16 @@ export default function RawMaterialInventoryPage() {
             <CardContent>
               {/* Material Filters */}
               <div className="flex flex-wrap gap-4 mb-6 pb-4 border-b items-center">
+                <div className="relative flex-1 min-w-[220px] max-w-sm">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search material by name, grade, type..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-muted-foreground">Type:</label>
                   <Select value={selectedType} onValueChange={setSelectedType}>
@@ -426,13 +447,14 @@ export default function RawMaterialInventoryPage() {
                   </Select>
                 </div>
 
-                {(selectedType !== "all" || selectedForm !== "all") && (
+                {(selectedType !== "all" || selectedForm !== "all" || searchQuery.trim() !== "") && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
                       setSelectedType("all");
                       setSelectedForm("all");
+                      setSearchQuery("");
                     }}
                   >
                     Clear Filters

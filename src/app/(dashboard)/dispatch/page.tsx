@@ -231,9 +231,15 @@ export default function DispatchDashboardPage() {
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                 >
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <p className="font-semibold">{item.orderNo}-{item.itemSequence}</p>
-                      <Badge variant="outline" className="text-xs">{item.partCode ?? item.productName}</Badge>
+                      {item.machineModel && <Badge variant="outline" className="text-xs">{item.machineModel}</Badge>}
+                      {(item.rollerType || (item.numberOfTeeth ?? 0) > 0) && (
+                        <span className="text-xs text-muted-foreground">
+                          {[item.rollerType, (item.numberOfTeeth ?? 0) > 0 ? `${item.numberOfTeeth}T` : null].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                      {item.partCode && <span className="text-xs text-muted-foreground">({item.partCode})</span>}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
                       <div>

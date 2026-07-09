@@ -17,12 +17,14 @@ import { materialService, MaterialResponse } from "@/lib/api/materials"
 import { warehouseService, WarehouseResponse } from "@/lib/api/warehouses"
 import { vendorService, VendorResponse } from "@/lib/api/vendors"
 import { toast } from "sonner"
-import { grnService, CreateGRNRequest } from "@/lib/api/grn"
+import { grnService, CreateGRNRequest, GRNResponse } from "@/lib/api/grn"
 
 interface GRNEntryDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onSuccess: () => void
+    /** When set, the dialog edits & re-submits this (rejected) GRN instead of creating a new one. */
+    editGrn?: GRNResponse | null
 }
 
 interface PieceBreakdown {
@@ -48,7 +50,7 @@ interface MaterialLine {
     warehouseId: string // Target warehouse
 }
 
-export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialogProps) {
+export function GRNEntryDialog({ open, onOpenChange, onSuccess, editGrn }: GRNEntryDialogProps) {
     const [grnNumber, setGrnNumber] = useState("")
     const [grnDate, setGrnDate] = useState("")
     const [vendorName, setVendorName] = useState("")
@@ -91,9 +93,56 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
         loadData()
     }, [])
 
-    // Reset form when dialog opens
+    // Reset form when dialog opens — or prefill from a rejected GRN in edit mode
     useEffect(() => {
-        if (open) {
+        if (!open) return
+        if (editGrn) {
+            setGrnNumber(editGrn.grnNo)
+            setGrnDate((editGrn.grnDate || '').split('T')[0])
+            setVendorName(editGrn.supplierName ?? '')
+            setInvoiceNo(editGrn.invoiceNo ?? '')
+            setInvoiceDate((editGrn.invoiceDate || '').split('T')[0])
+            setPoNo(editGrn.poNo ?? '')
+            setPoDate((editGrn.poDate || '').split('T')[0])
+
+            // Reconstruct material lines + piece breakdown from the stored (flattened) lines.
+            // Group by material; each stored line becomes one piece batch {length, quantity}.
+            const groups = new Map<string, MaterialLine>()
+            for (const l of editGrn.lines ?? []) {
+                const key = `${l.materialId}|${l.grade ?? ''}|${l.materialType ?? ''}`
+                if (!groups.has(key)) {
+                    groups.set(key, {
+                        id: `line-${l.materialId}-${key}`,
+                        materialId: String(l.materialId),
+                        materialName: l.materialName ?? '',
+                        grade: l.grade ?? '',
+                        materialType: (l.materialType || '').toLowerCase() === 'pipe' ? 'pipe' : 'rod',
+                        diameter: l.diameter ?? 0,
+                        outerDiameter: l.outerDiameter ?? 0,
+                        innerDiameter: l.innerDiameter ?? 0,
+                        materialDensity: l.materialDensity ?? 7.85,
+                        weight: 0,
+                        calculatedLength: 0,
+                        weightPerMeter: 0,
+                        pieces: [],
+                        warehouseId: '', // not stored on the GRN line — re-select on re-submit
+                    })
+                }
+                const g = groups.get(key)!
+                g.weight += l.totalWeightKG ?? 0
+                g.pieces.push({
+                    id: `pc-${l.id}`,
+                    length: (l.lengthPerPieceMM ?? 0) / 1000,
+                    quantity: l.numberOfPieces ?? 0,
+                })
+            }
+            // Recompute weight-per-meter / calculated length for each reconstructed line
+            const rebuilt = Array.from(groups.values()).map(line => {
+                const { length, weightPerMeter } = calculateLength(line)
+                return { ...line, calculatedLength: length, weightPerMeter }
+            })
+            setMaterialLines(rebuilt)
+        } else {
             const today = new Date().toISOString().split('T')[0]
             setGrnNumber(`GRN-${Date.now()}`)
             setGrnDate(today)
@@ -104,7 +153,8 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
             setPoDate("")
             setMaterialLines([])
         }
-    }, [open])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, editGrn])
 
 
     const addMaterialLine = () => {
@@ -421,20 +471,24 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                 }
             }
 
-            // Call API to create GRN
-            const result = await grnService.create(grnRequest)
-
-            toast.success(`GRN ${result.grnNo} created successfully!`, {
-                description: `${result.totalPieces} material pieces added to inventory`,
-                duration: 5000,
-            })
+            // Create a new GRN, or re-submit the rejected one being edited
+            if (editGrn) {
+                const result = await grnService.resubmit(editGrn.id, grnRequest)
+                toast.success(`GRN ${result.grnNo} re-submitted for approval`, { duration: 5000 })
+            } else {
+                const result = await grnService.create(grnRequest)
+                toast.success(`GRN ${result.grnNo} created successfully!`, {
+                    description: `${result.totalPieces} material pieces added to inventory`,
+                    duration: 5000,
+                })
+            }
 
             setIsSubmitting(false)
             onSuccess()
             onOpenChange(false)
         } catch (error) {
-            console.error('Failed to create GRN:', error)
-            toast.error('Failed to create GRN', {
+            console.error('Failed to save GRN:', error)
+            toast.error(editGrn ? 'Failed to re-submit GRN' : 'Failed to create GRN', {
                 description: error instanceof Error ? error.message : 'An error occurred',
                 duration: 5000,
             })
@@ -447,9 +501,11 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
                 <DialogHeader className="px-6 pt-6 pb-4 border-b">
-                    <DialogTitle className="text-2xl">Inward Material (GRN Entry)</DialogTitle>
+                    <DialogTitle className="text-2xl">{editGrn ? `Edit & Re-submit — ${editGrn.grnNo}` : 'Inward Material (GRN Entry)'}</DialogTitle>
                     <DialogDescription className="mt-2">
-                        Record goods receipt with material details and piece breakdown
+                        {editGrn
+                            ? 'Correct the piece breakdown (lengths & quantities) and re-submit for approval'
+                            : 'Record goods receipt with material details and piece breakdown'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -893,7 +949,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess }: GRNEntryDialog
                         Cancel
                     </Button>
                     <Button onClick={handleSubmit} disabled={isSubmitting}>
-                        {isSubmitting ? 'Saving...' : 'Save GRN'}
+                        {isSubmitting ? 'Saving...' : editGrn ? 'Re-submit for Approval' : 'Save GRN'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

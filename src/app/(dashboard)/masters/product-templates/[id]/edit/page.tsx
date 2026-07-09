@@ -43,7 +43,7 @@ export default function EditProductTemplatePage() {
   // API Data
   const [rollerTypes, setRollerTypes] = useState<RollerTypeResponse[]>([])
   const [processTemplates, setProcessTemplates] = useState<ProcessTemplateResponse[]>([])
-  const [childPartTemplates, setChildPartTemplates] = useState<ChildPartTemplateResponse[]>([])
+  const [allChildPartTemplates, setAllChildPartTemplates] = useState<ChildPartTemplateResponse[]>([])
   const [loadingProcessTemplates, setLoadingProcessTemplates] = useState(false)
   const [loadingChildPartTemplates, setLoadingChildPartTemplates] = useState(false)
 
@@ -110,15 +110,18 @@ export default function EditProductTemplatePage() {
 
     setLoadingChildPartTemplates(true)
     childPartTemplateService.getActiveTemplates()
-      .then(all => {
-        const filtered = all.filter(t =>
-          t.rollerType.split(',').map(x => x.trim()).includes(rollerType)
-        )
-        setChildPartTemplates(filtered)
-      })
+      .then(all => setAllChildPartTemplates(all))
       .catch(() => toast.error('Failed to load child part templates'))
       .finally(() => setLoadingChildPartTemplates(false))
   }, [rollerType])
+
+  // Options = templates matching the roller type, PLUS any template already linked in the BOM
+  // (so an existing link always shows even if its roller-type tag doesn't match exactly).
+  const linkedTemplateIds = new Set(bomItems.map(i => i.childPartTemplateId).filter(Boolean) as number[])
+  const childPartTemplates = allChildPartTemplates.filter(t =>
+    (t.rollerType ?? '').split(',').map(x => x.trim()).includes(rollerType) ||
+    linkedTemplateIds.has(t.id)
+  )
 
   const addBOMItem = () => {
     setBomItems(prev => [...prev, {

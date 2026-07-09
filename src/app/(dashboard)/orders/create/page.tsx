@@ -35,6 +35,7 @@ import { CreateCustomerDialog } from '@/components/forms/create-customer-dialog'
 import { ProductSearchDialog } from '@/components/dialogs/product-search-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 // Order item type for multi-product orders
 interface OrderItem {
@@ -227,27 +228,23 @@ export default function CreateOrderPage() {
                     <FormItem>
                       <FormLabel>Customer *</FormLabel>
                       <div className="flex gap-2">
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value)
-                            setSelectedCustomerId(value)
-                            setOrderItems([])
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Select customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {customers.map((c) => (
-                              <SelectItem key={c.id} value={c.id.toString()}>
-                                {c.customerName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex-1">
+                          <SearchableSelect
+                            options={customers.map((c) => ({
+                              value: c.id.toString(),
+                              label: c.customerName,
+                            }))}
+                            value={field.value}
+                            onChange={(value) => {
+                              field.onChange(value)
+                              setSelectedCustomerId(value)
+                              setOrderItems([])
+                            }}
+                            placeholder="Select customer"
+                            searchPlaceholder="Search customer..."
+                            emptyText="No customer found."
+                          />
+                        </div>
                         <Button
                           type="button"
                           variant="outline"

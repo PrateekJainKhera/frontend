@@ -87,6 +87,9 @@ export interface ReadyToDispatchItem {
   productId: number
   productName: string | null
   partCode: string | null
+  machineModel?: string | null
+  rollerType?: string | null
+  numberOfTeeth?: number | null
   quantity: number
   qtyCompleted: number
   qtyDispatched: number

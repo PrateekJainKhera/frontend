@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { ProductSpec } from "@/components/ui/product-spec";
 import {
   MaterialReactTable,
   useMaterialReactTable,
@@ -640,6 +641,7 @@ export default function MaterialRequisitionDetailPage() {
               <div>
                 <div className="text-sm font-medium text-muted-foreground">Order No</div>
                 <div className="mt-1 text-sm font-medium">{requisition.orderNo || "-"}</div>
+                <ProductSpec machineModel={requisition.machineModel} rollerType={requisition.rollerType} numberOfTeeth={requisition.numberOfTeeth} />
               </div>
               <div>
                 <div className="text-sm font-medium text-muted-foreground">Job Card No</div>

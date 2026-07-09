@@ -36,11 +36,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { machineModelService } from '@/lib/api/machine-models'
+import { SearchInput } from '@/components/ui/search-input'
 import { MachineModel } from '@/types/machine-model'
 
 export default function MachineModelsPage() {
   const [models, setModels] = useState<MachineModel[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -142,6 +144,10 @@ export default function MachineModelsPage() {
     setIsDeleteDialogOpen(true)
   }
 
+  const filteredModels = searchQuery.trim()
+    ? models.filter(m => m.modelName?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : models
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -182,6 +188,10 @@ export default function MachineModelsPage() {
       </div>
 
       {/* Table */}
+      <div className="mb-4">
+        <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search model name..." />
+      </div>
+
       <Card>
         <Table>
           <TableHeader>
@@ -203,14 +213,14 @@ export default function MachineModelsPage() {
                   </TableCell>
                 </TableRow>
               ))
-            ) : models.length === 0 ? (
+            ) : filteredModels.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No machine models found. Click "Add Model" to create one.
+                  {searchQuery ? `No models match "${searchQuery}".` : 'No machine models found. Click "Add Model" to create one.'}
                 </TableCell>
               </TableRow>
             ) : (
-              models.map((model) => (
+              filteredModels.map((model) => (
                 <TableRow key={model.id}>
                   <TableCell className="font-medium">{model.modelName}</TableCell>
                   <TableCell>

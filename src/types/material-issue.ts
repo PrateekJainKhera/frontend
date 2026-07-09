@@ -56,6 +56,11 @@ export interface MaterialRequisition {
   orderNo: string
   customerName: string
 
+  // Product spec (from Masters_Products via order)
+  machineModel?: string
+  rollerType?: string
+  numberOfTeeth?: number
+
   // Material requirements
   materials: MaterialRequirementDetail[]
 

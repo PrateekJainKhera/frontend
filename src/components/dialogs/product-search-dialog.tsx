@@ -31,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Product } from '@/types'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import { MachineModel } from '@/types/machine-model'
 import { machineModelService } from '@/lib/api/machine-models'
 import { productService } from '@/lib/api/products'
@@ -225,23 +226,17 @@ export function ProductSearchDialog({
                         </Button>
                       
                       </div>
-                      <Select
-                        onValueChange={field.onChange}
+                      <SearchableSelect
+                        options={machineModels.map((model) => ({
+                          value: model.id.toString(),
+                          label: model.modelName,
+                        }))}
                         value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select model" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {machineModels.map((model) => (
-                            <SelectItem key={model.id} value={model.id.toString()}>
-                              {model.modelName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={field.onChange}
+                        placeholder="Select model"
+                        searchPlaceholder="Search model..."
+                        emptyText="No model found."
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -254,23 +249,17 @@ export function ProductSearchDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Roller Type *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
+                      <SearchableSelect
+                        options={rollerTypes.map((rt) => ({
+                          value: rt.typeName,
+                          label: rt.typeName,
+                        }))}
                         value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {rollerTypes.map((rt) => (
-                            <SelectItem key={rt.id} value={rt.typeName}>
-                              {rt.typeName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={field.onChange}
+                        placeholder="Select roller type"
+                        searchPlaceholder="Search roller type..."
+                        emptyText="No roller type found."
+                      />
                       <FormMessage />
                     </FormItem>
                   )}

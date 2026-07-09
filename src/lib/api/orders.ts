@@ -8,6 +8,7 @@ export interface OrderItemResponse {
   productId: number
   productName?: string
   partCode?: string
+  rollerType?: string
   numberOfTeeth?: number
   quantity: number
   originalQuantity: number
@@ -49,6 +50,7 @@ export interface OrderResponse {
   productId: number
   productName?: string
   productCode?: string
+  rollerType?: string
   numberOfTeeth?: number
 
   quantity: number
@@ -156,6 +158,60 @@ export interface UpdateOrderPayload {
   updatedBy?: string
 }
 
+export interface PagedOrders {
+  items: OrderResponse[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface OrderSummary {
+  total: number
+  pending: number
+  inProgress: number
+  readyToDispatch: number
+  completed: number
+}
+
+export interface PlanningItem {
+  itemId: number
+  orderId: number
+  orderNo: string
+  itemSequence?: string
+  productId: number
+  productName?: string
+  partCode?: string
+  rollerType?: string
+  numberOfTeeth?: number
+  quantity: number
+  dueDate?: string
+  itemPriority?: string
+  itemStatus?: string
+  planningStatus?: string
+  drawingReviewStatus?: string
+  customerName?: string
+  orderStatus?: string
+  orderPriority?: string
+  jobCardCount: number
+  completedJobCardCount: number
+}
+
+export interface PagedPlanningItems {
+  items: PlanningItem[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface PlanningSummary {
+  totalOrders: number
+  pendingPlanning: number
+  planned: number
+  materialShortage: number
+}
+
 class OrderService {
   private baseUrl = '/orders'
 
@@ -168,6 +224,53 @@ class OrderService {
         throw new Error(error.response?.data?.message || `Failed to fetch orders: ${error.message}`)
       }
       throw error
+    }
+  }
+
+  async getPaged(page: number, pageSize: number, search?: string, status?: string): Promise<PagedOrders> {
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+      if (search && search.trim()) params.append('search', search.trim())
+      if (status && status !== 'all') params.append('status', status)
+      const response = await apiClient.get<ApiResponse<PagedOrders>>(`${this.baseUrl}/paged?${params.toString()}`)
+      return response.data.data || { items: [], totalCount: 0, page, pageSize, totalPages: 0 }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch orders: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getSummary(): Promise<OrderSummary> {
+    try {
+      const response = await apiClient.get<ApiResponse<OrderSummary>>(`${this.baseUrl}/summary`)
+      return response.data.data || { total: 0, pending: 0, inProgress: 0, readyToDispatch: 0, completed: 0 }
+    } catch {
+      return { total: 0, pending: 0, inProgress: 0, readyToDispatch: 0, completed: 0 }
+    }
+  }
+
+  async getPlanningItems(type: 'pending' | 'planned', page: number, pageSize: number, search?: string): Promise<PagedPlanningItems> {
+    try {
+      const params = new URLSearchParams({ type, page: String(page), pageSize: String(pageSize) })
+      if (search && search.trim()) params.append('search', search.trim())
+      const response = await apiClient.get<ApiResponse<PagedPlanningItems>>(`${this.baseUrl}/planning-items?${params.toString()}`)
+      return response.data.data || { items: [], totalCount: 0, page, pageSize, totalPages: 0 }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch planning items: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getPlanningSummary(): Promise<PlanningSummary> {
+    try {
+      const response = await apiClient.get<ApiResponse<PlanningSummary>>(`${this.baseUrl}/planning-summary`)
+      return response.data.data || { totalOrders: 0, pendingPlanning: 0, planned: 0, materialShortage: 0 }
+    } catch {
+      return { totalOrders: 0, pendingPlanning: 0, planned: 0, materialShortage: 0 }
     }
   }
 

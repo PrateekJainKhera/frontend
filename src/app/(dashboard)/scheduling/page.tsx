@@ -841,7 +841,7 @@ function Step5({ results, onReset, jobGroups, scheduledDate }: Step5Props) {
           rowMap.set(key, {
             sNo: 0,
             orderItem,
-            machineModel: detail?.machineModelName ?? '—',
+            machineModel: [detail?.machineModelName, detail?.rollerType, (detail?.numberOfTeeth ?? 0) > 0 ? `${detail?.numberOfTeeth}T` : null].filter(Boolean).join(' · ') || '—',
             childPartName,
             materialSize: matReq?.rawMaterialName ?? '—',
             materialLength: matReq && matReq.requiredQuantity > 0

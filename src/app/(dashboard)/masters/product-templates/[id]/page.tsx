@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Package, ListTree, Edit, Trash2, Plus, Link as LinkIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,11 +21,27 @@ import {
 
 export default function ProductTemplateDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const [template, setTemplate] = useState<ProductTemplateResponse | null>(null)
   const [processWithSteps, setProcessWithSteps] = useState<ProcessTemplateWithStepsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [addChildPartDialogOpen, setAddChildPartDialogOpen] = useState(false)
   const [editingChildPart, setEditingChildPart] = useState<any>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!template) return
+    if (!confirm(`Delete product template "${template.templateName}"? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await productTemplateService.delete(Number(params.id))
+      toast.success('Product template deleted')
+      router.push('/masters/products')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete product template')
+      setDeleting(false)
+    }
+  }
 
   const loadTemplate = async () => {
     setLoading(true)
@@ -110,13 +126,20 @@ export default function ProductTemplateDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
+          <Button variant="outline" asChild>
+            <Link href={`/masters/product-templates/${params.id}/edit`}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Link>
           </Button>
-          <Button variant="outline" className="text-destructive hover:bg-destructive hover:text-destructive-foreground">
+          <Button
+            variant="outline"
+            className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </div>
       </div>

@@ -15,11 +15,13 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { adminService, UserResponse, RoleResponse } from '@/lib/api/auth'
+import { SearchInput } from '@/components/ui/search-input'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserResponse[]>([])
   const [roles, setRoles] = useState<RoleResponse[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Create/Edit dialog
   const [dialog, setDialog] = useState<'create' | 'edit' | 'password' | null>(null)
@@ -122,6 +124,13 @@ export default function UsersPage() {
     } catch (e: any) { toast.error(e.response?.data?.message || 'Failed') }
   }
 
+  const filteredUsers = searchQuery.trim()
+    ? users.filter(u =>
+        u.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.username?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : users
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -133,6 +142,10 @@ export default function UsersPage() {
           <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /></Button>
           <Button size="sm" onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" />New User</Button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search name or username..." />
       </div>
 
       {loading ? (
@@ -152,7 +165,7 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr key={u.id} className="hover:bg-muted/20">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">

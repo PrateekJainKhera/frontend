@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Package, AlertTriangle, Search, MoveRight, Pencil } from "lucide-react";
+import { Package, AlertTriangle, Search, MoveRight, Pencil, Unlock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { materialPieceService, MaterialPieceResponse } from "@/lib/api/material-pieces";
 import { AdjustPieceLengthDialog } from "@/components/dialogs/adjust-piece-length-dialog";
 import { warehouseService, WarehouseResponse } from "@/lib/api/warehouses";
+import { getSession } from "@/lib/auth";
 import { toast } from "sonner";
 
 export default function MaterialPiecesPage() {
@@ -43,6 +44,10 @@ export default function MaterialPiecesPage() {
   const [relocateOpen, setRelocateOpen]         = useState(false);
   const [targetWarehouseId, setTargetWarehouseId] = useState<string>("");
   const [relocating, setRelocating]             = useState(false);
+
+  // Release orphaned reservations
+  const [releasing, setReleasing]               = useState(false);
+  const isAdmin = getSession()?.isAdmin === true;
 
   useEffect(() => {
     loadAll();
@@ -153,6 +158,25 @@ export default function MaterialPiecesPage() {
     }
   };
 
+  // ── Release orphaned reservations ──────────────────────────────────────────
+  const handleReleaseOrphaned = async () => {
+    if (!confirm("Release all reserved pieces that are not tied to an active cutting draft back to Available?")) return;
+    setReleasing(true);
+    try {
+      const count = await materialPieceService.releaseOrphanedReservations();
+      if (count > 0) {
+        toast.success(`${count} orphaned reserved piece(s) released to Available`);
+      } else {
+        toast.info("No orphaned reservations found — all reserved pieces belong to active drafts");
+      }
+      loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to release reservations");
+    } finally {
+      setReleasing(false);
+    }
+  };
+
   // ── Stats ─────────────────────────────────────────────────────────────────
   const available = pieces.filter(p => p.status === "Available" && !p.isWastage);
   const reserved  = pieces.filter(p => p.status === "Reserved");
@@ -218,11 +242,26 @@ export default function MaterialPiecesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Material Pieces Inventory</h1>
-        <Button onClick={loadAll} variant="outline" size="sm">Refresh</Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && stats.reservedPieces > 0 && (
+            <Button
+              onClick={handleReleaseOrphaned}
+              variant="outline"
+              size="sm"
+              disabled={releasing}
+              className="text-orange-600 border-orange-300 hover:bg-orange-50 flex items-center gap-1.5"
+              title="Release reserved pieces that are not tied to any active cutting draft"
+            >
+              <Unlock className="h-4 w-4" />
+              {releasing ? "Releasing..." : "Release Reserved"}
+            </Button>
+          )}
+          <Button onClick={loadAll} variant="outline" size="sm">Refresh</Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Pieces</CardTitle>
@@ -245,6 +284,16 @@ export default function MaterialPiecesPage() {
             <p className="text-xs text-muted-foreground">
               {stats.availableLength.toFixed(2)}m | {stats.availableWeight.toFixed(2)} kg
             </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Reserved</CardTitle>
+            <Package className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-500">{stats.reservedPieces}</div>
+            <p className="text-xs text-muted-foreground">Held by cutting drafts</p>
           </CardContent>
         </Card>
         <Card>

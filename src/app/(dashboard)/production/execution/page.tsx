@@ -312,8 +312,15 @@ function JobCardRow({
           <div className="w-4 shrink-0" />
         )}
 
-        {/* Order number */}
-        <span className="font-mono text-sm font-semibold w-36 shrink-0">{row.orderNo}</span>
+        {/* Order number + product spec */}
+        <span className="w-44 shrink-0">
+          <span className="font-mono text-sm font-semibold block">{row.orderNo}</span>
+          {(row.machineModel || row.rollerType || (row.numberOfTeeth ?? 0) > 0) && (
+            <span className="text-xs text-muted-foreground">
+              {[row.machineModel, row.rollerType, (row.numberOfTeeth ?? 0) > 0 ? `${row.numberOfTeeth}T` : null].filter(Boolean).join(' · ')}
+            </span>
+          )}
+        </span>
 
         {/* Qty */}
         <span className="text-sm text-muted-foreground">

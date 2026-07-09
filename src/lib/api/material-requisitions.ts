@@ -21,6 +21,9 @@ export interface MaterialRequisitionResponse {
   remarks?: string
   createdAt: string
   createdBy?: string
+  machineModel?: string
+  rollerType?: string
+  numberOfTeeth?: number
 }
 
 export interface MaterialRequisitionItemResponse {

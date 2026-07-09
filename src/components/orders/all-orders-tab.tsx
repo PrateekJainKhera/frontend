@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -16,20 +17,33 @@ import {
 } from '@/components/ui/select'
 import { Order, OrderStatus, OrderSource, Priority, PlanningStatus, DrawingReviewStatus, SchedulingStrategy } from '@/types'
 import { OrdersTable } from '@/components/tables/orders-table'
-import { orderService, OrderResponse } from '@/lib/api/orders'
+import { orderService, OrderResponse, OrderSummary } from '@/lib/api/orders'
 import { toast } from 'sonner'
+
+const PAGE_SIZES = [10, 25, 50, 100]
+
+// Map a UI tab to the backend status filter
+const tabToStatus = (tab: string): string =>
+  tab === 'pending' ? 'pending'
+  : tab === 'ready' ? 'ready'
+  : tab === 'completed' ? 'completed'
+  : ''
 
 export function AllOrdersTab() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
+  const [summary, setSummary] = useState<OrderSummary>({ total: 0, pending: 0, inProgress: 0, readyToDispatch: 0, completed: 0 })
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')            // debounced value sent to server
   const [sourceFilter, setSourceFilter] = useState<string>('all')
   const [activeTab, setActiveTab] = useState('all')
 
-  useEffect(() => {
-    loadOrders()
-  }, [])
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
 
   const expandOrder = (r: OrderResponse): Order[] => {
     const baseFields = {
@@ -50,13 +64,12 @@ export function AllOrdersTab() {
       createdBy: r.createdBy || '',
     }
 
-    // Multi-product order: expand into one row per item with -A/-B/-C suffix
     if (r.items && r.items.length > 0) {
       return r.items.map(item => ({
         ...baseFields,
         orderNo: `${r.orderNo}-${item.itemSequence}`,
         productId: String(item.productId),
-        product: { partCode: item.partCode ?? '', modelName: item.productName ?? '', numberOfTeeth: item.numberOfTeeth ?? 0 } as any,
+        product: { partCode: item.partCode ?? '', modelName: item.productName ?? '', rollerType: item.rollerType ?? '', numberOfTeeth: item.numberOfTeeth ?? 0 } as any,
         quantity: item.quantity,
         originalQuantity: item.originalQuantity,
         qtyCompleted: item.qtyCompleted,
@@ -72,12 +85,11 @@ export function AllOrdersTab() {
       }))
     }
 
-    // Single-product order
     return [{
       ...baseFields,
       orderNo: r.orderNo,
       productId: String(r.productId),
-      product: { partCode: r.productCode ?? '', modelName: r.productName ?? '', numberOfTeeth: r.numberOfTeeth ?? 0 } as any,
+      product: { partCode: r.productCode ?? '', modelName: r.productName ?? '', rollerType: r.rollerType ?? '', numberOfTeeth: r.numberOfTeeth ?? 0 } as any,
       quantity: r.quantity,
       originalQuantity: r.originalQuantity,
       qtyCompleted: r.qtyCompleted,
@@ -91,17 +103,37 @@ export function AllOrdersTab() {
     }]
   }
 
-  const loadOrders = async () => {
+  // Debounce the search box → server search, reset to page 1
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearch(searchInput)
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(id)
+  }, [searchInput])
+
+  const loadPage = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await orderService.getAll()
-      setOrders(data.flatMap(expandOrder))
-
+      const res = await orderService.getPaged(page, pageSize, search, tabToStatus(activeTab))
+      setOrders(res.items.flatMap(expandOrder))
+      setTotalCount(res.totalCount)
+      setTotalPages(res.totalPages)
     } catch (err) {
-      console.error('Failed to load orders:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to load orders')
+      setOrders([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, search, activeTab])
+
+  const loadSummary = useCallback(async () => {
+    setSummary(await orderService.getSummary())
+  }, [])
+
+  useEffect(() => { loadPage() }, [loadPage])
+  useEffect(() => { loadSummary() }, [loadSummary])
 
   const handleDelete = async (order: Order) => {
     const isMultiItemRow = !!order._itemId
@@ -117,7 +149,8 @@ export function AllOrdersTab() {
         await orderService.delete(Number(order.id))
         toast.success('Order deleted')
       }
-      loadOrders()
+      loadPage()
+      loadSummary()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete')
     }
@@ -127,59 +160,48 @@ export function AllOrdersTab() {
     router.push(`/orders/${orderId}/edit`)
   }
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer?.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.product?.modelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.product?.partCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.agentCustomer?.customerName.toLowerCase().includes(searchQuery.toLowerCase())
-
-    const matchesSource =
-      sourceFilter === 'all' || order.orderSource === sourceFilter
-
-    return matchesSearch && matchesSource
-  })
-
-  // Derive effective status from quantity fields (DB status may be stale)
-  const getEffectiveStatus = (o: Order): string => {
-    const dispatched = o.qtyDispatched ?? 0
-    if (dispatched >= o.quantity && o.quantity > 0) return 'Completed'
-    if (o.qtyCompleted >= o.quantity && o.quantity > 0) return 'Ready to Dispatch'
-    if ((o.qtyInProgress ?? 0) > 0 || (o.qtyCompleted ?? 0) > 0) return 'In Progress'
-    return o.status
+  const changeTab = (tab: string) => {
+    setActiveTab(tab)
+    setPage(1)
   }
 
+  const changePageSize = (size: string) => {
+    setPageSize(Number(size))
+    setPage(1)
+  }
+
+  // Source filter is applied client-side to the current page
+  const visibleOrders = sourceFilter === 'all'
+    ? orders
+    : orders.filter(o => o.orderSource === sourceFilter)
+
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
+  const rangeEnd = Math.min(page * pageSize, totalCount)
+
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
+    <div className="space-y-6 pb-24">
+      {/* Stats Cards — global counts from summary endpoint */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Total Orders</p>
-          <p className="text-2xl font-bold">{orders.length}</p>
+          <p className="text-2xl font-bold">{summary.total}</p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">In Progress</p>
-          <p className="text-2xl font-bold text-blue-600">
-            {orders.filter((o) => getEffectiveStatus(o) === 'In Progress').length}
-          </p>
+          <p className="text-2xl font-bold text-blue-600">{summary.inProgress}</p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Completed</p>
-          <p className="text-2xl font-bold text-green-600">
-            {orders.filter((o) => getEffectiveStatus(o) === 'Completed').length}
-          </p>
+          <p className="text-2xl font-bold text-green-600">{summary.completed}</p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Pending</p>
-          <p className="text-2xl font-bold text-amber-600">
-            {orders.filter((o) => getEffectiveStatus(o) === 'Pending').length}
-          </p>
+          <p className="text-2xl font-bold text-amber-600">{summary.pending}</p>
         </Card>
       </div>
 
-      {/* Tabs + Search on same row — same format as /masters/products */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      {/* Tabs + Search + filters */}
+      <Tabs value={activeTab} onValueChange={changeTab} className="w-full">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <TabsList className="grid max-w-xl grid-cols-4">
             <TabsTrigger value="all">All Orders</TabsTrigger>
@@ -193,8 +215,8 @@ export function AllOrdersTab() {
               <Search className="h-4 w-4 text-muted-foreground shrink-0" />
               <Input
                 placeholder="Search order, customer, product..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="border-0 shadow-none focus-visible:ring-0 h-8 px-0 text-sm flex-1 placeholder:text-muted-foreground/40 focus:placeholder:text-transparent caret-foreground"
               />
             </div>
@@ -217,35 +239,53 @@ export function AllOrdersTab() {
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
           </div>
         ) : (
-          <>
-            <TabsContent value="all" className="mt-4">
-              <OrdersTable orders={filteredOrders} onDelete={handleDelete} onEdit={handleEdit} />
-            </TabsContent>
+          <div className="mt-4 space-y-3">
+            <OrdersTable orders={visibleOrders} onDelete={handleDelete} onEdit={handleEdit} />
 
-            <TabsContent value="pending" className="mt-4">
-              <OrdersTable
-                orders={filteredOrders.filter(o => getEffectiveStatus(o) === 'Pending')}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-              />
-            </TabsContent>
+            {/* Pagination footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Rows per page</span>
+                <Select value={String(pageSize)} onValueChange={changePageSize}>
+                  <SelectTrigger className="w-20 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZES.map(s => (
+                      <SelectItem key={s} value={String(s)}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="ml-2">
+                  {totalCount === 0 ? 'No orders' : `${rangeStart}–${rangeEnd} of ${totalCount} orders`}
+                </span>
+              </div>
 
-            <TabsContent value="ready" className="mt-4">
-              <OrdersTable
-                orders={filteredOrders.filter(o => getEffectiveStatus(o) === 'Ready to Dispatch')}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-              />
-            </TabsContent>
-
-            <TabsContent value="completed" className="mt-4">
-              <OrdersTable
-                orders={filteredOrders.filter(o => getEffectiveStatus(o) === 'Completed')}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-              />
-            </TabsContent>
-          </>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Prev
+                </Button>
+                <span className="text-sm text-muted-foreground min-w-24 text-center">
+                  Page {totalPages === 0 ? 0 : page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </Tabs>
     </div>

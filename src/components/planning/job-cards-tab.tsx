@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { Filter, FileText, AlertTriangle, CheckCircle2, Clock, Package, Search, Pencil, Check, X } from 'lucide-react'
+import { Filter, FileText, AlertTriangle, CheckCircle2, Clock, Package, Search, Pencil, Check, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,19 +15,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { jobCardService, JobCardResponse } from '@/lib/api/job-cards'
-import { orderService, OrderResponse } from '@/lib/api/orders'
+import { jobCardService, JobCardResponse, JobCardSummary } from '@/lib/api/job-cards'
 import { toast } from 'sonner'
+
+const PAGE_SIZES = [10, 25, 50, 100]
 
 export function JobCardsTab() {
   const [loading, setLoading] = useState(true)
   const [jobCards, setJobCards] = useState<JobCardResponse[]>([])
-  const [orders, setOrders] = useState<OrderResponse[]>([])
+  const [summary, setSummary] = useState<JobCardSummary>({ total: 0, pending: 0, scheduled: 0, inProgress: 0, completed: 0 })
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
+  const [search, setSearch] = useState('')          // debounced
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [orderFilter, setOrderFilter] = useState<string>('all')
+
+  // Pagination
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
 
   // Inline qty edit
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -35,25 +42,34 @@ export function JobCardsTab() {
   const [savingId, setSavingId] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Debounce search → server, reset to page 1
   useEffect(() => {
-    loadData()
-  }, [])
+    const id = setTimeout(() => { setSearch(searchTerm); setPage(1) }, 400)
+    return () => clearTimeout(id)
+  }, [searchTerm])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      const [jobCardsData, ordersData] = await Promise.all([
-        jobCardService.getAll(),
-        orderService.getAll()
-      ])
-      setJobCards(jobCardsData)
-      setOrders(ordersData)
+      const res = await jobCardService.getPaged(page, pageSize, search, statusFilter)
+      setJobCards(res.items)
+      setTotalCount(res.totalCount)
+      setTotalPages(res.totalPages)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load job cards')
+      setJobCards([])
     } finally {
       setLoading(false)
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, search, statusFilter])
+
+  const loadSummary = useCallback(async () => {
+    setSummary(await jobCardService.getSummary())
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { loadSummary() }, [loadSummary])
 
   const startEdit = (jc: JobCardResponse) => {
     setEditingId(jc.id)
@@ -80,6 +96,7 @@ export function JobCardsTab() {
       setEditingId(null)
       setEditQty('')
       await loadData()
+      loadSummary()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update quantity')
     } finally {
@@ -87,40 +104,14 @@ export function JobCardsTab() {
     }
   }
 
-  // Apply filters
-  const filteredJobCards = jobCards.filter(jc => {
-    // Search filter
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase()
-      const matchesSearch =
-        jc.jobCardNo.toLowerCase().includes(search) ||
-        jc.orderNo?.toLowerCase().includes(search) ||
-        jc.childPartName?.toLowerCase().includes(search) ||
-        jc.processName?.toLowerCase().includes(search)
-      if (!matchesSearch) return false
-    }
+  // Server already applies search + status filtering to the current page
+  const filteredJobCards = jobCards
 
-    // Status filter
-    if (statusFilter !== 'all' && jc.status !== statusFilter) {
-      return false
-    }
+  // Stats come from the global summary endpoint
+  const stats = summary
 
-    // Order filter
-    if (orderFilter !== 'all' && jc.orderId.toString() !== orderFilter) {
-      return false
-    }
-
-    return true
-  })
-
-  // Stats
-  const stats = {
-    total: jobCards.length,
-    pending: jobCards.filter(jc => jc.status === 'Pending').length,
-    scheduled: jobCards.filter(jc => jc.status === 'Scheduled').length,
-    inProgress: jobCards.filter(jc => jc.productionStatus === 'InProgress' || jc.productionStatus === 'Paused').length,
-    completed: jobCards.filter(jc => jc.productionStatus === 'Completed').length,
-  }
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
+  const rangeEnd = Math.min(page * pageSize, totalCount)
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -215,14 +206,14 @@ export function JobCardsTab() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Search</label>
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Job card, order, child part..."
+                  placeholder="Job card, order, child part, process..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-8"
@@ -230,28 +221,10 @@ export function JobCardsTab() {
               </div>
             </div>
 
-            {/* Order Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Order</label>
-              <Select value={orderFilter} onValueChange={setOrderFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Orders" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Orders</SelectItem>
-                  {orders.map(order => (
-                    <SelectItem key={order.id} value={order.id.toString()}>
-                      {order.orderNo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Status Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
@@ -268,7 +241,7 @@ export function JobCardsTab() {
             </div>
           </div>
 
-          {(searchTerm || statusFilter !== 'all' || orderFilter !== 'all') && (
+          {(searchTerm || statusFilter !== 'all') && (
             <div className="mt-4">
               <Button
                 variant="outline"
@@ -276,7 +249,7 @@ export function JobCardsTab() {
                 onClick={() => {
                   setSearchTerm('')
                   setStatusFilter('all')
-                  setOrderFilter('all')
+                  setPage(1)
                 }}
               >
                 Clear Filters
@@ -293,7 +266,7 @@ export function JobCardsTab() {
             <div>
               <CardTitle>Job Cards List</CardTitle>
               <CardDescription className="mt-1">
-                {filteredJobCards.length} job card{filteredJobCards.length !== 1 ? 's' : ''} found
+                {totalCount === 0 ? 'No job cards' : `${rangeStart}–${rangeEnd} of ${totalCount} job cards`}
               </CardDescription>
             </div>
           </div>
@@ -344,6 +317,14 @@ export function JobCardsTab() {
                             <p className="font-medium">Step {jc.stepNo}</p>
                           </div>
                         )}
+                        <div>
+                          <span className="text-muted-foreground">Machine Model:</span>
+                          <p className="font-medium">{jc.machineModelName || '—'}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Roller Type:</span>
+                          <p className="font-medium">{jc.rollerType || '—'}</p>
+                        </div>
                         <div>
                           <span className="text-muted-foreground">No. of Teeth:</span>
                           <p className="font-medium">{(jc.numberOfTeeth ?? 0) > 0 ? jc.numberOfTeeth : '—'}</p>
@@ -426,6 +407,35 @@ export function JobCardsTab() {
               ))}
             </div>
           )}
+
+          {/* Pagination footer */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-2 border-t">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Rows per page</span>
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                <SelectTrigger className="w-20 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZES.map(s => <SelectItem key={s} value={String(s)}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <span className="ml-2">
+                {totalCount === 0 ? 'No job cards' : `${rangeStart}–${rangeEnd} of ${totalCount}`}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>
+                <ChevronLeft className="h-4 w-4" /> Prev
+              </Button>
+              <span className="text-sm text-muted-foreground min-w-24 text-center">
+                Page {totalPages === 0 ? 0 : page} of {totalPages}
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

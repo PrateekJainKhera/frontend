@@ -18,6 +18,7 @@ import { shiftService } from '@/lib/api/shifts'
 import { Shift, CreateShiftRequest } from '@/types/shift'
 import { toast } from 'sonner'
 import { ShiftsDataGrid } from '@/components/tables/shifts-data-grid'
+import { SearchInput } from '@/components/ui/search-input'
 
 const DEFAULT_FORM: CreateShiftRequest = {
   shiftName: '',
@@ -31,6 +32,7 @@ const DEFAULT_FORM: CreateShiftRequest = {
 export default function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<CreateShiftRequest>(DEFAULT_FORM)
@@ -88,8 +90,14 @@ export default function ShiftsPage() {
     }
   }
 
+  const filteredShifts = searchQuery.trim()
+    ? shifts.filter(s => s.shiftName?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : shifts
+
   return (
     <div className="space-y-4">
+      <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search shift name..." />
+
       {/* Data Grid */}
       {loading ? (
         <div className="space-y-3">
@@ -98,7 +106,7 @@ export default function ShiftsPage() {
           ))}
         </div>
       ) : (
-        <ShiftsDataGrid shifts={shifts} onEdit={openEdit} onUpdate={load} />
+        <ShiftsDataGrid shifts={filteredShifts} onEdit={openEdit} onUpdate={load} />
       )}
 
       {/* Create / Edit Dialog */}

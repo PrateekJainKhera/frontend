@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ProductSpec } from '@/components/ui/product-spec'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -289,6 +290,7 @@ export function MaterialRequisitionsTab() {
                         <div className="flex flex-col">
                           <span className="font-medium">{req.orderNo}</span>
                           <span className="text-xs text-muted-foreground">{req.customerName}</span>
+                          <ProductSpec machineModel={req.machineModel} rollerType={req.rollerType} numberOfTeeth={req.numberOfTeeth} />
                         </div>
                       </TableCell>
                       <TableCell>

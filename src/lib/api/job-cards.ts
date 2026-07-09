@@ -40,6 +40,7 @@ export interface JobCardResponse {
   orderItemId?: number | null
   itemSequence?: string | null
   machineModelName?: string | null
+  rollerType?: string | null
   numberOfTeeth?: number | null
 
   drawingId?: number | null
@@ -116,6 +117,22 @@ export interface UpdateJobCardStatusPayload {
   updatedBy?: string
 }
 
+export interface PagedJobCards {
+  items: JobCardResponse[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface JobCardSummary {
+  total: number
+  pending: number
+  scheduled: number
+  inProgress: number
+  completed: number
+}
+
 class JobCardService {
   private baseUrl = '/jobcards'
 
@@ -128,6 +145,30 @@ class JobCardService {
         throw new Error(error.response?.data?.message || `Failed to fetch job cards: ${error.message}`)
       }
       throw error
+    }
+  }
+
+  async getPaged(page: number, pageSize: number, search?: string, status?: string): Promise<PagedJobCards> {
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+      if (search && search.trim()) params.append('search', search.trim())
+      if (status && status !== 'all') params.append('status', status)
+      const response = await apiClient.get<ApiResponse<PagedJobCards>>(`${this.baseUrl}/paged?${params.toString()}`)
+      return response.data.data || { items: [], totalCount: 0, page, pageSize, totalPages: 0 }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch job cards: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getSummary(): Promise<JobCardSummary> {
+    try {
+      const response = await apiClient.get<ApiResponse<JobCardSummary>>(`${this.baseUrl}/summary`)
+      return response.data.data || { total: 0, pending: 0, scheduled: 0, inProgress: 0, completed: 0 }
+    } catch {
+      return { total: 0, pending: 0, scheduled: 0, inProgress: 0, completed: 0 }
     }
   }
 

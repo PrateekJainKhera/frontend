@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { PackagePlus, AlertTriangle, PackageMinus } from 'lucide-react'
+import { PackagePlus, AlertTriangle, PackageMinus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { inventoryService, InventoryResponse } from '@/lib/api/inventory'
@@ -16,6 +17,7 @@ export default function ReceiveComponentsPage() {
   const [loading, setLoading] = useState(true)
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
   const [lowStockComponents, setLowStockComponents] = useState<ComponentLowStockItem[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   useEffect(() => {
     loadInventory()
     componentService.getLowStock()
@@ -45,6 +47,15 @@ export default function ReceiveComponentsPage() {
   const totalComponents = componentInventory.length
   const lowStock = componentInventory.filter(i => i.isLowStock).length
   const outOfStock = componentInventory.filter(i => i.isOutOfStock).length
+
+  // Search filter applied to the displayed grid
+  const q = searchQuery.trim().toLowerCase()
+  const visibleComponents = q
+    ? componentInventory.filter(i =>
+        i.materialName?.toLowerCase().includes(q) ||
+        (i.materialCode ?? '').toLowerCase().includes(q)
+      )
+    : componentInventory
 
   return (
     <div className="space-y-6">
@@ -122,6 +133,19 @@ export default function ReceiveComponentsPage() {
         </Card>
       )}
 
+      {/* Search */}
+      {componentInventory.length > 0 && (
+        <div className="relative max-w-md">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search component by name or code..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      )}
+
       {/* Component Inventory Data Grid */}
       {loading ? (
         <div className="space-y-3">
@@ -136,8 +160,12 @@ export default function ReceiveComponentsPage() {
             Click "Receive Component" to add components to inventory
           </p>
         </Card>
+      ) : visibleComponents.length === 0 ? (
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-8 text-center">
+          <p className="text-muted-foreground">No components match "{searchQuery}"</p>
+        </Card>
       ) : (
-        <ComponentInventoryDataGrid inventory={componentInventory} />
+        <ComponentInventoryDataGrid inventory={visibleComponents} />
       )}
 
       {/* Receive Component Dialog */}

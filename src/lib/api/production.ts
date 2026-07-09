@@ -7,6 +7,9 @@ export interface ProductionOrderSummary {
   orderNo: string              // e.g. "ORD-202602-0001-A"
   customerName?: string | null
   productName?: string | null
+  machineModel?: string | null
+  rollerType?: string | null
+  numberOfTeeth?: number | null
   priority: string
   dueDate?: string | null
   totalSteps: number
@@ -29,6 +32,9 @@ export interface ExecutionViewRow {
   orderId: number
   orderItemId?: number | null
   orderNo: string
+  machineModel?: string | null
+  rollerType?: string | null
+  numberOfTeeth?: number | null
   childPartName?: string | null
   processName?: string | null
   stepNo?: number | null

@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Eye, Calendar, Pencil, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
+import { ProductSpec } from '@/components/ui/product-spec'
 import { Progress } from '@/components/ui/progress'
 import { getOrderProgress, getDelayDays } from '@/lib/mock-data/orders'
 
@@ -83,6 +84,7 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
             <TableHead>Quantity</TableHead>
             <TableHead>Progress</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Order Date</TableHead>
             <TableHead>Due Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -120,10 +122,11 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
                 <TableCell className="text-sm">
                   <div className="font-medium">
                     {order.product?.modelName || order.product?.partCode || '—'}
-                    {(order.product?.numberOfTeeth ?? 0) > 0 && (
-                      <span className="ml-1 text-xs text-muted-foreground">({order.product!.numberOfTeeth}T)</span>
-                    )}
                   </div>
+                  <ProductSpec
+                    rollerType={(order.product as any)?.rollerType}
+                    numberOfTeeth={order.product?.numberOfTeeth}
+                  />
                 </TableCell>
                 <TableCell>
                   <div className="text-sm">
@@ -153,6 +156,14 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
                       </Badge>
                     )
                   })()}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-sm">
+                      {order.orderDate ? formatDate(order.orderDate) : '—'}
+                    </span>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">

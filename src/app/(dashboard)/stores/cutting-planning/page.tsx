@@ -1122,6 +1122,17 @@ export default function MaterialIssuePage() {
     } catch { showToast('error', 'Failed to delete draft') }
   }
 
+  const handleCancelDraft = async (id: number) => {
+    if (!confirm('Cancel this finalized draft and release its reserved materials back to Available?')) return
+    try {
+      await issueWindowService.cancelDraft(id)
+      setSelectedIssueIds(prev => { const next = new Set(prev); next.delete(id); return next })
+      await loadIssueDrafts()
+      await recomputeDraftedKeys()
+      showToast('success', 'Draft cancelled — reserved materials released')
+    } catch { showToast('error', 'Failed to cancel draft') }
+  }
+
   const handlePrintSlips = async () => {
     const ids = [...selectedDraftIds]
     if (!ids.length) return
@@ -1655,6 +1666,15 @@ export default function MaterialIssuePage() {
                       >
                         <PackageCheck className="h-3 w-3" />
                         Issue
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleCancelDraft(draft.id)}
+                        title="Cancel draft — release reserved materials"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>

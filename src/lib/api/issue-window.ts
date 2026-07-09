@@ -75,4 +75,9 @@ export const issueWindowService = {
   deleteDraft: async (id: number): Promise<void> => {
     await apiClient.delete(`${BASE}/drafts/${id}`)
   },
+
+  // Cancel a Draft or Finalized draft — releases its reserved pieces (never an Issued draft)
+  cancelDraft: async (id: number): Promise<void> => {
+    await apiClient.post(`${BASE}/drafts/${id}/cancel`)
+  },
 }

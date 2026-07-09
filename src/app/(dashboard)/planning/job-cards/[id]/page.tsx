@@ -155,6 +155,12 @@ export default function JobCardDetailPage() {
                 <p className="font-semibold mt-1">{jobCard.machineModelName}</p>
               </div>
             )}
+            {jobCard.rollerType && (
+              <div>
+                <span className="text-muted-foreground">Roller Type:</span>
+                <p className="font-semibold mt-1">{jobCard.rollerType}</p>
+              </div>
+            )}
             {(jobCard.numberOfTeeth ?? 0) > 0 && (
               <div>
                 <span className="text-muted-foreground">No. of Teeth:</span>

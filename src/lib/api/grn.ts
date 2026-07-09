@@ -199,6 +199,31 @@ class GRNService {
     }
   }
 
+  async getRejected(): Promise<GRNResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<GRNResponse[]>>(`${this.baseUrl}/rejected`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch rejected GRNs: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async resubmit(id: number, data: CreateGRNRequest): Promise<GRNResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse<GRNResponse>>(`${this.baseUrl}/${id}/resubmit`, data)
+      if (!response.data.data) throw new Error('Failed to re-submit GRN')
+      return response.data.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to re-submit GRN: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async approve(id: number, actionBy: string, notes?: string): Promise<GRNResponse> {
     try {
       const response = await apiClient.post<ApiResponse<GRNResponse>>(`${this.baseUrl}/${id}/approve`, { actionBy, notes })

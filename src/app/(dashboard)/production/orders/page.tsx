@@ -179,10 +179,14 @@ export default function ProductionOrdersPage() {
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       {item.customerName && <span>{item.customerName}</span>}
-                      {item.productName && (
+                      {(item.machineModel || item.productName) && (
                         <>
                           <span>·</span>
-                          <span className="font-medium text-foreground truncate max-w-[200px]">{item.productName}</span>
+                          <span className="font-medium text-foreground truncate max-w-[260px]">
+                            {item.machineModel || item.productName}
+                            {item.rollerType ? ` · ${item.rollerType}` : ''}
+                            {(item.numberOfTeeth ?? 0) > 0 ? ` · ${item.numberOfTeeth}T` : ''}
+                          </span>
                         </>
                       )}
                       {item.dueDate && (
