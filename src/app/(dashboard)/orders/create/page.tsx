@@ -74,6 +74,7 @@ export default function CreateOrderPage() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
+  const [orderDate, setOrderDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [createCustomerDialogOpen, setCreateCustomerDialogOpen] = useState(false)
   const [productSearchDialogOpen, setProductSearchDialogOpen] = useState(false)
 
@@ -157,6 +158,7 @@ export default function CreateOrderPage() {
     try {
       const orderId = await orderService.create({
         customerId: Number(data.customerId),
+        orderDate: orderDate || undefined,
         items: orderItems.map(item => ({
           productId: item.product.id,
           quantity: item.quantity,
@@ -259,6 +261,17 @@ export default function CreateOrderPage() {
                     </FormItem>
                   )}
                 />
+
+                {/* Order Date */}
+                <div>
+                  <FormLabel>Order Date *</FormLabel>
+                  <Input
+                    type="date"
+                    value={orderDate}
+                    onChange={(e) => setOrderDate(e.target.value)}
+                    className="mt-1 max-w-xs"
+                  />
+                </div>
 
                 {/* Products */}
                 <div className="space-y-3">

@@ -129,7 +129,9 @@ const navItems: NavItem[] = [
       { title: 'Material Pieces', href: '/inventory/material-pieces', icon: PackageCheck },
       { title: 'Requisitions', href: '/inventory/material-requisitions', icon: FileText },
       { title: 'Receive Components', href: '/inventory/receive-components', icon: PackageCheck },
-      { title: 'Component Issue', href: '/inventory/component-issue', icon: PackageMinus },
+      { title: 'Issue to Shop Floor', href: '/inventory/component-issue', icon: PackageMinus },
+      { title: 'Consume Components', href: '/inventory/component-consume', icon: PackageMinus },
+      { title: 'Stock Reconcile', href: '/inventory/reconcile', icon: PackageCheck },
       { title: 'Warehouses', href: '/inventory/warehouses', icon: Warehouse },
       { title: 'GRN Approvals', href: '/inventory/grn-approvals', icon: ShieldAlert }
     ]

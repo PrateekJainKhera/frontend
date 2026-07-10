@@ -17,12 +17,21 @@ import { formatDate } from '@/lib/utils/formatters'
 import { ProductSpec } from '@/components/ui/product-spec'
 import { Progress } from '@/components/ui/progress'
 import { getOrderProgress, getDelayDays } from '@/lib/mock-data/orders'
+import { OrderColumnFilters } from '@/lib/api/orders'
+import { X } from 'lucide-react'
 
 interface OrdersTableProps {
   orders: Order[]
   onDelete?: (order: Order) => void
   onEdit?: (orderId: string) => void
+  // When provided, a per-column filter row is shown under the header
+  filters?: OrderColumnFilters
+  onFilterChange?: (patch: Partial<OrderColumnFilters>) => void
+  onClearFilters?: () => void
 }
+
+const filterInputClass =
+  "w-full h-7 rounded border border-input bg-background px-2 text-xs font-normal placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
 
 const getEffectiveStatus = (order: Order): string => {
   const dispatched = order.qtyDispatched ?? 0
@@ -51,7 +60,7 @@ const getStatusClass = (status: string) => {
   }
 }
 
-export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
+export function OrdersTable({ orders, onDelete, onEdit, filters, onFilterChange, onClearFilters }: OrdersTableProps) {
   const router = useRouter()
 
   const handleViewOrder = (order: Order) => {
@@ -62,14 +71,6 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
     } else {
       router.push(`/orders/${order.id}`)
     }
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p>No orders found</p>
-      </div>
-    )
   }
 
   return (
@@ -88,9 +89,49 @@ export function OrdersTable({ orders, onDelete, onEdit }: OrdersTableProps) {
             <TableHead>Due Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
+          {onFilterChange && (
+            <TableRow className="hover:bg-transparent border-b">
+              <TableHead className="p-1 align-top">
+                <input className={filterInputClass} placeholder="Filter…"
+                  value={filters?.orderNo ?? ''} onChange={(e) => onFilterChange({ orderNo: e.target.value })} />
+              </TableHead>
+              <TableHead className="p-1 align-top">
+                <input className={filterInputClass} placeholder="Filter…"
+                  value={filters?.customer ?? ''} onChange={(e) => onFilterChange({ customer: e.target.value })} />
+              </TableHead>
+              <TableHead className="p-1 align-top" />
+              <TableHead className="p-1 align-top">
+                <input className={filterInputClass} placeholder="e.g. 110 / model"
+                  value={filters?.product ?? ''} onChange={(e) => onFilterChange({ product: e.target.value })} />
+              </TableHead>
+              <TableHead className="p-1 align-top" />
+              <TableHead className="p-1 align-top" />
+              <TableHead className="p-1 align-top" />
+              <TableHead className="p-1 align-top">
+                <div className="flex flex-col gap-1">
+                  <input type="date" title="Order date from" className={filterInputClass}
+                    value={filters?.orderDateFrom ?? ''} onChange={(e) => onFilterChange({ orderDateFrom: e.target.value })} />
+                  <input type="date" title="Order date to" className={filterInputClass}
+                    value={filters?.orderDateTo ?? ''} onChange={(e) => onFilterChange({ orderDateTo: e.target.value })} />
+                </div>
+              </TableHead>
+              <TableHead className="p-1 align-top" />
+              <TableHead className="p-1 align-top text-right">
+                {onClearFilters && (
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onClearFilters} title="Clear filters">
+                    <X className="h-3 w-3 mr-1" /> Clear
+                  </Button>
+                )}
+              </TableHead>
+            </TableRow>
+          )}
         </TableHeader>
         <TableBody>
-          {orders.map((order) => {
+          {orders.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">No orders found</TableCell>
+            </TableRow>
+          ) : orders.map((order) => {
             const progress = getOrderProgress(order)
             const delayDays = getDelayDays(order)
 

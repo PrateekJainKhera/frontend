@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select'
 import { Order, OrderStatus, OrderSource, Priority, PlanningStatus, DrawingReviewStatus, SchedulingStrategy } from '@/types'
 import { OrdersTable } from '@/components/tables/orders-table'
-import { orderService, OrderResponse, OrderSummary } from '@/lib/api/orders'
+import { orderService, OrderResponse, OrderSummary, OrderColumnFilters } from '@/lib/api/orders'
 import { toast } from 'sonner'
 
 const PAGE_SIZES = [10, 25, 50, 100]
@@ -38,6 +38,8 @@ export function AllOrdersTab() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')            // debounced value sent to server
   const [sourceFilter, setSourceFilter] = useState<string>('all')
+  const [colInput, setColInput] = useState<OrderColumnFilters>({})   // live per-column filter inputs
+  const [colFilters, setColFilters] = useState<OrderColumnFilters>({}) // debounced value sent to server
   const [activeTab, setActiveTab] = useState('all')
 
   const [page, setPage] = useState(1)
@@ -112,10 +114,19 @@ export function AllOrdersTab() {
     return () => clearTimeout(id)
   }, [searchInput])
 
+  // Debounce the per-column filter row + source dropdown → server filters, reset to page 1
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setColFilters({ ...colInput, source: sourceFilter !== 'all' ? sourceFilter : undefined })
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(id)
+  }, [colInput, sourceFilter])
+
   const loadPage = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await orderService.getPaged(page, pageSize, search, tabToStatus(activeTab))
+      const res = await orderService.getPaged(page, pageSize, search, tabToStatus(activeTab), colFilters)
       setOrders(res.items.flatMap(expandOrder))
       setTotalCount(res.totalCount)
       setTotalPages(res.totalPages)
@@ -126,7 +137,7 @@ export function AllOrdersTab() {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, search, activeTab])
+  }, [page, pageSize, search, activeTab, colFilters])
 
   const loadSummary = useCallback(async () => {
     setSummary(await orderService.getSummary())
@@ -170,18 +181,13 @@ export function AllOrdersTab() {
     setPage(1)
   }
 
-  // Source filter is applied client-side to the current page
-  const visibleOrders = sourceFilter === 'all'
-    ? orders
-    : orders.filter(o => o.orderSource === sourceFilter)
-
   const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
   const rangeEnd = Math.min(page * pageSize, totalCount)
 
   return (
     <div className="space-y-6 pb-24">
       {/* Stats Cards — global counts from summary endpoint */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Total Orders</p>
           <p className="text-2xl font-bold">{summary.total}</p>
@@ -189,6 +195,10 @@ export function AllOrdersTab() {
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">In Progress</p>
           <p className="text-2xl font-bold text-blue-600">{summary.inProgress}</p>
+        </Card>
+        <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
+          <p className="text-sm text-muted-foreground">Ready to Dispatch</p>
+          <p className="text-2xl font-bold text-indigo-600">{summary.readyToDispatch}</p>
         </Card>
         <Card className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
           <p className="text-sm text-muted-foreground">Completed</p>
@@ -240,7 +250,14 @@ export function AllOrdersTab() {
           </div>
         ) : (
           <div className="mt-4 space-y-3">
-            <OrdersTable orders={visibleOrders} onDelete={handleDelete} onEdit={handleEdit} />
+            <OrdersTable
+              orders={orders}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+              filters={colInput}
+              onFilterChange={(patch) => setColInput((prev) => ({ ...prev, ...patch }))}
+              onClearFilters={() => { setColInput({}); setSourceFilter('all') }}
+            />
 
             {/* Pagination footer */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1">

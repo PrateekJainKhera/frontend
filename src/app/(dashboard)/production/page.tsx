@@ -389,8 +389,15 @@ function OrderRow({
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-muted-foreground" />
-          <p className="font-medium">{order.productName ?? '—'}</p>
+          <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div>
+            <p className="font-medium">{order.machineModel || order.productName || '—'}</p>
+            {(order.rollerType || (order.numberOfTeeth ?? 0) > 0) && (
+              <p className="text-xs text-muted-foreground">
+                {[order.rollerType, (order.numberOfTeeth ?? 0) > 0 ? `${order.numberOfTeeth}T` : null].filter(Boolean).join(' · ')}
+              </p>
+            )}
+          </div>
         </div>
       </TableCell>
       <TableCell>

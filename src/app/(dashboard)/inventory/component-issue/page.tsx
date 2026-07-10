@@ -30,11 +30,13 @@ import {
   componentIssueService,
   ComponentIssueResponse,
   ComponentWithStock,
+  ShopFloorComponentStock,
 } from "@/lib/api/component-issues"
 
 export default function ComponentIssuePage() {
   const [components, setComponents] = useState<ComponentWithStock[]>([])
   const [issues, setIssues] = useState<ComponentIssueResponse[]>([])
+  const [floorStock, setFloorStock] = useState<ShopFloorComponentStock[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [historySearch, setHistorySearch] = useState("")
@@ -53,11 +55,13 @@ export default function ComponentIssuePage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [comps, hist] = await Promise.all([
+      const [comps, hist, floor] = await Promise.all([
         componentIssueService.getComponentsWithStock(),
         componentIssueService.getAll(),
+        componentIssueService.getShopFloorStock(),
       ])
       setComponents(comps)
+      setFloorStock(floor)
       setIssues(hist)
     } catch {
       toast.error("Failed to load data")
@@ -102,16 +106,18 @@ export default function ComponentIssuePage() {
         remarks: remarks.trim() || undefined,
         createdBy: issuedBy.trim(),
       })
-      toast.success(`Issued successfully — ${result.issueNo}`, {
-        description: `${qty} ${result.unit} of ${result.componentName} issued to production`
+      toast.success(`Moved to shop floor — ${result.issueNo}`, {
+        description: `${qty} ${result.unit} of ${result.componentName} moved from Main Stock to the Shop Floor`
       })
       resetForm()
       // Refresh both — stock numbers change after issue
-      const [comps, hist] = await Promise.all([
+      const [comps, hist, floor] = await Promise.all([
         componentIssueService.getComponentsWithStock(),
         componentIssueService.getAll(),
+        componentIssueService.getShopFloorStock(),
       ])
       setComponents(comps)
+      setFloorStock(floor)
       setIssues(hist)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to issue component")
@@ -154,12 +160,51 @@ export default function ComponentIssuePage() {
       <div className="flex items-center gap-3">
         <PackageCheck className="h-7 w-7 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold">Component Issue</h1>
+          <h1 className="text-2xl font-bold">Issue to Shop Floor</h1>
           <p className="text-sm text-muted-foreground">
-            Issue components (magnets, bearings, etc.) to production. Stock is deducted on issue.
+            Move components (magnets, bearings, nuts &amp; bolts, etc.) from Main Stock to the Shop Floor.
+            They are later consumed against orders from the floor.
           </p>
         </div>
       </div>
+
+      {/* Shop Floor Stock */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Shop Floor Stock</CardTitle>
+          <CardDescription>Components currently on the shop floor (available = on floor − reserved by orders).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {floorStock.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">No components on the shop floor yet. Issue some above.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-2 pr-4 font-medium">Component</th>
+                    <th className="py-2 px-4 font-medium">Part No.</th>
+                    <th className="py-2 px-4 font-medium text-right">On Floor</th>
+                    <th className="py-2 px-4 font-medium text-right">Reserved</th>
+                    <th className="py-2 pl-4 font-medium text-right">Available</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {floorStock.map(s => (
+                    <tr key={s.componentId} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-medium">{s.componentName}</td>
+                      <td className="py-2 px-4 text-muted-foreground">{s.partNumber ?? '—'}</td>
+                      <td className="py-2 px-4 text-right">{s.quantity} {s.uom}</td>
+                      <td className="py-2 px-4 text-right text-amber-600">{s.reservedQty}</td>
+                      <td className={`py-2 pl-4 text-right font-semibold ${s.availableQty <= 0 ? 'text-destructive' : 'text-green-600'}`}>{s.availableQty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Issue Form */}

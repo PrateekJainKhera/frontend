@@ -382,7 +382,21 @@ export default function OpeningStockForm({ id }: Props) {
     return { entryDate, remarks: remarks || undefined, items }
   }
 
+  // Piece-length sanity — a bar cannot exceed 4 m (industry max usable is 3.657 m). Blocks save/confirm.
+  const pieceLengthOk = (): boolean => {
+    for (const line of rmLines) {
+      for (const b of line.batches) {
+        if (b.lengthM > 4.0) {
+          toast.error(`Piece length ${b.lengthM} m is not accurate — a bar cannot exceed 4 m. Please check and correct before adding.`, { duration: 6000 })
+          return false
+        }
+      }
+    }
+    return true
+  }
+
   const handleSave = async () => {
+    if (!pieceLengthOk()) return
     setSaving(true)
     try {
       if (isNew) {
@@ -404,6 +418,7 @@ export default function OpeningStockForm({ id }: Props) {
 
   const handleConfirm = async () => {
     if (!id) return
+    if (!pieceLengthOk()) return
     if (!confirm('Confirm this entry? This will add all items to inventory and cannot be undone.')) return
     setConfirming(true)
     try {
@@ -722,6 +737,11 @@ export default function OpeningStockForm({ id }: Props) {
                               <span className={`text-sm font-semibold w-24 ${batch.lengthM > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
                                 = {(batch.lengthM * batch.quantity).toFixed(2)}m
                               </span>
+                              {batch.lengthM > 4.0 ? (
+                                <span className="text-xs text-destructive font-medium whitespace-nowrap">⚠ &gt;4m — not accurate</span>
+                              ) : batch.lengthM > 3.657 ? (
+                                <span className="text-xs text-amber-600 whitespace-nowrap">⚠ unusually long (&gt;3.657m)</span>
+                              ) : null}
                               {!isReadonly && (
                                 <Button variant="ghost" size="sm"
                                   onClick={() => removeBatch(line.id, batch.id)}

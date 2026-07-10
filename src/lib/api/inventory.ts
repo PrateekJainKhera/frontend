@@ -173,6 +173,21 @@ class InventoryService {
     }
   }
 
+  /** Reconcile a raw material's system stock to the physical count. Logs an adjustment transaction. */
+  async reconcile(materialId: number, actualQuantity: number, performedBy: string, remarks: string): Promise<void> {
+    try {
+      const res = await apiClient.post<ApiResponse<boolean>>(`${this.baseUrl}/reconcile`, {
+        materialId, actualQuantity, performedBy, remarks,
+      })
+      if (!res.data.success) throw new Error(res.data.message || 'Reconcile failed')
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to reconcile: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async getTransactionsByMaterialId(materialId: number): Promise<InventoryTransactionResponse[]> {
     try {
       const response = await apiClient.get<ApiResponse<InventoryTransactionResponse[]>>(

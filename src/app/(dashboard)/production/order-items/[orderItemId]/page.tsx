@@ -82,6 +82,9 @@ interface ProductionOrderDetail {
   orderNo: string
   customerName: string | null
   productName: string | null
+  machineModel?: string | null
+  rollerType?: string | null
+  numberOfTeeth?: number | null
   priority: string
   dueDate: string | null
   totalSteps: number
@@ -536,7 +539,9 @@ export default function OrderItemProductionPage() {
             <div>
               <CardTitle className="text-xl">{order.orderNo}</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                {order.customerName ?? '—'} • {order.productName ?? '—'}
+                {order.customerName ?? '—'}
+                {' • '}
+                {[order.machineModel || order.productName, order.rollerType, (order.numberOfTeeth ?? 0) > 0 ? `${order.numberOfTeeth}T` : null].filter(Boolean).join(' · ') || '—'}
               </p>
             </div>
             <Badge variant={progress === 100 ? 'default' : 'secondary'} className="text-lg px-3">

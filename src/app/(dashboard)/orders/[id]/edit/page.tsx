@@ -20,6 +20,9 @@ import {
 } from '@/components/ui/select'
 import { orderService, OrderResponse, OrderCustomerDrawing } from '@/lib/api/orders'
 import { productService } from '@/lib/api/products'
+import { customerService } from '@/lib/api/customer'
+import { Customer } from '@/types/customer'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import { ProductSearchDialog } from '@/components/dialogs/product-search-dialog'
 import { Product } from '@/types'
 import { toast } from 'sonner'
@@ -63,6 +66,9 @@ export default function EditOrderPage() {
   const [deletingDrawingId, setDeletingDrawingId] = useState<number | null>(null)
   const [changingProductIndex, setChangingProductIndex] = useState<number | null>(null)
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null)
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
+  const [changingCustomer, setChangingCustomer] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { load() }, [orderId])
@@ -86,12 +92,15 @@ export default function EditOrderPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const [ord, drw] = await Promise.all([
+      const [ord, drw, custs] = await Promise.all([
         orderService.getById(orderId),
         orderService.getCustomerDrawings(orderId),
+        customerService.getAll().catch(() => [] as Customer[]),
       ])
       setOrder(ord)
       setDrawings(drw)
+      setCustomers(custs)
+      setSelectedCustomerId(String(ord.customerId ?? ''))
 
       if (ord.items && ord.items.length > 0) {
         const built = await Promise.all(ord.items.map(async item => {
@@ -153,6 +162,23 @@ export default function EditOrderPage() {
     ))
     setChangingProductIndex(null)
     toast.success(`Product changed to ${product.partCode}`)
+  }
+
+  const handleChangeCustomer = async () => {
+    if (!order || !selectedCustomerId) return
+    if (Number(selectedCustomerId) === order.customerId) { toast.info('Customer is unchanged'); return }
+    const newCust = customers.find(c => c.id === Number(selectedCustomerId))
+    if (!confirm(`Change customer to "${newCust?.customerName}"?\n\nThis updates the order and cascades to its material requisitions and delivery challans. The change is logged.`)) return
+    setChangingCustomer(true)
+    try {
+      const msg = await orderService.changeCustomer(orderId, Number(selectedCustomerId), 'Admin')
+      toast.success(msg, { duration: 6000 })
+      await load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to change customer')
+    } finally {
+      setChangingCustomer(false)
+    }
   }
 
   const handleSave = async () => {
@@ -288,6 +314,36 @@ export default function EditOrderPage() {
           <p className="text-muted-foreground text-sm">{order.orderNo} — {order.customerName}</p>
         </div>
       </div>
+
+      {/* Customer */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Customer</CardTitle>
+          <CardDescription>Change the customer if the wrong client was selected. This also updates linked requisitions &amp; challans, and is logged.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[260px]">
+              <Label className="text-xs">Customer</Label>
+              <SearchableSelect
+                value={selectedCustomerId}
+                onChange={setSelectedCustomerId}
+                options={customers.map(c => ({ value: String(c.id), label: c.customerName }))}
+                placeholder="Select customer…"
+                searchPlaceholder="Search customer…"
+              />
+            </div>
+            <Button
+              onClick={handleChangeCustomer}
+              disabled={changingCustomer || !selectedCustomerId || Number(selectedCustomerId) === order.customerId}
+            >
+              {changingCustomer ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              {Number(selectedCustomerId) === order.customerId ? 'Current Customer' : 'Change Customer'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">Current: <span className="font-medium text-foreground">{order.customerName}</span></p>
+        </CardContent>
+      </Card>
 
       {/* Order Items */}
       <Card>

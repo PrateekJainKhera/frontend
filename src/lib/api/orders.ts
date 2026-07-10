@@ -166,6 +166,28 @@ export interface PagedOrders {
   totalPages: number
 }
 
+// Per-column filters for the Orders list (all combined with AND on the server)
+export interface OrderColumnFilters {
+  orderNo?: string
+  customer?: string
+  product?: string        // matches PartCode/Model/Roller/Teeth — "110" hits "110T"
+  source?: string
+  orderDateFrom?: string  // yyyy-mm-dd
+  orderDateTo?: string    // yyyy-mm-dd
+}
+
+export interface OrderLite {
+  orderId: number
+  orderItemId: number
+  itemSequence?: string | null
+  orderNo: string          // base order no (without -A/-B)
+  customerName?: string | null
+  machineModel?: string | null
+  rollerType?: string | null
+  numberOfTeeth?: number | null
+  orderDate: string
+}
+
 export interface OrderSummary {
   total: number
   pending: number
@@ -227,13 +249,43 @@ class OrderService {
     }
   }
 
-  async getPaged(page: number, pageSize: number, search?: string, status?: string): Promise<PagedOrders> {
+  async getPaged(page: number, pageSize: number, search?: string, status?: string, filters?: OrderColumnFilters): Promise<PagedOrders> {
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
       if (search && search.trim()) params.append('search', search.trim())
       if (status && status !== 'all') params.append('status', status)
+      if (filters?.orderNo?.trim()) params.append('orderNo', filters.orderNo.trim())
+      if (filters?.customer?.trim()) params.append('customer', filters.customer.trim())
+      if (filters?.product?.trim()) params.append('product', filters.product.trim())
+      if (filters?.source && filters.source !== 'all') params.append('source', filters.source)
+      if (filters?.orderDateFrom) params.append('orderDateFrom', filters.orderDateFrom)
+      if (filters?.orderDateTo) params.append('orderDateTo', filters.orderDateTo)
       const response = await apiClient.get<ApiResponse<PagedOrders>>(`${this.baseUrl}/paged?${params.toString()}`)
       return response.data.data || { items: [], totalCount: 0, page, pageSize, totalPages: 0 }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch orders: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async changeCustomer(orderId: number, customerId: number, changedBy?: string, notes?: string): Promise<string> {
+    try {
+      const res = await apiClient.post<ApiResponse<boolean>>(
+        `${this.baseUrl}/${orderId}/change-customer`, { customerId, changedBy, notes })
+      if (!res.data.success) throw new Error(res.data.message || 'Failed to change customer')
+      return res.data.message || 'Customer changed'
+    } catch (error) {
+      if (axios.isAxiosError(error)) throw new Error(error.response?.data?.message || `Failed to change customer: ${error.message}`)
+      throw error
+    }
+  }
+
+  async getLite(): Promise<OrderLite[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<OrderLite[]>>(`${this.baseUrl}/lite`)
+      return response.data.data || []
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to fetch orders: ${error.message}`)

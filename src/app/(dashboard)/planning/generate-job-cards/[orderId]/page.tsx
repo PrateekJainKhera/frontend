@@ -26,6 +26,9 @@ import { processTemplateService, ProcessTemplateStepResponse } from '@/lib/api/p
 import { jobCardService, CreateJobCardPayload, JobCardMaterialRequirementRequest } from '@/lib/api/job-cards'
 import { materialService, MaterialResponse } from '@/lib/api/materials'
 import { componentService, ComponentResponse } from '@/lib/api/components'
+import { productDefaultComponentService } from '@/lib/api/product-default-components'
+import { orderComponentService } from '@/lib/api/order-components'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import { inventoryService, InventoryResponse } from '@/lib/api/inventory'
 import { materialRequisitionService, CreateMaterialRequisitionRequest } from '@/lib/api/material-requisitions'
 import { materialPieceService, MaterialPieceResponse } from '@/lib/api/material-pieces'
@@ -96,6 +99,9 @@ export default function GenerateJobCardsPage() {
 
   // Available components from Component Master (Masters_Components)
   const [availableComponents, setAvailableComponents] = useState<ComponentResponse[]>([])
+  // Phase 2: components planned for this product (bearings, nuts & bolts, etc.), remembered per product
+  const [componentPlan, setComponentPlan] = useState<{ componentId: number; componentName: string; partNumber?: string; noOfPieces: number; uom?: string }[]>([])
+  const [savingComponents, setSavingComponents] = useState(false)
 
   // Inventory data - Map of materialId to InventoryResponse
   const [inventoryData, setInventoryData] = useState<Map<number, InventoryResponse>>(new Map())
@@ -288,6 +294,22 @@ export default function GenerateJobCardsPage() {
           setProductDefaultMaterials(defaults)
         } catch (error) {
           console.warn('No default materials found for product:', error)
+        }
+      }
+
+      // Load product default components — pre-fill the Components section (Phase 2)
+      if (currentProductId) {
+        try {
+          const compDefaults = await productDefaultComponentService.getByProductId(currentProductId)
+          setComponentPlan(compDefaults.map(d => ({
+            componentId: d.componentId,
+            componentName: d.componentName ?? '',
+            partNumber: d.partNumber ?? undefined,
+            noOfPieces: d.noOfPieces,
+            uom: d.uom ?? undefined,
+          })))
+        } catch (error) {
+          console.warn('No default components found for product:', error)
         }
       }
 
@@ -847,6 +869,48 @@ export default function GenerateJobCardsPage() {
     return Object.values(aggregated)
   }
 
+  // ── Component plan (Phase 2) ────────────────────────────────────────────────
+  const addComponentRow = () =>
+    setComponentPlan(prev => [...prev, { componentId: 0, componentName: '', noOfPieces: 1 }])
+
+  const removeComponentRow = (idx: number) =>
+    setComponentPlan(prev => prev.filter((_, i) => i !== idx))
+
+  const pickComponentForRow = (idx: number, componentId: number) => {
+    const c = availableComponents.find(x => x.id === componentId)
+    setComponentPlan(prev => prev.map((r, i) => i === idx
+      ? { ...r, componentId, componentName: c?.componentName ?? '', partNumber: c?.partNumber, uom: c?.unit }
+      : r))
+  }
+
+  const setComponentQty = (idx: number, qty: number) =>
+    setComponentPlan(prev => prev.map((r, i) => i === idx ? { ...r, noOfPieces: qty } : r))
+
+  const saveComponentPlan = async () => {
+    if (!productId) { toast.error('No product selected for this item'); return }
+    const valid = componentPlan.filter(r => r.componentId > 0 && r.noOfPieces > 0)
+    setSavingComponents(true)
+    try {
+      await productDefaultComponentService.saveDefaults(productId, {
+        components: valid.map(r => ({
+          componentId: r.componentId,
+          componentName: r.componentName,
+          partNumber: r.partNumber,
+          noOfPieces: r.noOfPieces,
+          uom: r.uom,
+        })),
+        updatedBy: 'Planning',
+      })
+      toast.success('Components saved for this product', {
+        description: 'They will pre-fill next time this product is planned.',
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save components')
+    } finally {
+      setSavingComponents(false)
+    }
+  }
+
   const handleGenerateJobCards = async () => {
     if (!order || !productTemplate) return
 
@@ -1156,6 +1220,30 @@ export default function GenerateJobCardsPage() {
           description: 'You may need to create material requisition manually',
           duration: 5000,
         })
+      }
+
+      // Reserve the planned components on the shop floor for this order (Phase 3)
+      if (componentPlan.length > 0) {
+        try {
+          const itemQty = currentOrderItem ? currentOrderItem.quantity : order.quantity
+          await orderComponentService.reserve({
+            orderId: order.id,
+            orderItemId: currentOrderItem?.id ?? null,
+            orderNo: currentOrderItem ? `${order.orderNo}-${currentOrderItem.itemSequence}` : order.orderNo,
+            reservedBy: 'Planning',
+            components: componentPlan
+              .filter(c => c.componentId > 0 && c.noOfPieces > 0)
+              .map(c => ({
+                componentId: c.componentId,
+                componentName: c.componentName,
+                partNumber: c.partNumber,
+                uom: c.uom,
+                quantity: c.noOfPieces * itemQty, // per-piece × order quantity
+              })),
+          })
+        } catch (error) {
+          console.warn('Failed to reserve components on shop floor:', error)
+        }
       }
 
       toast.dismiss()
@@ -2193,6 +2281,49 @@ export default function GenerateJobCardsPage() {
           )}
         </div>
       )}
+
+      {/* Components (Phase 2) — bearings, nuts & bolts, etc.; remembered per product */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Components (Bearings, Nuts &amp; Bolts, etc.)</CardTitle>
+          <CardDescription>
+            Select the components this product needs and how many pieces. <strong>Save</strong> remembers them for this product — they pre-fill next time it is planned. (Consumed from Shop Floor stock against the order.)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {componentPlan.length === 0 && (
+            <p className="text-sm text-muted-foreground">No components added yet.</p>
+          )}
+          {componentPlan.map((row, idx) => (
+            <div key={idx} className="flex flex-wrap items-end gap-2">
+              <div className="flex-1 min-w-[220px]">
+                <label className="text-xs text-muted-foreground">Component</label>
+                <SearchableSelect
+                  value={row.componentId ? String(row.componentId) : ''}
+                  onChange={(v) => pickComponentForRow(idx, Number(v))}
+                  placeholder="Select component…"
+                  options={availableComponents.map(c => ({ value: String(c.id), label: `${c.componentName}${c.partNumber ? ` (${c.partNumber})` : ''}` }))}
+                />
+              </div>
+              <div className="w-28">
+                <label className="text-xs text-muted-foreground">No. of Pieces</label>
+                <Input type="number" min={1} value={row.noOfPieces}
+                  onChange={(e) => setComponentQty(idx, Number(e.target.value))} />
+              </div>
+              {row.uom && <div className="text-xs text-muted-foreground pb-2.5">{row.uom}</div>}
+              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeComponentRow(idx)} title="Remove">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-1">
+            <Button variant="outline" size="sm" onClick={addComponentRow}>+ Add Component</Button>
+            <Button size="sm" onClick={saveComponentPlan} disabled={savingComponents}>
+              {savingComponents ? 'Saving…' : 'Save Components'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary */}
       <Card>

@@ -341,7 +341,7 @@ export default function DispatchDashboardPage() {
           <DialogHeader>
             <DialogTitle>Dispatch Order Item</DialogTitle>
             <DialogDescription>
-              {selectedItem && `${selectedItem.orderNo}-${selectedItem.itemSequence} — ${selectedItem.partCode ?? selectedItem.productName}`}
+              {selectedItem && `${selectedItem.orderNo}-${selectedItem.itemSequence} — ${[selectedItem.machineModel, selectedItem.rollerType, (selectedItem.numberOfTeeth ?? 0) > 0 ? `${selectedItem.numberOfTeeth}T` : null].filter(Boolean).join(' · ') || selectedItem.partCode || selectedItem.productName || '—'}`}
             </DialogDescription>
           </DialogHeader>
 

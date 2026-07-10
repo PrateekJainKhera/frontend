@@ -37,6 +37,16 @@ export interface ComponentIssueResponse {
   createdAt: string
 }
 
+export interface ShopFloorComponentStock {
+  componentId: number
+  componentName?: string
+  partNumber?: string
+  uom?: string
+  quantity: number
+  reservedQty: number
+  availableQty: number
+}
+
 class ComponentIssueService {
   private baseUrl = '/component-issues'
 
@@ -76,6 +86,20 @@ class ComponentIssueService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to fetch components: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getShopFloorStock(): Promise<ShopFloorComponentStock[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<ShopFloorComponentStock[]>>(
+        `${this.baseUrl}/shop-floor-stock`
+      )
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch shop-floor stock: ${error.message}`)
       }
       throw error
     }

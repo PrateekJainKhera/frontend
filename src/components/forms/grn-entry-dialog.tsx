@@ -356,6 +356,15 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess, editGrn }: GRNEn
                 return
             }
 
+            // Piece-length sanity check — industry max usable bar is 3.657 m.
+            // > 4 m is treated as a data-entry error and blocks the GRN.
+            for (const p of line.pieces) {
+                if (p.length > 4.0) {
+                    toast.error(`Piece length ${p.length} m (${line.materialName || 'material'}) is not accurate — a bar cannot exceed 4 m. Please check and correct before adding.`, { duration: 6000 })
+                    return
+                }
+            }
+
             const totalPieceLength = getTotalPieceLength(line.pieces)
             if (totalPieceLength > 0 && Math.abs(totalPieceLength - line.calculatedLength) > 0.1) {
                 hasLengthMismatch = true
@@ -890,6 +899,11 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess, editGrn }: GRNEn
                                                                         />
                                                                         <span className="text-sm text-muted-foreground">pcs</span>
                                                                     </div>
+                                                                    {piece.length > 4.0 ? (
+                                                                        <span className="text-xs text-destructive font-medium whitespace-nowrap">⚠ &gt;4m — not accurate (blocks save)</span>
+                                                                    ) : piece.length > 3.657 ? (
+                                                                        <span className="text-xs text-amber-600 whitespace-nowrap">⚠ unusually long (&gt;3.657m)</span>
+                                                                    ) : null}
                                                                     <Button
                                                                         type="button"
                                                                         variant="ghost"
