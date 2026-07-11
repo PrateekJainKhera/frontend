@@ -944,6 +944,26 @@ export default function GenerateJobCardsPage() {
       return
     }
 
+    // HARD-BLOCK: every manufactured child part must have a raw material selected.
+    // A part generated with no material creates a requisition with no material line,
+    // which never surfaces in the Stores issue window and silently stalls production.
+    const partsWithoutMaterial = childPartItems.filter(item => {
+      if (!item.childPartTemplate || item.childPartTemplate.isPurchased) return false
+      if (item.processSteps.length === 0) return false
+      const mats = getChildPartMaterials(item.childPartTemplate.id, item.bomItem.childPartTemplateName)
+      // Missing if there are no material lines, or any line has no material chosen.
+      return mats.length === 0 || mats.some(m => !m.rawMaterialId || !m.rawMaterialName?.trim())
+    })
+
+    if (partsWithoutMaterial.length > 0) {
+      const names = partsWithoutMaterial.map(p => p.bomItem.childPartTemplateName).join(', ')
+      toast.error('Cannot generate job cards — material missing', {
+        description: `Select a raw material for: ${names}. Every manufactured part must have a material before job cards can be generated.`,
+        duration: 8000,
+      })
+      return
+    }
+
     setGenerating(true)
     toast.loading('Generating job cards...')
 
@@ -1310,6 +1330,13 @@ export default function GenerateJobCardsPage() {
   const partsWithoutProcesses = childPartItems.filter(
     item => !item.childPartTemplate?.isPurchased && item.processSteps.length === 0
   )
+  // Manufactured parts (with processes) that have no raw material selected — blocks generation.
+  const partsMissingMaterial = childPartItems.filter(item => {
+    if (!item.childPartTemplate || item.childPartTemplate.isPurchased) return false
+    if (item.processSteps.length === 0) return false
+    const mats = getChildPartMaterials(item.childPartTemplate.id, item.bomItem.childPartTemplateName)
+    return mats.length === 0 || mats.some(m => !m.rawMaterialId || !m.rawMaterialName?.trim())
+  })
   const purchasedParts = childPartItems.filter(item => item.childPartTemplate?.isPurchased)
 
   // Use item-level drawing review status for multi-product orders; fall back to order-level
@@ -2369,7 +2396,7 @@ export default function GenerateJobCardsPage() {
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button
               onClick={handleGenerateJobCards}
-              disabled={effectiveDrawingStatus !== 'Approved' || partsWithoutProcesses.length > 0 || generating}
+              disabled={effectiveDrawingStatus !== 'Approved' || partsWithoutProcesses.length > 0 || partsMissingMaterial.length > 0 || generating}
               className="flex-1"
               size="lg"
             >
@@ -2404,6 +2431,16 @@ export default function GenerateJobCardsPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">
                 Configure process templates for all child parts before generating job cards.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {effectiveDrawingStatus === 'Approved' && partsWithoutProcesses.length === 0 && partsMissingMaterial.length > 0 && (
+            <Alert className="mt-4" variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Select a raw material for every manufactured part before generating job cards. Missing:{' '}
+                <strong>{partsMissingMaterial.map(p => p.bomItem.childPartTemplateName).join(', ')}</strong>
               </AlertDescription>
             </Alert>
           )}

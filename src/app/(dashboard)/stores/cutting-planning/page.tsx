@@ -3,6 +3,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { issueWindowService } from '@/lib/api/issue-window'
+import { materialRequisitionService } from '@/lib/api/material-requisitions'
+import { materialService, MaterialResponse } from '@/lib/api/materials'
+import { SearchableSelect } from '@/components/ui/searchable-select'
+import { getCurrentUserName } from '@/lib/auth'
 import {
   IssueWindowRequisition,
   MaterialGroup,
@@ -40,6 +44,7 @@ import {
   PackageCheck,
   ClipboardList,
   Search,
+  Replace,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -256,6 +261,7 @@ function MaterialGroupCard({
   onClearAll,
   onSuggest,
   suggesting,
+  onChangeMaterial,
 }: {
   group: MaterialGroup
   draftedCutKeys: Set<string>
@@ -265,6 +271,7 @@ function MaterialGroupCard({
   onClearAll: () => void
   onSuggest: () => void
   suggesting: boolean
+  onChangeMaterial: (cut: MaterialGroupCutItem) => void
 }) {
   const availableCuts = group.cuts.filter(c => !draftedCutKeys.has(cutKey(c)))
   const selectedCount = availableCuts.filter(c => selectedCutKeys.has(cutKey(c))).length
@@ -329,6 +336,16 @@ function MaterialGroupCard({
               <span className="text-[11px] text-muted-foreground shrink-0">
                 {cut.requisitionNo}
               </span>
+              {!isDrafted && (
+                <button
+                  type="button"
+                  title="Change / substitute material for this line"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChangeMaterial(cut); }}
+                  className="text-amber-600 hover:text-amber-800 shrink-0"
+                >
+                  <Replace className="h-3.5 w-3.5" />
+                </button>
+              )}
               {isDrafted && (
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
               )}
@@ -878,6 +895,47 @@ export default function MaterialIssuePage() {
     setTimeout(() => setToast(null), 5000)
   }
 
+  // ── Change / substitute material (per cut, before issue) ──────────────────────
+  const [materials, setMaterials] = useState<MaterialResponse[]>([])
+  const [changeCut, setChangeCut] = useState<MaterialGroupCutItem | null>(null)
+  const [changeMaterialId, setChangeMaterialId] = useState('')
+  const [changeReason, setChangeReason] = useState('')
+  const [changingMaterial, setChangingMaterial] = useState(false)
+
+  useEffect(() => { materialService.getAll().then(setMaterials).catch(() => {}) }, [])
+
+  const openChangeMaterial = (cut: MaterialGroupCutItem) => {
+    setChangeCut(cut)
+    setChangeMaterialId(cut.materialId ? String(cut.materialId) : '')
+    setChangeReason('')
+  }
+
+  const submitChangeMaterial = async () => {
+    if (!changeCut) return
+    if (!changeMaterialId) { showToast('error', 'Select a material'); return }
+    if (!changeReason.trim()) { showToast('error', 'Reason is required'); return }
+    setChangingMaterial(true)
+    try {
+      const res = await materialRequisitionService.changeItemMaterial(
+        changeCut.requisitionId,
+        changeCut.requisitionItemId,
+        {
+          materialId: Number(changeMaterialId),
+          reason: changeReason.trim(),
+          changedBy: getCurrentUserName(),
+          changedByRole: 'Stores',
+        }
+      )
+      showToast('success', res.message || 'Material changed')
+      setChangeCut(null)
+      await loadGroups()
+    } catch (e) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to change material')
+    } finally {
+      setChangingMaterial(false)
+    }
+  }
+
   const refreshDrafts = useCallback(async () => {
     try {
       const d = await issueWindowService.getDrafts()
@@ -1227,9 +1285,57 @@ export default function MaterialIssuePage() {
     'issue-list': 'Search issue list…',
   }
 
+  const changeMaterialChanged = !!changeCut && changeMaterialId !== '' && Number(changeMaterialId) !== changeCut.materialId
+
   return (
     <>
       <PrintSlip drafts={printDrafts} />
+
+      {/* Change / substitute material dialog (stores, before issue) */}
+      <Dialog open={!!changeCut} onOpenChange={(open) => { if (!open) setChangeCut(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Material</DialogTitle>
+          </DialogHeader>
+          {changeCut && (
+            <div className="space-y-4 py-2">
+              <div className="text-sm rounded-md border bg-muted/30 px-3 py-2">
+                <div className="text-muted-foreground text-xs">This cut</div>
+                <div className="font-medium">{mm(changeCut.cutLengthMM)} · {changeCut.jobCardNo ?? changeCut.partName ?? '—'}</div>
+                <div className="text-xs text-muted-foreground">{changeCut.requisitionNo}</div>
+              </div>
+              <div className="space-y-2">
+                <Label>New material <span className="text-red-600">*</span></Label>
+                <SearchableSelect
+                  value={changeMaterialId}
+                  onChange={setChangeMaterialId}
+                  options={materials.map(m => ({ value: String(m.id), label: `${m.materialName} (${m.materialCode})${m.grade ? ' · ' + m.grade : ''}` }))}
+                  placeholder="Search material…"
+                  searchPlaceholder="Search by name / code…"
+                />
+              </div>
+              {changeMaterialChanged && (
+                <p className="text-xs rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2">
+                  Changing the material resets this requisition to <strong>Pending</strong> for re-approval; it will leave the issue window until re-approved.
+                </p>
+              )}
+              <div className="space-y-2">
+                <Label>Reason <span className="text-red-600">*</span></Label>
+                <Input placeholder="Why is the material being changed? (required)"
+                  value={changeReason} onChange={e => setChangeReason(e.target.value)}
+                  className={!changeReason.trim() ? 'border-red-400' : ''} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChangeCut(null)}>Cancel</Button>
+            <Button onClick={submitChangeMaterial} disabled={changingMaterial || !changeMaterialId || !changeReason.trim()} className="gap-1.5">
+              {changingMaterial ? <Loader2 className="h-4 w-4 animate-spin" /> : <Replace className="h-4 w-4" />}
+              Save change
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {toast && (
         <div className={cn(
@@ -1392,6 +1498,7 @@ export default function MaterialIssuePage() {
                         onClearAll={() => clearGroup(gk)}
                         onSuggest={() => handleSuggest(group)}
                         suggesting={suggestingGroupKey === gk}
+                        onChangeMaterial={openChangeMaterial}
                       />
                     )
                   })}

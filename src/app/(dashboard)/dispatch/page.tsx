@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Package, Truck, CheckCircle2, AlertTriangle, RefreshCw, X, Search } from 'lucide-react'
+import { Package, Truck, CheckCircle2, AlertTriangle, RefreshCw, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,12 +14,13 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { SearchableSelect } from '@/components/ui/searchable-select'
+import { getCurrentUserName } from '@/lib/auth'
 import { dispatchService } from '@/lib/api/dispatch'
-import { ReadyToDispatchItem, DeliveryChallanApi } from '@/types/dispatch'
+import { ReadyToDispatchItem, DeliveryChallanApi, ConsolidatedChallanItem } from '@/types/dispatch'
 import { formatDate } from '@/lib/utils/formatters'
 
 export default function DispatchDashboardPage() {
@@ -30,19 +31,7 @@ export default function DispatchDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   // Dialog state
-  const [dispatchOpen, setDispatchOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<ReadyToDispatchItem | null>(null)
-  const [dispatching, setDispatching] = useState(false)
-  const [dispatchError, setDispatchError] = useState('')
-
-  // Form state
-  const [qtyToDispatch, setQtyToDispatch] = useState('')
-  const [dispatchDate, setDispatchDate] = useState('')
-  const [invoiceNo, setInvoiceNo] = useState('')
-  const [invoiceDate, setInvoiceDate] = useState('')
-  const [remarks, setRemarks] = useState('')
-  const [file, setFile] = useState<File | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [viewChallan, setViewChallan] = useState<DeliveryChallanApi | null>(null)
 
   useEffect(() => {
     loadData()
@@ -59,70 +48,7 @@ export default function DispatchDashboardPage() {
     setLoading(false)
   }
 
-  const openDispatch = (item: ReadyToDispatchItem) => {
-    setSelectedItem(item)
-    setQtyToDispatch(item.qtyPendingDispatch.toString())
-    setDispatchDate(new Date().toISOString().split('T')[0])
-    setInvoiceNo('')
-    setInvoiceDate('')
-    setRemarks('')
-    setFile(null)
-    setDispatchError('')
-    setDispatchOpen(true)
-  }
-
-  const handleDispatch = async () => {
-    if (!selectedItem) return
-    const qty = parseInt(qtyToDispatch)
-    if (isNaN(qty) || qty <= 0) {
-      setDispatchError('Please enter a valid quantity')
-      return
-    }
-    if (qty > selectedItem.qtyPendingDispatch) {
-      setDispatchError(`Cannot dispatch more than ${selectedItem.qtyPendingDispatch} units`)
-      return
-    }
-    if (!dispatchDate) {
-      setDispatchError('Please select a dispatch date')
-      return
-    }
-
-    setDispatching(true)
-    setDispatchError('')
-
-    const result = await dispatchService.simpleDispatch(
-      {
-        orderItemId: selectedItem.orderItemId,
-        qtyToDispatch: qty,
-        dispatchDate,
-        invoiceNo: invoiceNo || undefined,
-        invoiceDate: invoiceDate || undefined,
-        remarks: remarks || undefined,
-      },
-      file ?? undefined
-    )
-
-    setDispatching(false)
-    if (result.success) {
-      setDispatchOpen(false)
-      loadData()
-    } else {
-      setDispatchError(result.message)
-    }
-  }
-
   const dispatchedChallans = challans.filter(c => c.status === 'Dispatched')
-
-  const filteredReadyItems = useMemo(() => {
-    const q = searchQuery.toLowerCase()
-    if (!q) return readyItems
-    return readyItems.filter(i =>
-      i.orderNo.toLowerCase().includes(q) ||
-      (i.customerName ?? '').toLowerCase().includes(q) ||
-      (i.productName ?? '').toLowerCase().includes(q) ||
-      (i.partCode ?? '').toLowerCase().includes(q)
-    )
-  }, [readyItems, searchQuery])
 
   const filteredChallans = useMemo(() => {
     const q = searchQuery.toLowerCase()
@@ -200,10 +126,11 @@ export default function DispatchDashboardPage() {
           <div className="flex items-center gap-2 bg-background border-2 border-border rounded-lg px-4 py-1 shadow-sm flex-1 max-w-md">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
-              placeholder="Search order, customer, product..."
+              placeholder={activeTab === 'challans' ? 'Search challan, order, customer...' : 'Search dispatched challans...'}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="border-0 shadow-none focus-visible:ring-0 h-8 px-0 text-sm flex-1 placeholder:text-muted-foreground/40 focus:placeholder:text-transparent caret-foreground"
+              disabled={activeTab !== 'challans'}
+              className="border-0 shadow-none focus-visible:ring-0 h-8 px-0 text-sm flex-1 placeholder:text-muted-foreground/40 focus:placeholder:text-transparent caret-foreground disabled:opacity-50"
             />
             <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={loadData} title="Refresh">
               <RefreshCw className="h-4 w-4 text-muted-foreground" />
@@ -211,67 +138,18 @@ export default function DispatchDashboardPage() {
           </div>
         </div>
 
-        {/* Ready to Dispatch Tab */}
+        {/* Ready to Dispatch Tab — single multiselect flow (customer → orders → challan) */}
         <TabsContent value="ready" className="mt-4">
-          {readyItems.length === 0 ? (
+          {loading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : readyItems.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground border rounded-lg">
               <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-500" />
               <p className="font-medium">All dispatched!</p>
               <p className="text-sm">No items waiting for dispatch</p>
             </div>
-          ) : filteredReadyItems.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm border rounded-lg">
-              No items match your search.
-            </div>
           ) : (
-            <div className="space-y-3">
-              {filteredReadyItems.map((item) => (
-                <div
-                  key={item.orderItemId}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <p className="font-semibold">{item.orderNo}-{item.itemSequence}</p>
-                      {item.machineModel && <Badge variant="outline" className="text-xs">{item.machineModel}</Badge>}
-                      {(item.rollerType || (item.numberOfTeeth ?? 0) > 0) && (
-                        <span className="text-xs text-muted-foreground">
-                          {[item.rollerType, (item.numberOfTeeth ?? 0) > 0 ? `${item.numberOfTeeth}T` : null].filter(Boolean).join(' · ')}
-                        </span>
-                      )}
-                      {item.partCode && <span className="text-xs text-muted-foreground">({item.partCode})</span>}
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
-                      <div>
-                        <span className="block text-xs font-medium text-foreground">Customer</span>
-                        {item.customerName ?? '—'}
-                      </div>
-                      <div>
-                        <span className="block text-xs font-medium text-foreground">Order Qty</span>
-                        {item.quantity}
-                      </div>
-                      <div>
-                        <span className="block text-xs font-medium text-foreground">Completed</span>
-                        {item.qtyCompleted}
-                      </div>
-                      <div>
-                        <span className="block text-xs font-medium text-foreground">Pending Dispatch</span>
-                        <span className="text-orange-600 font-semibold">{item.qtyPendingDispatch}</span>
-                      </div>
-                    </div>
-                    {item.dueDate && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Due: {formatDate(item.dueDate)}
-                      </p>
-                    )}
-                  </div>
-                  <Button onClick={() => openDispatch(item)} className="ml-4">
-                    <Truck className="mr-2 h-4 w-4" />
-                    Dispatch
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <ConsolidatedDispatchPanel readyItems={readyItems} onDone={loadData} />
           )}
         </TabsContent>
 
@@ -298,6 +176,9 @@ export default function DispatchDashboardPage() {
                     <div className="flex items-center gap-3 mb-1">
                       <p className="font-semibold">{challan.challanNo}</p>
                       <Badge variant="outline" className="border-green-500 text-green-700 text-xs">Dispatched</Badge>
+                      {challan.isConsolidated && (
+                        <Badge variant="outline" className="border-blue-500 text-blue-700 text-xs">Consolidated</Badge>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
                       <div>
@@ -328,6 +209,11 @@ export default function DispatchDashboardPage() {
                       </div>
                     </div>
                   </div>
+                  {challan.isConsolidated && (
+                    <Button variant="outline" size="sm" className="ml-4 shrink-0" onClick={() => setViewChallan(challan)}>
+                      View items
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -335,137 +221,396 @@ export default function DispatchDashboardPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Dispatch Dialog */}
-      <Dialog open={dispatchOpen} onOpenChange={setDispatchOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Dispatch Order Item</DialogTitle>
-            <DialogDescription>
-              {selectedItem && `${selectedItem.orderNo}-${selectedItem.itemSequence} — ${[selectedItem.machineModel, selectedItem.rollerType, (selectedItem.numberOfTeeth ?? 0) > 0 ? `${selectedItem.numberOfTeeth}T` : null].filter(Boolean).join(' · ') || selectedItem.partCode || selectedItem.productName || '—'}`}
-            </DialogDescription>
-          </DialogHeader>
+      <ChallanItemsDialog challan={viewChallan} onClose={() => setViewChallan(null)} />
+    </div>
+  )
+}
 
-          {selectedItem && (
-            <div className="space-y-4">
-              <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Customer</span>
-                  <span className="font-medium">{selectedItem.customerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Order Qty</span>
-                  <span>{selectedItem.quantity}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Completed</span>
-                  <span>{selectedItem.qtyCompleted}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Already Dispatched</span>
-                  <span>{selectedItem.qtyDispatched}</span>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <span>Pending Dispatch</span>
-                  <span className="text-orange-600">{selectedItem.qtyPendingDispatch}</span>
-                </div>
-              </div>
+// ── Consolidated dispatch — the single flow: customer → orders → challan ──────
+function ConsolidatedDispatchPanel({
+  readyItems, onDone,
+}: {
+  readyItems: ReadyToDispatchItem[]
+  onDone: () => void
+}) {
+  const [customerId, setCustomerId] = useState('')
+  const [picked, setPicked] = useState<Record<number, number>>({}) // orderItemId -> qty
+  const [dispatchDate, setDispatchDate] = useState('')
+  const [invoiceNo, setInvoiceNo] = useState('')
+  const [invoiceDate, setInvoiceDate] = useState('')
+  const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [transportMode, setTransportMode] = useState('')
+  const [vehicleNumber, setVehicleNumber] = useState('')
+  const [remarks, setRemarks] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="qty">Qty to Dispatch *</Label>
-                  <Input
-                    id="qty"
-                    type="number"
-                    min={1}
-                    max={selectedItem.qtyPendingDispatch}
-                    value={qtyToDispatch}
-                    onChange={e => setQtyToDispatch(e.target.value)}
-                    placeholder={`Max ${selectedItem.qtyPendingDispatch}`}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="dispatchDate">Dispatch Date *</Label>
-                  <Input
-                    id="dispatchDate"
-                    type="date"
-                    value={dispatchDate}
-                    onChange={e => setDispatchDate(e.target.value)}
-                  />
-                </div>
-              </div>
+  // Default dispatch date to today on mount.
+  useEffect(() => {
+    setDispatchDate(new Date().toISOString().split('T')[0])
+  }, [])
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="invoiceNo">Invoice No</Label>
-                  <Input
-                    id="invoiceNo"
-                    value={invoiceNo}
-                    onChange={e => setInvoiceNo(e.target.value)}
-                    placeholder="INV-001"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="invoiceDate">Invoice Date</Label>
-                  <Input
-                    id="invoiceDate"
-                    type="date"
-                    value={invoiceDate}
-                    onChange={e => setInvoiceDate(e.target.value)}
-                  />
-                </div>
-              </div>
+  // Distinct customers that actually have ready items
+  const customers = useMemo(() => {
+    const map = new Map<number, string>()
+    readyItems.forEach(i => { if (i.customerId) map.set(i.customerId, i.customerName ?? `Customer ${i.customerId}`) })
+    return Array.from(map.entries()).map(([id, name]) => ({ value: String(id), label: name }))
+  }, [readyItems])
 
-              <div className="space-y-1">
-                <Label htmlFor="invoiceDoc">Invoice Document (PDF/Image)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="invoiceDoc"
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    ref={fileRef}
-                    onChange={e => setFile(e.target.files?.[0] ?? null)}
-                    className="flex-1"
-                  />
-                  {file && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = '' }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                {file && <p className="text-xs text-muted-foreground">{file.name}</p>}
-              </div>
+  const customerItems = useMemo(
+    () => readyItems.filter(i => String(i.customerId) === customerId),
+    [readyItems, customerId]
+  )
 
-              <div className="space-y-1">
-                <Label htmlFor="remarks">Remarks</Label>
-                <Textarea
-                  id="remarks"
-                  rows={2}
-                  value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  placeholder="Optional notes..."
-                />
-              </div>
+  // Group the client's ready items by Order, so a whole order can be selected at once.
+  const orderGroups = useMemo(() => {
+    const map = new Map<string, { orderNo: string; items: ReadyToDispatchItem[] }>()
+    customerItems.forEach(i => {
+      const g = map.get(i.orderNo) ?? { orderNo: i.orderNo, items: [] }
+      g.items.push(i)
+      map.set(i.orderNo, g)
+    })
+    return Array.from(map.values())
+  }, [customerItems])
 
-              {dispatchError && (
-                <p className="text-sm text-destructive">{dispatchError}</p>
-              )}
+  const toggle = (item: ReadyToDispatchItem) => {
+    setPicked(prev => {
+      const next = { ...prev }
+      if (next[item.orderItemId] != null) delete next[item.orderItemId]
+      else next[item.orderItemId] = item.qtyPendingDispatch
+      return next
+    })
+  }
+
+  // Select / clear every item of one order in a single click.
+  const toggleOrder = (items: ReadyToDispatchItem[]) => {
+    const allSelected = items.every(i => picked[i.orderItemId] != null)
+    setPicked(prev => {
+      const next = { ...prev }
+      for (const i of items) {
+        if (allSelected) delete next[i.orderItemId]
+        else next[i.orderItemId] = i.qtyPendingDispatch
+      }
+      return next
+    })
+  }
+
+  const setQty = (orderItemId: number, v: string) =>
+    setPicked(prev => ({ ...prev, [orderItemId]: Math.max(0, parseInt(v) || 0) }))
+
+  const selectedLines = Object.entries(picked).filter(([, q]) => q > 0)
+  const totalQty = selectedLines.reduce((s, [, q]) => s + q, 0)
+
+  const submit = async () => {
+    if (!customerId) { setError('Select a client'); return }
+    if (selectedLines.length === 0) { setError('Select at least one item'); return }
+    // qty bounds
+    for (const [oid, q] of selectedLines) {
+      const it = customerItems.find(i => i.orderItemId === Number(oid))
+      if (it && q > it.qtyPendingDispatch) {
+        setError(`${it.orderNo}-${it.itemSequence}: max ${it.qtyPendingDispatch}`); return
+      }
+    }
+    setSubmitting(true); setError('')
+    const res = await dispatchService.consolidatedDispatch(
+      {
+        customerId: Number(customerId),
+        dispatchDate,
+        items: selectedLines.map(([oid, q]) => ({ orderItemId: Number(oid), qtyToDispatch: q })),
+        invoiceNo: invoiceNo || undefined,
+        invoiceDate: invoiceDate || undefined,
+        deliveryAddress: deliveryAddress || undefined,
+        transportMode: transportMode || undefined,
+        vehicleNumber: vehicleNumber || undefined,
+        remarks: remarks || undefined,
+        createdBy: getCurrentUserName(),
+      },
+      file ?? undefined
+    )
+    setSubmitting(false)
+    if (res.success) {
+      // Reset selection for the next challan and refresh the ready list.
+      setCustomerId(''); setPicked({}); setInvoiceNo(''); setInvoiceDate('')
+      setDeliveryAddress(''); setTransportMode(''); setVehicleNumber(''); setRemarks('')
+      setFile(null)
+      onDone()
+    } else {
+      setError(res.message)
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-semibold">Create Dispatch Challan</h3>
+            <p className="text-sm text-muted-foreground">Pick a client, select whole orders or individual items, enter the bill details, and generate one challan.</p>
+          </div>
+
+          {/* 1. Client search */}
+          <div className="space-y-1.5">
+            <Label>Client <span className="text-destructive">*</span></Label>
+            <SearchableSelect
+              value={customerId}
+              onChange={(v) => { setCustomerId(v); setPicked({}) }}
+              options={customers}
+              placeholder="Search client…"
+              searchPlaceholder="Search by name…"
+            />
+          </div>
+
+          {/* 2. That client's ready items — grouped by Order */}
+          {customerId && (
+            <div className="space-y-3">
+              {orderGroups.length === 0 && <p className="text-sm text-muted-foreground p-3 border rounded-lg">No ready items for this client.</p>}
+              {orderGroups.map(group => {
+                const allSelected = group.items.every(i => picked[i.orderItemId] != null)
+                const someSelected = group.items.some(i => picked[i.orderItemId] != null)
+                return (
+                  <div key={group.orderNo} className="border rounded-lg overflow-hidden">
+                    {/* Order header — select whole order */}
+                    <div className="flex items-center gap-3 px-3 py-2 bg-muted/50 border-b">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+                        onChange={() => toggleOrder(group.items)}
+                        className="h-4 w-4"
+                      />
+                      <span className="font-semibold text-sm">{group.orderNo}</span>
+                      <span className="text-xs text-muted-foreground">({group.items.length} item{group.items.length !== 1 ? 's' : ''})</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleOrder(group.items)}
+                        className="ml-auto text-xs text-primary hover:underline"
+                      >
+                        {allSelected ? 'Clear order' : 'Select whole order'}
+                      </button>
+                    </div>
+                    {/* Items of this order */}
+                    <div className="divide-y">
+                      {group.items.map(item => {
+                        const checked = picked[item.orderItemId] != null
+                        return (
+                          <div key={item.orderItemId} className={`flex items-center gap-3 px-3 py-2 pl-8 ${checked ? 'bg-blue-50' : ''}`}>
+                            <input type="checkbox" checked={checked} onChange={() => toggle(item)} className="h-4 w-4" />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm">-{item.itemSequence}</div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {[item.machineModel, item.rollerType, (item.numberOfTeeth ?? 0) > 0 ? `${item.numberOfTeeth}T` : null].filter(Boolean).join(' · ') || item.productName || item.partCode || '—'}
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground shrink-0">Pending: <span className="font-semibold text-orange-600">{item.qtyPendingDispatch}</span></div>
+                            {checked && (
+                              <Input
+                                type="number" min={1} max={item.qtyPendingDispatch}
+                                value={picked[item.orderItemId]}
+                                onChange={e => setQty(item.orderItemId, e.target.value)}
+                                className="w-20 h-8"
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDispatchOpen(false)} disabled={dispatching}>
-              Cancel
+          {/* 3. Shared bill / transport */}
+          {selectedLines.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Dispatch Date</Label>
+                <Input type="date" value={dispatchDate} onChange={e => setDispatchDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Invoice No</Label>
+                <Input value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="e.g. INV-2026-114" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Invoice Date</Label>
+                <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Transport Mode</Label>
+                <Input value={transportMode} onChange={e => setTransportMode(e.target.value)} placeholder="Road / Courier…" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Vehicle No</Label>
+                <Input value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Invoice PDF</Label>
+                <Input ref={fileRef} type="file" accept="application/pdf,image/*" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Delivery Address</Label>
+                <Textarea value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} rows={2} />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Remarks</Label>
+                <Input value={remarks} onChange={e => setRemarks(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 border-t pt-4">
+            <div className="mr-auto text-sm text-muted-foreground">
+              {selectedLines.length > 0
+                ? <span><span className="font-semibold text-foreground">{selectedLines.length}</span> item(s) · <span className="font-semibold text-foreground">{totalQty}</span> pcs selected</span>
+                : <span>Select a client and their items to generate a challan</span>}
+            </div>
+            <Button
+              size="lg"
+              onClick={submit}
+              disabled={submitting || selectedLines.length === 0 || !customerId}
+              className="gap-2"
+            >
+              <Truck className="h-4 w-4" />
+              {submitting ? 'Generating…' : 'Generate Challan'}
             </Button>
-            <Button onClick={handleDispatch} disabled={dispatching}>
-              {dispatching ? 'Dispatching...' : 'Confirm Dispatch'}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── View the line items of a (consolidated) challan ───────────────────────────
+function ChallanItemsDialog({ challan, onClose }: { challan: DeliveryChallanApi | null; onClose: () => void }) {
+  const [items, setItems] = useState<ConsolidatedChallanItem[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (challan) {
+      setLoading(true)
+      dispatchService.getChallanItems(challan.id).then(setItems).finally(() => setLoading(false))
+    } else {
+      setItems([])
+    }
+  }, [challan])
+
+  // Open a clean printable challan sheet in a new window
+  const printChallan = () => {
+    if (!challan) return
+    const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const spec = (it: ConsolidatedChallanItem) =>
+      [it.machineModel, it.rollerType, (it.numberOfTeeth ?? 0) > 0 ? `${it.numberOfTeeth}T` : null].filter(Boolean).join(' · ') || it.productName || '—'
+    const rows = items.map((it, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td class="mono">${esc(it.orderNo)}-${esc(it.itemSequence)}</td>
+        <td>${esc(spec(it))}</td>
+        <td>${esc(it.productCode ?? '')}</td>
+        <td class="num">${it.quantity} ${esc(it.uom ?? 'pcs')}</td>
+      </tr>`).join('')
+    const totalQty = items.reduce((s, it) => s + it.quantity, 0)
+    const html = `<!doctype html><html><head><title>${esc(challan.challanNo)}</title><style>
+      * { box-sizing: border-box; font-family: Arial, sans-serif; }
+      body { margin: 24px; color: #111; }
+      .head { text-align: center; border-bottom: 2px solid #111; padding-bottom: 8px; }
+      .head h1 { margin: 0; font-size: 22px; letter-spacing: 1px; }
+      .head p { margin: 2px 0 0; font-size: 13px; }
+      .meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 24px; margin: 14px 0; font-size: 13px; }
+      .meta div { min-width: 220px; }
+      .meta b { display: inline-block; min-width: 110px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13px; }
+      th, td { border: 1px solid #444; padding: 6px 8px; text-align: left; }
+      th { background: #eee; }
+      .num { text-align: right; }
+      .mono { font-family: Consolas, monospace; }
+      tfoot td { font-weight: bold; }
+      .signs { display: flex; justify-content: space-between; margin-top: 60px; font-size: 13px; }
+      .signs span { border-top: 1px solid #111; padding-top: 4px; min-width: 180px; text-align: center; }
+      @media print { body { margin: 10mm; } }
+    </style></head><body>
+      <div class="head">
+        <h1>MULTI HITECH</h1>
+        <p>DELIVERY CHALLAN${challan.isConsolidated ? ' (CONSOLIDATED)' : ''}</p>
+      </div>
+      <div class="meta">
+        <div><b>Challan No:</b> ${esc(challan.challanNo)}</div>
+        <div><b>Challan Date:</b> ${formatDate(challan.challanDate)}</div>
+        <div><b>Customer:</b> ${esc(challan.customerName ?? '—')}</div>
+        <div><b>Invoice No:</b> ${esc(challan.invoiceNo ?? '—')}</div>
+        <div><b>Invoice Date:</b> ${challan.invoiceDate ? formatDate(challan.invoiceDate) : '—'}</div>
+        <div><b>Transport:</b> ${esc(challan.transportMode ?? '—')}</div>
+        <div><b>Vehicle No:</b> ${esc(challan.vehicleNumber ?? '—')}</div>
+        <div><b>Delivery Address:</b> ${esc(challan.deliveryAddress ?? '—')}</div>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>Order</th><th>Item (Model · Roller · Teeth)</th><th>Part Code</th><th class="num">Qty</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="4">Total</td><td class="num">${totalQty} pcs</td></tr></tfoot>
+      </table>
+      ${challan.remarks ? `<p style="font-size:13px"><b>Remarks:</b> ${esc(challan.remarks)}</p>` : ''}
+      <div class="signs">
+        <span>Prepared By</span>
+        <span>Driver / Transporter</span>
+        <span>Received By (Customer)</span>
+      </div>
+      <script>window.onload = () => window.print()</script>
+    </body></html>`
+    const w = window.open('', '_blank', 'width=900,height=700')
+    if (!w) return
+    w.document.write(html)
+    w.document.close()
+  }
+
+  return (
+    <Dialog open={!!challan} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-3 pr-6">
+            <div>
+              <DialogTitle>{challan?.challanNo}</DialogTitle>
+              <DialogDescription>
+                {challan?.customerName} · {challan?.invoiceNo ? `Invoice ${challan.invoiceNo}` : 'No invoice'} · {challan?.quantityDispatched} pcs
+              </DialogDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={printChallan} disabled={loading || items.length === 0} className="shrink-0">
+              Print Challan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </div>
+        </DialogHeader>
+        {loading ? (
+          <p className="text-sm text-muted-foreground py-4">Loading…</p>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No line items (this is a single-item challan).</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 pr-3 font-medium">Order</th>
+                  <th className="py-2 px-3 font-medium">Spec</th>
+                  <th className="py-2 px-3 font-medium text-right">Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(it => (
+                  <tr key={it.id} className="border-b last:border-0">
+                    <td className="py-2 pr-3 font-mono">{it.orderNo}-{it.itemSequence}</td>
+                    <td className="py-2 px-3 text-muted-foreground">
+                      {[it.machineModel, it.rollerType, (it.numberOfTeeth ?? 0) > 0 ? `${it.numberOfTeeth}T` : null].filter(Boolean).join(' · ') || it.productName || '—'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-semibold">{it.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

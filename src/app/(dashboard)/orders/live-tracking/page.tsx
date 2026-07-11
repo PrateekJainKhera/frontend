@@ -8,14 +8,29 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockOrders, getDelayDays, getOrderProgress } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { Order, OrderStatus } from '@/types'
+import { ProductSpec } from '@/components/ui/product-spec'
+import { productionService, ProductionOrderSummary } from '@/lib/api/production'
 import { formatDate } from '@/lib/utils/formatters'
 import Link from 'next/link'
 
+// Days past the due date (0 when on time or no due date)
+function getDelayDays(o: ProductionOrderSummary): number {
+  if (!o.dueDate) return 0
+  const due = new Date(o.dueDate)
+  const today = new Date()
+  due.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  const diff = Math.floor((today.getTime() - due.getTime()) / 86400000)
+  return diff > 0 ? diff : 0
+}
+
+function getStepProgress(o: ProductionOrderSummary): number {
+  if (!o.totalSteps) return 0
+  return Math.round((o.completedSteps / o.totalSteps) * 100)
+}
+
 export default function LiveTrackingPage() {
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<ProductionOrderSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(new Date())
 
@@ -25,12 +40,13 @@ export default function LiveTrackingPage() {
 
   const loadOrders = async () => {
     setLoading(true)
-    // Only show active orders in live tracking
-    const data = await simulateApiCall(
-      mockOrders.filter((o) => o.status === OrderStatus.IN_PROGRESS),
-      800
-    )
-    setOrders(data)
+    try {
+      const all = await productionService.getOrderItems()
+      // Live tracking = orders actively in production
+      setOrders(all.filter(o => o.productionStatus === 'InProgress'))
+    } catch {
+      setOrders([])
+    }
     setLoading(false)
     setLastRefresh(new Date())
   }
@@ -115,11 +131,11 @@ export default function LiveTrackingPage() {
       ) : (
         <div className="space-y-4">
           {orders.map((order) => {
-            const progress = getOrderProgress(order)
+            const progress = getStepProgress(order)
             const delayDays = getDelayDays(order)
 
             return (
-              <Card key={order.id} className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden">
+              <Card key={`${order.orderId}-${order.orderItemId ?? 0}`} className="border-2 border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -130,45 +146,46 @@ export default function LiveTrackingPage() {
                     </div>
                     <Badge variant="secondary">In Progress</Badge>
                   </div>
-                  <CardDescription>
-                    {order.customer?.customerName} • {order.product?.partCode}
+                  <CardDescription className="flex items-center gap-2 flex-wrap">
+                    <span>{order.customerName ?? '—'}</span>
+                    <span>•</span>
+                    <ProductSpec
+                      machineModel={order.machineModel}
+                      rollerType={order.rollerType}
+                      numberOfTeeth={order.numberOfTeeth}
+                      className="text-foreground"
+                    />
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                     <div>
-                      <p className="text-muted-foreground mb-1">
-                        Current Process
-                      </p>
+                      <p className="text-muted-foreground mb-1">Steps Done</p>
                       <p className="font-semibold">
-                        {order.currentProcess || 'Pending'}
+                        {order.completedSteps}/{order.totalSteps}
                       </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground mb-1">Machine</p>
-                      <p className="font-semibold">
-                        {order.currentMachine || '-'}
-                      </p>
+                      <p className="text-muted-foreground mb-1">In Progress</p>
+                      <p className="font-semibold">{order.inProgressSteps}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground mb-1">Operator</p>
+                      <p className="text-muted-foreground mb-1">Child Parts</p>
                       <p className="font-semibold">
-                        {order.currentOperator || '-'}
+                        {order.completedChildParts}/{order.totalChildParts}
                       </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground mb-1">Due Date</p>
                       <p className="font-semibold">
-                        {formatDate(order.adjustedDueDate || order.dueDate)}
+                        {order.dueDate ? formatDate(order.dueDate) : '—'}
                       </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground mb-1">Progress</p>
                       <div className="flex items-center gap-2">
                         <Progress value={progress} className="h-2 flex-1" />
-                        <span className="text-xs font-semibold">
-                          {order.qtyCompleted}/{order.quantity}
-                        </span>
+                        <span className="text-xs font-semibold">{progress}%</span>
                       </div>
                     </div>
                   </div>
@@ -179,14 +196,13 @@ export default function LiveTrackingPage() {
                       <AlertTriangle className="h-4 w-4" />
                       <AlertDescription>
                         Order delayed by {delayDays} days
-                        {order.delayReason && ` • Reason: ${order.delayReason}`}
                       </AlertDescription>
                     </Alert>
                   )}
                 </CardContent>
                 <CardFooter className="bg-muted/50 pt-3">
                   <Button variant="link" asChild className="px-0">
-                    <Link href={`/orders/${order.id}`}>
+                    <Link href={order.orderItemId ? `/production/order-items/${order.orderItemId}` : `/orders/${order.orderId}`}>
                       View Details →
                     </Link>
                   </Button>

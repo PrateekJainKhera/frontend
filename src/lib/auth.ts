@@ -42,6 +42,12 @@ export function isLoggedIn(): boolean {
   return getSession() !== null
 }
 
+/** Logged-in user's display name for audit fields (falls back to 'Admin'). */
+export function getCurrentUserName(): string {
+  const s = getSession()
+  return s?.fullName || s?.username || 'Admin'
+}
+
 // ── Permission helpers ─────────────────────────────────────────────────────────
 
 function checkPermission(module: string, action: string): boolean {

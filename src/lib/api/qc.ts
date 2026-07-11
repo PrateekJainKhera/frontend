@@ -9,6 +9,11 @@ export interface QCPendingItem {
   customerName: string
   quantity: number
 
+  // Product spec (Model · Roller · Teeth) from Masters_Products
+  machineModel?: string | null
+  rollerType?: string | null
+  numberOfTeeth?: number | null
+
   // null if no QC submitted yet
   qcRecordId: number | null
   qcStatus: string | null      // null | 'Pending' | 'Passed' | 'Failed'

@@ -10,6 +10,7 @@ import { Scale, ChevronDown, ChevronRight, History } from "lucide-react"
 import { toast } from "sonner"
 import { materialService, MaterialResponse } from "@/lib/api/materials"
 import { materialReconcileService, MaterialPiecesByLength } from "@/lib/api/material-reconcile"
+import { getCurrentUserName } from "@/lib/auth"
 
 const mm2m = (mm: number) => (mm / 1000).toFixed(2)
 
@@ -63,7 +64,7 @@ export default function StockReconcilePage() {
     try {
       const res = await materialReconcileService.reconcile({
         materialId: Number(materialId),
-        performedBy: "Admin",
+        performedBy: getCurrentUserName(),
         remarks: remarks || "Physical stock count",
         removals,
         lengthChanges,

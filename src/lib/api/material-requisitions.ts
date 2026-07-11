@@ -388,6 +388,30 @@ class MaterialRequisitionService {
     return response.data.data || false
   }
 
+  // Change (substitute) a requisition line's material before it is issued.
+  // A material change resets the requisition to Pending (re-approval). Reason is compulsory.
+  async changeItemMaterial(
+    requisitionId: number,
+    itemId: number,
+    request: {
+      materialId: number
+      lengthRequiredMM?: number
+      numberOfPieces?: number
+      reason: string
+      changedBy?: string
+      changedByRole?: string
+    }
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await apiClient.put<ApiResponse<boolean>>(
+      `${this.baseURL}/${requisitionId}/items/${itemId}/material`,
+      request
+    )
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to change material')
+    }
+    return { success: true, message: response.data.message }
+  }
+
   // Get issuance history
   async getIssuanceHistory(id: number): Promise<any[]> {
     const response = await apiClient.get<ApiResponse<any[]>>(`${this.baseURL}/${id}/issuance-history`)

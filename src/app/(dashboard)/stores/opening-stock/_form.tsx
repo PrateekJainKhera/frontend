@@ -312,7 +312,10 @@ export default function OpeningStockForm({ id }: Props) {
 
     for (const line of rmLines) {
       if (!line.materialId) continue
-      if (line.batches.length === 0) {
+      // Skip a batch-less line that has no length — it would create a phantom 0-length piece.
+      const validBatches = line.batches.filter(b => b.lengthM > 0 && b.quantity > 0)
+      if (line.batches.length === 0 || validBatches.length === 0) {
+        if (line.calculatedLengthM <= 0) continue
         // No batches — one item with all pieces at average length
         seq++
         items.push({
@@ -333,14 +336,14 @@ export default function OpeningStockForm({ id }: Props) {
           unitCost: line.unitCost || undefined,
         })
       } else {
-        // One item per batch
-        const totalBatchLen = line.batches.reduce((s, b) => s + b.lengthM * b.quantity, 0)
-        for (const batch of line.batches) {
+        // One item per batch — only batches that actually have length AND pieces.
+        const totalBatchLen = validBatches.reduce((s, b) => s + b.lengthM * b.quantity, 0)
+        for (const batch of validBatches) {
           seq++
           const batchLengthM = batch.lengthM * batch.quantity
           const batchWeight = totalBatchLen > 0
             ? (batchLengthM / totalBatchLen) * line.totalWeightKG
-            : line.totalWeightKG / line.batches.length
+            : line.totalWeightKG / validBatches.length
           items.push({
             sequenceNo: seq,
             itemType: 'RawMaterial',
@@ -397,14 +400,20 @@ export default function OpeningStockForm({ id }: Props) {
 
   const handleSave = async () => {
     if (!pieceLengthOk()) return
+    const req = buildRequest()
+    // Empty lines (no pieces / no length) are stripped by buildRequest. Refuse an all-empty entry.
+    if (req.items.length === 0) {
+      toast.error('Nothing to save — every line needs a material with both length and pieces. Empty lines are ignored.')
+      return
+    }
     setSaving(true)
     try {
       if (isNew) {
-        const result = await openingStockService.create(buildRequest())
+        const result = await openingStockService.create(req)
         toast.success(`Draft ${result.entryNo} saved`)
         router.push(`/stores/opening-stock/${result.id}`)
       } else {
-        await openingStockService.update(id!, buildRequest())
+        await openingStockService.update(id!, req)
         toast.success('Draft updated')
         const data = await openingStockService.getById(id!)
         setEntry(data)

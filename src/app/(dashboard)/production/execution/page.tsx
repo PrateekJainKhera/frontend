@@ -7,6 +7,7 @@ import {
   ShieldCheck, FileUp, XCircle, Search, X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { ProductSpec } from '@/components/ui/product-spec'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -105,6 +106,11 @@ function LogToOSPDialog({
               <div><span className="text-muted-foreground">Process: </span>{row.processName}</div>
               <div><span className="text-muted-foreground">Part: </span>{row.childPartName}</div>
               <div><span className="text-muted-foreground">Order: </span>{row.orderNo}</div>
+              {(row.machineModel || row.rollerType || (row.numberOfTeeth ?? 0) > 0) && (
+                <div><span className="text-muted-foreground">Spec: </span>
+                  <ProductSpec machineModel={row.machineModel} rollerType={row.rollerType} numberOfTeeth={row.numberOfTeeth} className="text-foreground" />
+                </div>
+              )}
               <div><span className="text-muted-foreground">Quantity: </span>{row.quantity} pcs</div>
             </div>
             <div className="space-y-1.5">
@@ -492,6 +498,7 @@ function ReportRejectionDialog({
         <div className="space-y-3 py-1">
           <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm space-y-0.5">
             <p><span className="font-medium">{row.jobCardNo ?? row.orderNo}</span> · {row.processName}</p>
+            <ProductSpec machineModel={row.machineModel} rollerType={row.rollerType} numberOfTeeth={row.numberOfTeeth} />
             <p className="text-muted-foreground">{row.childPartName}</p>
             <p className="text-xs text-red-700 font-medium mt-1">
               All job cards for this child part will be re-created from Step 1. A new rework cycle begins.
@@ -584,6 +591,11 @@ function SubmitQCDialog({
             {/* Order info */}
             <div className="rounded-md bg-muted/40 px-3 py-2 text-sm space-y-0.5">
               <div><span className="text-muted-foreground">Order: </span><strong className="font-mono">{item.orderNo}-{item.itemSequence}</strong></div>
+              {(item.machineModel || item.rollerType || (item.numberOfTeeth ?? 0) > 0) && (
+                <div><span className="text-muted-foreground">Spec: </span>
+                  <ProductSpec machineModel={item.machineModel} rollerType={item.rollerType} numberOfTeeth={item.numberOfTeeth} className="text-foreground" />
+                </div>
+              )}
               <div><span className="text-muted-foreground">Product: </span>{item.productName}</div>
               <div><span className="text-muted-foreground">Customer: </span>{item.customerName}</div>
               <div><span className="text-muted-foreground">Qty: </span>{item.quantity} pcs</div>
@@ -740,8 +752,11 @@ function QCSection({ onRefreshExecution }: { onRefreshExecution: () => void }) {
                     isFailed ? 'bg-red-50 border-red-200' : 'bg-background border-border'
                   }`}
                 >
-                  <span className="font-mono text-sm font-semibold w-36 shrink-0">
-                    {item.orderNo}-{item.itemSequence}
+                  <span className="w-36 shrink-0">
+                    <span className="font-mono text-sm font-semibold block">
+                      {item.orderNo}-{item.itemSequence}
+                    </span>
+                    <ProductSpec machineModel={item.machineModel} rollerType={item.rollerType} numberOfTeeth={item.numberOfTeeth} />
                   </span>
 
                   <span className="text-sm text-muted-foreground flex-1 min-w-0 truncate">

@@ -127,14 +127,24 @@ export interface DeliveryChallanApi {
   remarks: string | null
   createdAt: string
   createdBy: string | null
+  isConsolidated?: boolean
 }
 
-// Request to dispatch
-export interface SimpleDispatchRequest {
-  orderItemId: number
-  qtyToDispatch: number
-  dispatchDate: string
-  invoiceNo?: string
-  invoiceDate?: string
-  remarks?: string
+export interface ConsolidatedChallanItem {
+  id: number
+  challanId: number
+  orderId: number | null
+  orderItemId: number | null
+  orderNo: string | null
+  itemSequence: string | null
+  productId: number | null
+  productCode: string | null
+  productName: string | null
+  quantity: number
+  uom: string | null
+  machineModel: string | null
+  rollerType: string | null
+  numberOfTeeth: number | null
+  remarks: string | null
 }
+
