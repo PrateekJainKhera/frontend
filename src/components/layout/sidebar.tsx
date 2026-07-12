@@ -28,7 +28,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   Users,
-  Settings
+  Settings,
+  XCircle,
+  RotateCcw,
+  BarChart3
 } from 'lucide-react'
 import { warehouseService } from '@/lib/api/warehouses'
 import { getSession, canView } from '@/lib/auth'
@@ -59,6 +62,7 @@ const navItems: NavItem[] = [
       { title: 'Processes', href: '/masters/processes', icon: Package },
       { title: 'Drawings', href: '/masters/drawings', icon: Package },
       { title: 'Machines', href: '/masters/machines', icon: Factory },
+      { title: 'Operators', href: '/masters/operators', icon: Users },
       { title: 'Vendors', href: '/masters/vendors', icon: Store },
       { title: 'Shifts', href: '/masters/shifts', icon: Clock },
       { title: 'Configurations', href: '/masters/configurations', icon: SlidersHorizontal },
@@ -153,29 +157,30 @@ const navItems: NavItem[] = [
     icon: Truck,
     module: 'Dispatch',
   },
-  // {
-  //   title: 'Quality',
-  //   href: '/quality',
-  //   icon: XCircle,
-  //   module: 'Quality',
-  //   children: [
-  //     { title: 'Rejections', href: '/quality/rejections', icon: XCircle },
-  //     { title: 'Rework Orders', href: '/quality/rework', icon: RotateCcw }
-  //   ]
-  // },
-  // MIS reports hidden until real API data is connected
-  // {
-  //   title: 'MIS',
-  //   href: '/mis',
-  //   icon: BarChart3,
-  //   module: 'Reports',
-  //   children: [
-  //     { title: 'Executive', href: '/mis/executive', icon: BarChart3 },
-  //     { title: 'Production', href: '/mis/production', icon: BarChart3 },
-  //     { title: 'Sales', href: '/mis/sales', icon: BarChart3 },
-  //     { title: 'Agent Performance', href: '/mis/agents', icon: BarChart3 }
-  //   ]
-  // },
+  {
+    title: 'Quality',
+    href: '/quality',
+    icon: XCircle,
+    module: 'Quality',
+    children: [
+      { title: 'Rejections', href: '/quality/rejections', icon: XCircle },
+      // Rework approval lives in Production — link to the real page
+      { title: 'Rework Approval', href: '/production/rework', icon: RotateCcw }
+    ]
+  },
+  {
+    title: 'MIS',
+    href: '/mis',
+    icon: BarChart3,
+    module: 'Reports',
+    children: [
+      { title: 'Executive', href: '/mis/executive', icon: BarChart3 },
+      { title: 'Machine Models', href: '/mis/machine-models', icon: BarChart3 },
+      { title: 'Production', href: '/mis/production', icon: BarChart3 },
+      { title: 'Sales', href: '/mis/sales', icon: BarChart3 },
+      { title: 'Agent Performance', href: '/mis/agents', icon: BarChart3 }
+    ]
+  },
   {
     title: 'Admin',
     href: '/admin',

@@ -8,8 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Product, ProductBOM } from '@/types'
-import { mockProducts, mockBOMs } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { productService } from '@/lib/api/products'
 import { ViewBOMDialog } from '@/components/dialogs/view-bom-dialog'
 
 export default function ProductDetailPage() {
@@ -26,14 +25,15 @@ export default function ProductDetailPage() {
 
   const loadProductAndBOM = async () => {
     setLoading(true)
-    const foundProduct = mockProducts.find(p => p.id === Number(params.id))
-    const foundBom = mockBOMs.find(b => b.productId === String(params.id) && b.isActive)
-
-    const productData = await simulateApiCall(foundProduct || null, 500)
-    const bomData = await simulateApiCall(foundBom || null, 500)
-
-    setProduct(productData)
-    setBom(bomData)
+    try {
+      const productData = await productService.getById(Number(params.id))
+      setProduct(productData)
+    } catch {
+      setProduct(null)
+    }
+    // No BOM API yet — child parts/materials live on the product's template
+    // (see the template pages); show the honest empty state here.
+    setBom(null)
     setLoading(false)
   }
 

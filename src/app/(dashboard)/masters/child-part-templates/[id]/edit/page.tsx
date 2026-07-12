@@ -108,7 +108,7 @@ export default function EditChildPartTemplatePage() {
         updatedBy: 'Admin',
       })
       toast.success('Template updated successfully')
-      router.push(`/masters/products`)
+      router.push(`/masters/child-part-templates/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update template')
     } finally {
@@ -132,7 +132,7 @@ export default function EditChildPartTemplatePage() {
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Template not found</h3>
             <Button asChild>
-              <Link href="/masters/products">
+              <Link href="/masters/child-part-templates">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Templates
               </Link>
             </Button>
@@ -146,7 +146,7 @@ export default function EditChildPartTemplatePage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
-          <Link href={`/masters/products/${id}`}>
+          <Link href={`/masters/child-part-templates/${id}`}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -263,7 +263,7 @@ export default function EditChildPartTemplatePage() {
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" asChild>
-            <Link href={`/masters/products/${id}`}>Cancel</Link>
+            <Link href={`/masters/child-part-templates/${id}`}>Cancel</Link>
           </Button>
           <Button type="submit" disabled={saving}>
             <Save className="mr-2 h-4 w-4" />

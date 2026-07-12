@@ -31,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { toast } from 'sonner'
@@ -53,10 +54,16 @@ const formSchema = z.object({
   productTemplateId: z.number().min(1, 'Product template is required'),
   diameter: z.number().positive('Diameter must be greater than 0').optional(),
   length: z.number().positive('Length must be greater than 0').optional(),
-  numberOfTeeth: z.number().min(1, 'Number of teeth is required'),
+  hasTeeth: z.boolean(),
+  numberOfTeeth: z.number().optional(),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
   processTemplateId: z.number(),
+}).superRefine((data, ctx) => {
+  // Teeth are required only for a geared part.
+  if (data.hasTeeth && (!data.numberOfTeeth || data.numberOfTeeth < 1)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['numberOfTeeth'], message: 'Number of teeth is required for a geared part' })
+  }
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -115,6 +122,7 @@ export function CreateProductDialog({
       productTemplateId: 0,
       diameter: undefined,
       length: undefined,
+      hasTeeth: (initialNumberOfTeeth ?? 0) > 0 || initialNumberOfTeeth === undefined,
       numberOfTeeth: initialNumberOfTeeth || 0,
       surfaceFinish: '',
       hardness: '',
@@ -315,7 +323,7 @@ export function CreateProductDialog({
         rollerType: data.rollerType,
         diameter: data.diameter,
         length: data.length,
-        numberOfTeeth: data.numberOfTeeth,
+        numberOfTeeth: data.hasTeeth ? data.numberOfTeeth : 0,
         surfaceFinish: data.surfaceFinish,
         hardness: data.hardness,
         productTemplateId: data.productTemplateId,
@@ -618,25 +626,47 @@ export function CreateProductDialog({
                 )}
               />
 
-              {/* Number of Teeth - REQUIRED */}
+              {/* Geared? toggle — teeth only apply to geared parts */}
               <FormField
                 control={form.control}
-                name="numberOfTeeth"
+                name="hasTeeth"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of Teeth *</FormLabel>
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <FormLabel className="text-sm">Geared part (has teeth)</FormLabel>
+                      <p className="text-xs text-muted-foreground">Turn off for plain rollers / shafts / bearers with no teeth</p>
+                    </div>
                     <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Enter number of teeth"
-                        value={field.value ?? 0}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={(v) => { field.onChange(v); if (!v) form.setValue('numberOfTeeth', 0) }}
                       />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Number of Teeth — only when geared */}
+              {form.watch('hasTeeth') && (
+                <FormField
+                  control={form.control}
+                  name="numberOfTeeth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Teeth *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="Enter number of teeth"
+                          value={field.value ?? 0}
+                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {/* Surface Finish */}
               <FormField

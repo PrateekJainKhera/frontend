@@ -1,442 +1,141 @@
 "use client"
 
-import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { Filter, FileText, AlertTriangle, CheckCircle2, Clock, Package, Search } from 'lucide-react'
+import { ArrowLeft, Search, RefreshCw, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { mockJobCards, mockOrders } from '@/lib/mock-data'
-import { simulateApiCall } from '@/lib/utils/mock-api'
-import { JobCard, JobCardStatus, MaterialStatus } from '@/types/job-card'
-import { Order } from '@/types'
-import { formatDate } from '@/lib/utils/formatters'
+import { ProductSpec } from '@/components/ui/product-spec'
+import { jobCardService, JobCardResponse } from '@/lib/api/job-cards'
 
-function JobCardsListPageContent() {
-  const searchParams = useSearchParams()
-  const orderIdFilter = searchParams.get('orderId')
+const STATUS_OPTIONS = ['All', 'Pending', 'Scheduled', 'InProgress', 'Completed']
 
+function statusBadge(s: string) {
+  const map: Record<string, string> = {
+    Pending: 'bg-gray-100 text-gray-700 border-gray-300',
+    Scheduled: 'bg-blue-100 text-blue-700 border-blue-300',
+    InProgress: 'bg-amber-100 text-amber-700 border-amber-300',
+    Completed: 'bg-green-100 text-green-700 border-green-300',
+  }
+  return <Badge variant="outline" className={`text-xs ${map[s] ?? ''}`}>{s}</Badge>
+}
+
+export default function JobCardsPage() {
+  const [items, setItems] = useState<JobCardResponse[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(25)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('All')
   const [loading, setLoading] = useState(true)
-  const [jobCards, setJobCards] = useState<JobCard[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [materialStatusFilter, setMaterialStatusFilter] = useState<string>('all')
-  const [orderFilter, setOrderFilter] = useState<string>(orderIdFilter || 'all')
-
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
+  // Drop out-of-order responses — searching fires a request per keystroke, so a
+  // slower earlier one must not overwrite the newest results.
+  const reqSeq = useRef(0)
+  const load = useCallback(async () => {
+    const mySeq = ++reqSeq.current
     setLoading(true)
-    const [jobCardsData, ordersData] = await Promise.all([
-      simulateApiCall(mockJobCards, 500),
-      simulateApiCall(mockOrders, 500)
-    ])
-    setJobCards(jobCardsData)
-    setOrders(ordersData)
-    setLoading(false)
-  }
-
-  // Apply filters
-  const filteredJobCards = jobCards.filter(jc => {
-    // Search filter
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase()
-      const matchesSearch =
-        jc.jobCardNo.toLowerCase().includes(search) ||
-        jc.orderNo.toLowerCase().includes(search) ||
-        jc.childPartName?.toLowerCase().includes(search) ||
-        jc.processName.toLowerCase().includes(search)
-      if (!matchesSearch) return false
+    try {
+      const res = await jobCardService.getPaged(page, pageSize, search || undefined, status === 'All' ? undefined : status)
+      if (mySeq !== reqSeq.current) return
+      setItems(res.items)
+      setTotalCount(res.totalCount)
+    } catch {
+      if (mySeq === reqSeq.current) { setItems([]); setTotalCount(0) }
     }
+    if (mySeq === reqSeq.current) setLoading(false)
+  }, [page, pageSize, search, status])
 
-    // Status filter
-    if (statusFilter !== 'all' && jc.status !== statusFilter) {
-      return false
-    }
+  useEffect(() => { load() }, [load])
 
-    // Material status filter
-    if (materialStatusFilter !== 'all' && jc.materialStatus !== materialStatusFilter) {
-      return false
-    }
-
-    // Order filter
-    if (orderFilter !== 'all' && jc.orderId !== orderFilter) {
-      return false
-    }
-
-    return true
-  })
-
-  // Stats
-  const stats = {
-    total: jobCards.length,
-    pending: jobCards.filter(jc => jc.status === JobCardStatus.PENDING).length,
-    pendingMaterial: jobCards.filter(jc => jc.status === JobCardStatus.PENDING_MATERIAL).length,
-    inProgress: jobCards.filter(jc => jc.status === JobCardStatus.IN_PROGRESS).length,
-    completed: jobCards.filter(jc => jc.status === JobCardStatus.COMPLETED).length,
-  }
-
-  const getStatusBadgeVariant = (status: JobCardStatus) => {
-    switch (status) {
-      case JobCardStatus.COMPLETED:
-        return 'default'
-      case JobCardStatus.IN_PROGRESS:
-        return 'secondary'
-      case JobCardStatus.PENDING_MATERIAL:
-        return 'destructive'
-      case JobCardStatus.BLOCKED:
-        return 'destructive'
-      default:
-        return 'outline'
-    }
-  }
-
-  const getStatusIcon = (status: JobCardStatus) => {
-    switch (status) {
-      case JobCardStatus.COMPLETED:
-        return <CheckCircle2 className="h-3 w-3" />
-      case JobCardStatus.IN_PROGRESS:
-        return <Clock className="h-3 w-3" />
-      case JobCardStatus.PENDING_MATERIAL:
-        return <AlertTriangle className="h-3 w-3" />
-      case JobCardStatus.BLOCKED:
-        return <AlertTriangle className="h-3 w-3" />
-      default:
-        return <Package className="h-3 w-3" />
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-12 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        <Skeleton className="h-96" />
-      </div>
-    )
-  }
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Job Cards</h1>
-          <p className="text-muted-foreground mt-1">
-            View and manage all generated job cards
-          </p>
-        </div>
+      <div className="flex items-center gap-3 flex-wrap">
         <Link href="/planning">
-          <Button variant="outline">
-            Back to Planning
-          </Button>
+          <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Planning</Button>
         </Link>
+        <div className="flex items-center gap-2">
+          <ClipboardList className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Job Cards</h1>
+            <p className="text-sm text-muted-foreground">{totalCount} job cards</p>
+          </div>
+        </div>
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 border rounded-md px-3">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search job card / order / part / process…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1) }}
+              className="border-0 shadow-none focus-visible:ring-0 h-9 px-0 w-64"
+            />
+          </div>
+          <Select value={status} onValueChange={v => { setStatus(v); setPage(1) }}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={load} title="Refresh">
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Total Job Cards</CardDescription>
-            <CardTitle className="text-3xl">{stats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Pending</CardDescription>
-            <CardTitle className="text-3xl text-orange-600">{stats.pending}</CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-red-700">Pending Material</CardDescription>
-            <CardTitle className="text-3xl text-red-900">{stats.pendingMaterial}</CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-blue-700">In Progress</CardDescription>
-            <CardTitle className="text-3xl text-blue-900">{stats.inProgress}</CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card className="border-green-200 bg-green-50">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-green-700">Completed</CardDescription>
-            <CardTitle className="text-3xl text-green-900">{stats.completed}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Search</label>
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Job card, order, child part..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
+      {/* List */}
+      {loading ? (
+        <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+      ) : items.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground">No job cards found.</CardContent></Card>
+      ) : (
+        <div className="space-y-2">
+          {items.map(jc => (
+            <div key={jc.id} className="flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/40 flex-wrap">
+              <div className="w-64 shrink-0">
+                <span className="font-mono text-sm font-semibold block truncate">{jc.jobCardNo}</span>
+                <span className="text-xs text-muted-foreground">
+                  {jc.orderNo}{jc.itemSequence ? `-${jc.itemSequence}` : ''}
+                </span>
               </div>
+              <div className="w-56 shrink-0 min-w-0">
+                <ProductSpec machineModel={jc.machineModelName} rollerType={jc.rollerType} numberOfTeeth={jc.numberOfTeeth} />
+                <div className="text-xs text-muted-foreground truncate">{jc.childPartName ?? '—'}</div>
+              </div>
+              <div className="text-sm text-muted-foreground w-40 shrink-0 truncate">
+                {jc.stepNo != null && <span className="mr-1 font-medium text-foreground">#{jc.stepNo}</span>}
+                {jc.processName ?? '—'}
+              </div>
+              <span className="text-sm text-muted-foreground">Qty: <span className="font-medium text-foreground">{jc.quantity}</span></span>
+              {statusBadge(jc.status)}
+              {jc.productionStatus && jc.productionStatus !== 'Pending' && (
+                <Badge variant="outline" className="text-xs">{jc.productionStatus}</Badge>
+              )}
+              {jc.completedQty > 0 && (
+                <span className="text-xs text-green-700 ml-auto">Done: {jc.completedQty}{jc.rejectedQty > 0 ? ` · Rej: ${jc.rejectedQty}` : ''}</span>
+              )}
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Order Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Order</label>
-              <Select value={orderFilter} onValueChange={setOrderFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Orders" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Orders</SelectItem>
-                  {orders.map(order => (
-                    <SelectItem key={order.id} value={order.id}>
-                      {order.orderNo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Status Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value={JobCardStatus.PENDING}>Pending</SelectItem>
-                  <SelectItem value={JobCardStatus.PENDING_MATERIAL}>Pending Material</SelectItem>
-                  <SelectItem value={JobCardStatus.READY}>Ready</SelectItem>
-                  <SelectItem value={JobCardStatus.IN_PROGRESS}>In Progress</SelectItem>
-                  <SelectItem value={JobCardStatus.COMPLETED}>Completed</SelectItem>
-                  <SelectItem value={JobCardStatus.BLOCKED}>Blocked</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Material Status Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Material Status</label>
-              <Select value={materialStatusFilter} onValueChange={setMaterialStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Material Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Material Status</SelectItem>
-                  <SelectItem value={MaterialStatus.AVAILABLE}>Available</SelectItem>
-                  <SelectItem value={MaterialStatus.PENDING}>Pending</SelectItem>
-                  <SelectItem value={MaterialStatus.PARTIAL}>Partial</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {(searchTerm || statusFilter !== 'all' || materialStatusFilter !== 'all' || orderFilter !== 'all') && (
-            <div className="mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSearchTerm('')
-                  setStatusFilter('all')
-                  setMaterialStatusFilter('all')
-                  setOrderFilter('all')
-                }}
-              >
-                Clear Filters
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Job Cards List */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Job Cards List</CardTitle>
-              <CardDescription className="mt-1">
-                {filteredJobCards.length} job card{filteredJobCards.length !== 1 ? 's' : ''} found
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredJobCards.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No job cards found</p>
-              <p className="text-sm mt-1">Try adjusting your filters</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredJobCards.map((jc) => (
-                <div
-                  key={jc.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    {/* Left Side - Job Card Info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <p className="font-semibold">{jc.jobCardNo}</p>
-                        <Badge variant="outline">{jc.orderNo}</Badge>
-                        <Badge variant={getStatusBadgeVariant(jc.status)}>
-                          {getStatusIcon(jc.status)}
-                          <span className="ml-1">{jc.status}</span>
-                        </Badge>
-                        {jc.priority && (
-                          <Badge variant={jc.priority === 'Urgent' ? 'destructive' : 'outline'}>
-                            {jc.priority}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Child Part:</span>
-                          <p className="font-medium">{jc.childPartName || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Process:</span>
-                          <p className="font-medium">{jc.processName}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Step:</span>
-                          <p className="font-medium">Step {jc.stepNo}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Quantity:</span>
-                          <p className="font-medium">{jc.quantity} pcs</p>
-                        </div>
-                      </div>
-
-                      {/* Drawing Info */}
-                      {jc.drawingNumber && (
-                        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                          <FileText className="h-3 w-3" />
-                          <span>Drawing: {jc.drawingNumber} Rev {jc.drawingRevision}</span>
-                          {jc.drawingSelectionType === 'auto' && (
-                            <Badge variant="secondary" className="text-xs">Auto-selected</Badge>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Material Status */}
-                      {jc.materialStatus && (
-                        <div className="mt-2">
-                          {jc.materialStatus === MaterialStatus.AVAILABLE ? (
-                            <Badge className="bg-green-600 text-xs">
-                              <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Material Available
-                            </Badge>
-                          ) : jc.materialStatus === MaterialStatus.PENDING ? (
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertTriangle className="mr-1 h-3 w-3" />
-                              Material Pending
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              <Package className="mr-1 h-3 w-3" />
-                              Partial Material
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Material Shortfall Details */}
-                      {jc.materialShortfall && (
-                        <div className="mt-2 text-xs text-red-700 bg-red-50 rounded p-2">
-                          <strong>Shortfall:</strong> {jc.materialShortfall.materialName} -
-                          Need {jc.materialShortfall.shortfall} {jc.materialShortfall.unit}
-                          {jc.daysWaitingForMaterial && jc.daysWaitingForMaterial > 3 && (
-                            <span className="ml-2 font-semibold">
-                              (Waiting {jc.daysWaitingForMaterial} days)
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Progress */}
-                      {jc.status === JobCardStatus.IN_PROGRESS && jc.completedQty > 0 && (
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">Progress</span>
-                            <span className="font-medium">
-                              {jc.completedQty} / {jc.quantity} completed ({Math.round((jc.completedQty / jc.quantity) * 100)}%)
-                            </span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${(jc.completedQty / jc.quantity) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right Side - Actions */}
-                    <div className="ml-4">
-                      <Link href={`/planning/job-cards/${jc.id}`}>
-                        <Button variant="outline" size="sm">
-                          View Details
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
+          <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+        </div>
+      )}
     </div>
-  )
-}
-
-export default function JobCardsListPage() {
-  return (
-    <Suspense fallback={<div className="flex flex-col gap-6 p-6"><Skeleton className="h-32 w-full" /></div>}>
-      <JobCardsListPageContent />
-    </Suspense>
   )
 }

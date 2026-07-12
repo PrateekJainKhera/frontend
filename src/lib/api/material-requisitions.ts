@@ -44,6 +44,7 @@ export interface MaterialRequisitionItemResponse {
   lengthRequiredMM?: number
   diameterMM?: number
   numberOfPieces?: number
+  wastageMM?: number
   quantityAllocated?: number
   quantityIssued?: number
   quantityPending?: number
@@ -98,6 +99,7 @@ export interface CreateMaterialRequisitionItemRequest {
   lengthRequiredMM?: number
   diameterMM?: number
   numberOfPieces?: number
+  wastageMM?: number
   jobCardId?: number
   jobCardNo?: string
   processId?: number
@@ -397,6 +399,7 @@ class MaterialRequisitionService {
       materialId: number
       lengthRequiredMM?: number
       numberOfPieces?: number
+      wastageMM?: number
       reason: string
       changedBy?: string
       changedByRole?: string

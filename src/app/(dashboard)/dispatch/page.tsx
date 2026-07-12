@@ -252,11 +252,20 @@ function ConsolidatedDispatchPanel({
     setDispatchDate(new Date().toISOString().split('T')[0])
   }, [])
 
-  // Distinct customers that actually have ready items
+  // Distinct customers that actually have ready items — with pending counts,
+  // so the picker itself shows where the pending work is.
   const customers = useMemo(() => {
-    const map = new Map<number, string>()
-    readyItems.forEach(i => { if (i.customerId) map.set(i.customerId, i.customerName ?? `Customer ${i.customerId}`) })
-    return Array.from(map.entries()).map(([id, name]) => ({ value: String(id), label: name }))
+    const map = new Map<number, { name: string; items: number; pcs: number }>()
+    readyItems.forEach(i => {
+      if (!i.customerId) return
+      const e = map.get(i.customerId) ?? { name: i.customerName ?? `Customer ${i.customerId}`, items: 0, pcs: 0 }
+      e.items += 1
+      e.pcs += i.qtyPendingDispatch
+      map.set(i.customerId, e)
+    })
+    return Array.from(map.entries())
+      .sort((a, b) => b[1].items - a[1].items)
+      .map(([id, e]) => ({ value: String(id), label: `${e.name}  (${e.items} items · ${e.pcs} pcs)` }))
   }, [readyItems])
 
   const customerItems = useMemo(
@@ -302,6 +311,27 @@ function ConsolidatedDispatchPanel({
 
   const selectedLines = Object.entries(picked).filter(([, q]) => q > 0)
   const totalQty = selectedLines.reduce((s, [, q]) => s + q, 0)
+
+  // Live validation: any picked line whose qty exceeds its pending amount
+  const pendingByItem = useMemo(() => {
+    const m = new Map<number, number>()
+    readyItems.forEach(i => m.set(i.orderItemId, i.qtyPendingDispatch))
+    return m
+  }, [readyItems])
+  const invalidCount = selectedLines.filter(([oid, q]) => q > (pendingByItem.get(Number(oid)) ?? 0)).length
+
+  // Read-only overview of ALL pending items, grouped by customer
+  const [showAllPending, setShowAllPending] = useState(false)
+  const allPendingByCustomer = useMemo(() => {
+    const map = new Map<string, ReadyToDispatchItem[]>()
+    readyItems.forEach(i => {
+      const key = i.customerName ?? `Customer ${i.customerId}`
+      const list = map.get(key) ?? []
+      list.push(i)
+      map.set(key, list)
+    })
+    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length)
+  }, [readyItems])
 
   const submit = async () => {
     if (!customerId) { setError('Select a client'); return }
@@ -350,9 +380,18 @@ function ConsolidatedDispatchPanel({
             <p className="text-sm text-muted-foreground">Pick a client, select whole orders or individual items, enter the bill details, and generate one challan.</p>
           </div>
 
-          {/* 1. Client search */}
+          {/* 1. Client search (labels show pending items · pcs per client) */}
           <div className="space-y-1.5">
-            <Label>Client <span className="text-destructive">*</span></Label>
+            <div className="flex items-center justify-between">
+              <Label>Client <span className="text-destructive">*</span></Label>
+              <button
+                type="button"
+                onClick={() => setShowAllPending(v => !v)}
+                className="text-xs text-primary hover:underline"
+              >
+                {showAllPending ? 'Hide pending overview' : `View all pending items (${readyItems.length})`}
+              </button>
+            </div>
             <SearchableSelect
               value={customerId}
               onChange={(v) => { setCustomerId(v); setPicked({}) }}
@@ -361,6 +400,34 @@ function ConsolidatedDispatchPanel({
               searchPlaceholder="Search by name…"
             />
           </div>
+
+          {/* Read-only overview of everything pending, grouped by customer */}
+          {showAllPending && (
+            <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
+              {allPendingByCustomer.map(([customer, items]) => (
+                <div key={customer} className="p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="font-semibold text-sm">{customer}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {items.length} item{items.length !== 1 ? 's' : ''} · {items.reduce((s, i) => s + i.qtyPendingDispatch, 0)} pcs
+                    </span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {items.map(i => (
+                      <div key={i.orderItemId} className="flex items-center gap-3 text-xs text-muted-foreground pl-2">
+                        <span className="font-mono text-foreground w-44 shrink-0">{i.orderNo}-{i.itemSequence}</span>
+                        <span className="flex-1 min-w-0 truncate">
+                          {[i.machineModel, i.rollerType, (i.numberOfTeeth ?? 0) > 0 ? `${i.numberOfTeeth}T` : null].filter(Boolean).join(' · ') || i.productName || '—'}
+                        </span>
+                        <span className="shrink-0">Pending: <span className="font-semibold text-orange-600">{i.qtyPendingDispatch}</span></span>
+                        {i.dueDate && <span className="shrink-0">Due {formatDate(i.dueDate)}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* 2. That client's ready items — grouped by Order */}
           {customerId && (
@@ -405,12 +472,17 @@ function ConsolidatedDispatchPanel({
                             </div>
                             <div className="text-xs text-muted-foreground shrink-0">Pending: <span className="font-semibold text-orange-600">{item.qtyPendingDispatch}</span></div>
                             {checked && (
-                              <Input
-                                type="number" min={1} max={item.qtyPendingDispatch}
-                                value={picked[item.orderItemId]}
-                                onChange={e => setQty(item.orderItemId, e.target.value)}
-                                className="w-20 h-8"
-                              />
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <Input
+                                  type="number" min={1} max={item.qtyPendingDispatch}
+                                  value={picked[item.orderItemId]}
+                                  onChange={e => setQty(item.orderItemId, e.target.value)}
+                                  className={`w-20 h-8 ${picked[item.orderItemId] > item.qtyPendingDispatch ? 'border-destructive focus-visible:ring-destructive text-destructive' : ''}`}
+                                />
+                                {picked[item.orderItemId] > item.qtyPendingDispatch && (
+                                  <span className="text-xs text-destructive font-medium">max {item.qtyPendingDispatch}</span>
+                                )}
+                              </div>
                             )}
                           </div>
                         )
@@ -462,17 +534,19 @@ function ConsolidatedDispatchPanel({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 border-t pt-4">
+          {/* Actions — sticky so it stays visible while scrolling long order lists */}
+          <div className="sticky bottom-0 z-10 -mx-6 -mb-6 px-6 py-3 bg-background/95 backdrop-blur border-t rounded-b-xl flex items-center gap-3">
             <div className="mr-auto text-sm text-muted-foreground">
-              {selectedLines.length > 0
+              {invalidCount > 0
+                ? <span className="text-destructive font-medium">{invalidCount} line(s) exceed the pending quantity — fix the red inputs</span>
+                : selectedLines.length > 0
                 ? <span><span className="font-semibold text-foreground">{selectedLines.length}</span> item(s) · <span className="font-semibold text-foreground">{totalQty}</span> pcs selected</span>
                 : <span>Select a client and their items to generate a challan</span>}
             </div>
             <Button
               size="lg"
               onClick={submit}
-              disabled={submitting || selectedLines.length === 0 || !customerId}
+              disabled={submitting || selectedLines.length === 0 || !customerId || invalidCount > 0}
               className="gap-2"
             >
               <Truck className="h-4 w-4" />

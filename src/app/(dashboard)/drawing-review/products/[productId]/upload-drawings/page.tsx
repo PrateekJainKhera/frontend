@@ -297,10 +297,12 @@ export default function DrawingUploadPage() {
               <Label className="text-muted-foreground">Length</Label>
               <p className="font-medium">{product.length} mm</p>
             </div>
-            <div>
-              <Label className="text-muted-foreground">Teeth</Label>
-              <p className="font-medium">{product.numberOfTeeth}</p>
-            </div>
+            {(product.numberOfTeeth ?? 0) > 0 && (
+              <div>
+                <Label className="text-muted-foreground">Teeth</Label>
+                <p className="font-medium">{product.numberOfTeeth}</p>
+              </div>
+            )}
             <div>
               <Label className="text-muted-foreground">Material</Label>
               <p className="font-medium">{product.materialGrade}</p>

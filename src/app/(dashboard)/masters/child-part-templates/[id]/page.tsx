@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Package, Wrench, Edit, Trash2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,23 @@ import { toast } from 'sonner'
 
 export default function ChildPartTemplateDetailPage() {
   const params = useParams()
+  const router = useRouter()
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!template) return
+    if (!confirm(`Delete template "${template.templateName}"? This cannot be undone.\n(Templates used in any product BOM or job card are protected and will not be deleted.)`)) return
+    setDeleting(true)
+    try {
+      await childPartTemplateService.delete(Number(params.id))
+      toast.success('Template deleted')
+      router.push('/masters/child-part-templates')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete template', { duration: 8000 })
+    } finally {
+      setDeleting(false)
+    }
+  }
   const [template, setTemplate] = useState<ChildPartTemplateResponse | null>(null)
   const [processTemplate, setProcessTemplate] = useState<ProcessTemplateResponse | null>(null)
   const [processTemplateWithSteps, setProcessTemplateWithSteps] = useState<ProcessTemplateWithStepsResponse | null>(null)
@@ -131,9 +148,14 @@ export default function ChildPartTemplateDetailPage() {
               Edit
             </Link>
           </Button>
-          <Button variant="outline" className="text-destructive hover:bg-destructive hover:text-destructive-foreground">
+          <Button
+            variant="outline"
+            className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {deleting ? 'Deleting…' : 'Delete'}
           </Button>
         </div>
       </div>

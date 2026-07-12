@@ -983,6 +983,7 @@ export default function GenerateJobCardsPage() {
           requiredQuantity: number
           lengthPerPiece: number
           numberOfPieces: number
+          wastageMM: number
           unit: string
         }>
       }> = []
@@ -1061,6 +1062,7 @@ export default function GenerateJobCardsPage() {
                 rawMaterialName: mr.rawMaterialName,
                 materialGrade: mr.materialGrade,
                 requiredQuantity: mr.requiredQuantity,
+                wastageMM: mr.wastageMM ?? 0,
                 lengthPerPiece: mr.lengthPerPiece,
                 numberOfPieces: mr.numberOfPieces,
                 unit: mr.unit
@@ -1185,6 +1187,7 @@ export default function GenerateJobCardsPage() {
               quantityRequired: material.requiredQuantity,
               lengthRequiredMM: material.lengthPerPiece, // Per-piece requirement (e.g., 300mm)
               numberOfPieces: material.numberOfPieces, // Total pieces (e.g., 2)
+              wastageMM: material.wastageMM, // Per-piece wastage allowance
               uom: material.unit,
               jobCardId: jobCard.jobCardId,
               jobCardNo: jobCard.jobCardNo,

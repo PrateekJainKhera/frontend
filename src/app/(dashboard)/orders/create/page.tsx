@@ -313,7 +313,10 @@ export default function CreateOrderPage() {
                                 <p className="font-semibold text-sm truncate">{item.product.partCode}</p>
                               </div>
                               <p className="text-xs text-muted-foreground mt-1">
-                                {item.product.modelName} • {item.product.rollerType} • {item.product.numberOfTeeth} teeth
+                                {item.product.modelName} • {item.product.rollerType}
+                                {item.product.numberOfTeeth && item.product.numberOfTeeth > 0
+                                  ? ` • ${item.product.numberOfTeeth} teeth`
+                                  : ''}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 ⌀{item.product.diameter}mm × {item.product.length}mm

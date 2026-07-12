@@ -12,7 +12,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Eye, FileText } from 'lucide-react'
-import { Drawing } from '@/lib/mock-data'
+import { Drawing } from '@/types/drawing'
 import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
 
 const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace(/\/api$/, '')

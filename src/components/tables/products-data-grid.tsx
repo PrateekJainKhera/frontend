@@ -12,11 +12,13 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Product } from '@/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Edit, Eye, Package } from 'lucide-react'
+import { Edit, Eye, Package, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
 import { ViewProductDialog } from '@/components/dialogs/view-product-dialog'
 import { EditProductDialog } from '@/components/dialogs/edit-product-dialog'
 import { ProductBOMDialog } from '@/components/dialogs/product-bom-dialog'
+import { productService } from '@/lib/api/products'
+import { toast } from 'sonner'
 
 interface ProductsDataGridProps {
     products: Product[]
@@ -74,6 +76,22 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
     const handleEdit = (product: Product) => {
         setSelectedProduct(product)
         setEditDialogOpen(true)
+    }
+
+    const [deletingId, setDeletingId] = useState<number | null>(null)
+    const handleDelete = async (product: Product) => {
+        const label = `${product.partCode}${product.modelName ? ` (${product.modelName})` : ''}`
+        if (!confirm(`Delete product "${label}"?\nProducts linked to any order are protected and cannot be deleted.`)) return
+        setDeletingId(product.id)
+        try {
+            await productService.delete(Number(product.id))
+            toast.success('Product deleted')
+            onUpdate?.()
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to delete product', { duration: 8000 })
+        } finally {
+            setDeletingId(null)
+        }
     }
 
     const handleViewBOM = (product: Product) => {
@@ -227,6 +245,16 @@ export function ProductsDataGrid({ products, onUpdate }: ProductsDataGridProps) 
                     title="Edit"
                 >
                     <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    disabled={deletingId === row.original.id}
+                    onClick={() => handleDelete(row.original)}
+                    title="Delete (only if not used in any order)"
+                >
+                    <Trash2 className="h-4 w-4" />
                 </Button>
             </div>
         ),

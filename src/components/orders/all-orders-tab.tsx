@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -123,18 +123,25 @@ export function AllOrdersTab() {
     return () => clearTimeout(id)
   }, [colInput, sourceFilter])
 
+  // Guards against out-of-order responses: two debounced effects (search + column
+  // filters) can fire overlapping requests, and a slower earlier one could otherwise
+  // overwrite the newest results. Only the latest request is allowed to apply.
+  const reqSeq = useRef(0)
   const loadPage = useCallback(async () => {
+    const mySeq = ++reqSeq.current
     setLoading(true)
     try {
       const res = await orderService.getPaged(page, pageSize, search, tabToStatus(activeTab), colFilters)
+      if (mySeq !== reqSeq.current) return   // a newer request superseded this one
       setOrders(res.items.flatMap(expandOrder))
       setTotalCount(res.totalCount)
       setTotalPages(res.totalPages)
     } catch (err) {
+      if (mySeq !== reqSeq.current) return
       toast.error(err instanceof Error ? err.message : 'Failed to load orders')
       setOrders([])
     } finally {
-      setLoading(false)
+      if (mySeq === reqSeq.current) setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, search, activeTab, colFilters])

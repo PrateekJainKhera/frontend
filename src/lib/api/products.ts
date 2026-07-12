@@ -103,17 +103,20 @@ class ProductService {
     }
   }
 
-  async searchByCriteria(modelId: number, rollerType: string, numberOfTeeth: number): Promise<Product[]> {
+  async searchByCriteria(
+    modelId: number,
+    rollerType?: string,
+    numberOfTeeth?: number
+  ): Promise<Product[]> {
     try {
+      // Progressive filter: modelId is always sent; rollerType/numberOfTeeth are
+      // only included when provided so the backend narrows the result accordingly.
+      const params: Record<string, string | number> = { modelId }
+      if (rollerType) params.rollerType = rollerType
+      if (numberOfTeeth != null) params.numberOfTeeth = numberOfTeeth
       const response = await apiClient.get<ApiResponse<Product[]>>(
         `${this.baseUrl}/search-by-criteria`,
-        {
-          params: {
-            modelId,
-            rollerType,
-            numberOfTeeth,
-          },
-        }
+        { params }
       )
       return response.data.data || []
     } catch (error) {

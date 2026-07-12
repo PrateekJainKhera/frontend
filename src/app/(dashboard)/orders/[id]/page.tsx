@@ -17,7 +17,7 @@ import { orderService, OrderResponse, OrderItemResponse } from '@/lib/api/orders
 import { productService } from '@/lib/api/products'
 import { Product } from '@/types/product'
 
-import { getDelayDays, getOrderProgress } from '@/lib/mock-data/orders'
+import { getDelayDays, getOrderProgress } from '@/lib/utils/order-helpers'
 import { RescheduleOrderDialog } from '@/components/dialogs/reschedule-order-dialog'
 import { format } from 'date-fns'
 

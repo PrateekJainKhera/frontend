@@ -136,6 +136,19 @@ export interface JobCardSummary {
 class JobCardService {
   private baseUrl = '/jobcards'
 
+  // QC rejections register — job cards with rejected pieces
+  async getRejections(): Promise<JobCardResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<JobCardResponse[]>>(`${this.baseUrl}/rejections`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch rejections: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   async getAll(): Promise<JobCardResponse[]> {
     try {
       const response = await apiClient.get<ApiResponse<JobCardResponse[]>>(this.baseUrl)

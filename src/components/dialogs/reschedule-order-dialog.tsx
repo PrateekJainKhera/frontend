@@ -33,7 +33,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
-import { simulateApiCall } from '@/lib/utils/mock-api'
+import { orderService } from '@/lib/api/orders'
+import { getCurrentUserName } from '@/lib/auth'
 import { format } from 'date-fns'
 import { AlertCircle } from 'lucide-react'
 
@@ -87,18 +88,24 @@ export function RescheduleOrderDialog({
     try {
       const finalReason = data.reason === 'Other' ? data.customReason : data.reason
 
-      const rescheduleData = {
-        id: `rsch-${Date.now()}`,
-        orderId: order.id,
-        oldDueDate: order.dueDate,
-        newDueDate: data.newDueDate,
-        reason: finalReason || data.reason,
-        rescheduledBy: 'user-current',
-        rescheduledByName: 'Current User',
-        rescheduledAt: new Date(),
-      }
-
-      await simulateApiCall(rescheduleData, 1000)
+      // The update API is a full replace with optimistic locking — fetch the
+      // fresh order and send all current values with the new adjusted due date.
+      const orderId = Number(order.id)
+      const fresh = await orderService.getById(orderId)
+      await orderService.update(orderId, {
+        id: orderId,
+        orderDate: fresh.orderDate,
+        dueDate: fresh.dueDate,
+        adjustedDueDate: data.newDueDate,
+        customerId: fresh.customerId,
+        productId: fresh.productId,
+        quantity: fresh.quantity,
+        status: fresh.status,
+        priority: fresh.priority,
+        delayReason: finalReason || data.reason,
+        version: fresh.version,
+        updatedBy: getCurrentUserName(),
+      })
 
       toast.success('Order rescheduled successfully')
       form.reset()

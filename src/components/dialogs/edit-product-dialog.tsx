@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -47,11 +48,16 @@ const formSchema = z.object({
   drawingNo: z.string().optional(),
   revisionNo: z.string().optional(),
   revisionDate: z.string().optional(),
-  numberOfTeeth: z.number().min(1, 'Number of teeth is required'),
+  hasTeeth: z.boolean(),
+  numberOfTeeth: z.number().optional(),
   surfaceFinish: z.string().optional(),
   hardness: z.string().optional(),
   processTemplateId: z.number(),
   productTemplateId: z.number().optional(),
+}).superRefine((data, ctx) => {
+  if (data.hasTeeth && (!data.numberOfTeeth || data.numberOfTeeth < 1)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['numberOfTeeth'], message: 'Number of teeth is required for a geared part' })
+  }
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -114,6 +120,7 @@ export function EditProductDialog({
       drawingNo: product.drawingNo ?? '',
       revisionNo: product.revisionNo ?? '',
       revisionDate: product.revisionDate ?? '',
+      hasTeeth: (product.numberOfTeeth ?? 0) > 0,
       numberOfTeeth: product.numberOfTeeth ?? 0,
       surfaceFinish: product.surfaceFinish ?? '',
       hardness: product.hardness ?? '',
@@ -139,7 +146,7 @@ export function EditProductDialog({
         drawingNo: data.drawingNo,
         revisionNo: data.revisionNo,
         revisionDate: data.revisionDate,
-        numberOfTeeth: data.numberOfTeeth,
+        numberOfTeeth: data.hasTeeth ? data.numberOfTeeth : 0,
         surfaceFinish: data.surfaceFinish,
         hardness: data.hardness,
         processTemplateId: data.processTemplateId,
@@ -367,22 +374,43 @@ export function EditProductDialog({
 
               <FormField
                 control={form.control}
-                name="numberOfTeeth"
+                name="hasTeeth"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of Teeth *</FormLabel>
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <FormLabel className="text-sm">Geared part (has teeth)</FormLabel>
+                      <p className="text-xs text-muted-foreground">Turn off for plain rollers / shafts / bearers with no teeth</p>
+                    </div>
                     <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Enter number of teeth"
-                        value={field.value ?? 0}
-                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={(v) => { field.onChange(v); if (!v) form.setValue('numberOfTeeth', 0) }}
                       />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {form.watch('hasTeeth') && (
+                <FormField
+                  control={form.control}
+                  name="numberOfTeeth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Teeth *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="Enter number of teeth"
+                          value={field.value ?? 0}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

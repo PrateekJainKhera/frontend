@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Drawing } from '@/lib/mock-data'
+import { Drawing } from '@/types/drawing'
 import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 import { AddDrawingDialog } from '@/components/forms/add-drawing-dialog'
 import { DrawingsDataGrid } from '@/components/tables/drawings-data-grid'

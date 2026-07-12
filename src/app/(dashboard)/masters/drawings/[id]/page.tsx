@@ -23,7 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import { Drawing } from '@/lib/mock-data'
+import { Drawing } from '@/types/drawing'
 import { drawingService, DrawingResponse } from '@/lib/api/drawings'
 
 const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace('/api', '')

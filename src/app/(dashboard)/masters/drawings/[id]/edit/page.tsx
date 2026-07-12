@@ -18,8 +18,13 @@ import {
 } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Drawing, mockRawMaterials, mockProducts, mockCustomers, ManufacturingDimensions } from '@/lib/mock-data'
+import { Drawing, ManufacturingDimensions } from '@/types/drawing'
 import { drawingService } from '@/lib/api/drawings'
+import { materialService, MaterialResponse } from '@/lib/api/materials'
+import { productService } from '@/lib/api/products'
+import { Product } from '@/types/product'
+import { customerService } from '@/lib/api/customer'
+import { Customer } from '@/types/customer'
 import { ManufacturingDimensionsForm } from '@/components/forms/manufacturing-dimensions-form'
 import { toast } from 'sonner'
 
@@ -45,8 +50,16 @@ export default function EditDrawingPage() {
     materialGrade: ''
   })
 
+  // Real master lists for the link dropdowns
+  const [materials, setMaterials] = useState<MaterialResponse[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+
   useEffect(() => {
     loadDrawing()
+    materialService.getAll().then(setMaterials).catch(() => {})
+    productService.getAll().then(setProducts).catch(() => {})
+    customerService.getAll().then(setCustomers).catch(() => {})
   }, [params.id])
 
   const loadDrawing = async () => {
@@ -292,9 +305,9 @@ export default function EditDrawingPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {mockRawMaterials.map((material) => (
+                      {materials.map((material) => (
                         <SelectItem key={material.id} value={material.id.toString()}>
-                          {material.materialName} - {material.grade}
+                          {material.materialName}{material.grade ? ` - ${material.grade}` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -309,7 +322,7 @@ export default function EditDrawingPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {mockProducts.map((product) => (
+                      {products.map((product) => (
                         <SelectItem key={product.id} value={product.id.toString()}>
                           {product.modelName}
                         </SelectItem>
@@ -326,7 +339,7 @@ export default function EditDrawingPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {mockCustomers.map((customer) => (
+                      {customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id.toString()}>
                           {customer.customerName}
                         </SelectItem>

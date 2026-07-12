@@ -33,9 +33,7 @@ import {
 } from "@/components/ui/tooltip";
 import { materialRequisitionService, MaterialRequisitionResponse, MaterialRequisitionItemResponse } from "@/lib/api/material-requisitions";
 import { materialPieceService, MaterialPieceResponse } from "@/lib/api/material-pieces";
-import { materialService, MaterialResponse } from "@/lib/api/materials";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { getCurrentUserName } from "@/lib/auth";
+import { ChangeMaterialDialog } from "@/components/stores/change-material-dialog";
 import { PieceSelectionDialog } from "@/components/planning/PieceSelectionDialog";
 import { ComponentSelectionDialog } from "@/components/inventory/ComponentSelectionDialog";
 import { toast } from "sonner";
@@ -102,58 +100,17 @@ export default function MaterialRequisitionDetailPage() {
   const [componentDialogOpen, setComponentDialogOpen] = useState(false);
   const [selectedItemForComponent, setSelectedItemForComponent] = useState<MaterialRequisitionItemResponse | null>(null);
 
-  // Change / substitute material dialog state (raw material items, before issue)
-  const [materials, setMaterials] = useState<MaterialResponse[]>([]);
+  // Change material / size — shared dialog (same window as the Stores side)
   const [materialDialogOpen, setMaterialDialogOpen] = useState(false);
   const [selectedItemForMaterial, setSelectedItemForMaterial] = useState<MaterialRequisitionItemResponse | null>(null);
-  const [newMaterialId, setNewMaterialId] = useState<string>("");
-  const [newLengthMM, setNewLengthMM] = useState<string>("");
-  const [newPieces, setNewPieces] = useState<string>("");
-  const [materialChangeReason, setMaterialChangeReason] = useState<string>("");
 
   useEffect(() => {
     loadRequisition();
-    materialService.getAll().then(setMaterials).catch(() => {});
   }, [requisitionId]);
 
   const openMaterialDialog = (item: MaterialRequisitionItemResponse) => {
     setSelectedItemForMaterial(item);
-    setNewMaterialId(item.materialId ? String(item.materialId) : "");
-    setNewLengthMM(item.lengthRequiredMM != null ? String(item.lengthRequiredMM) : "");
-    setNewPieces(item.numberOfPieces != null ? String(item.numberOfPieces) : "");
-    setMaterialChangeReason("");
     setMaterialDialogOpen(true);
-  };
-
-  const materialChanged = !!selectedItemForMaterial && newMaterialId !== "" && Number(newMaterialId) !== selectedItemForMaterial.materialId;
-
-  const handleChangeMaterial = async () => {
-    if (!selectedItemForMaterial) return;
-    if (!newMaterialId) { toast.error("Select a material"); return; }
-    if (!materialChangeReason.trim()) { toast.error("Reason is required"); return; }
-    setActionLoading(true);
-    try {
-      const res = await materialRequisitionService.changeItemMaterial(
-        requisitionId,
-        selectedItemForMaterial.id,
-        {
-          materialId: Number(newMaterialId),
-          lengthRequiredMM: newLengthMM ? Number(newLengthMM) : undefined,
-          numberOfPieces: newPieces ? Number(newPieces) : undefined,
-          reason: materialChangeReason.trim(),
-          changedBy: getCurrentUserName(),
-          changedByRole: "Planner",
-        }
-      );
-      toast.success(res.message || "Material updated");
-      setMaterialDialogOpen(false);
-      setSelectedItemForMaterial(null);
-      await loadRequisition();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to change material");
-    } finally {
-      setActionLoading(false);
-    }
   };
 
   const loadRequisition = async () => {
@@ -847,80 +804,15 @@ export default function MaterialRequisitionDetailPage() {
         />
       )}
 
-      {/* Change / Substitute Material Dialog (raw material items, before issue) */}
-      <Dialog open={materialDialogOpen} onOpenChange={(open) => {
-        setMaterialDialogOpen(open);
-        if (!open) setSelectedItemForMaterial(null);
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change Material</DialogTitle>
-          </DialogHeader>
-          {selectedItemForMaterial && (
-            <div className="space-y-4 py-2">
-              <div className="text-sm rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-muted-foreground text-xs">Current</div>
-                <div className="font-medium">{selectedItemForMaterial.materialName || "—"}
-                  {selectedItemForMaterial.materialGrade ? ` · ${selectedItemForMaterial.materialGrade}` : ""}</div>
-                <div className="text-xs text-muted-foreground">
-                  {selectedItemForMaterial.lengthRequiredMM ?? selectedItemForMaterial.quantityRequired} mm
-                  {selectedItemForMaterial.numberOfPieces ? ` × ${selectedItemForMaterial.numberOfPieces} pcs` : ""}
-                  {selectedItemForMaterial.jobCardNo ? ` · ${selectedItemForMaterial.jobCardNo}` : ""}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>New material <span className="text-destructive">*</span></Label>
-                <SearchableSelect
-                  value={newMaterialId}
-                  onChange={setNewMaterialId}
-                  options={materials.map(m => ({ value: String(m.id), label: `${m.materialName} (${m.materialCode})${m.grade ? " · " + m.grade : ""}` }))}
-                  placeholder="Search material…"
-                  searchPlaceholder="Search by name / code…"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Length per piece (mm)</Label>
-                  <Input type="number" min={0} value={newLengthMM} placeholder="e.g. 300"
-                    onChange={e => setNewLengthMM(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>No. of pieces</Label>
-                  <Input type="number" min={0} value={newPieces} placeholder="e.g. 2"
-                    onChange={e => setNewPieces(e.target.value)} />
-                </div>
-              </div>
-
-              {materialChanged && (
-                <p className="text-xs rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2">
-                  Changing the material will reset this requisition to <strong>Pending</strong> for re-approval, and any selected pieces will be cleared.
-                </p>
-              )}
-
-              <div className="space-y-2">
-                <Label>Reason <span className="text-destructive">*</span></Label>
-                <Input placeholder="Why is the material being changed? (required)"
-                  value={materialChangeReason}
-                  onChange={e => setMaterialChangeReason(e.target.value)}
-                  className={!materialChangeReason.trim() ? "border-destructive" : ""} />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMaterialDialogOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleChangeMaterial}
-              disabled={actionLoading || !newMaterialId || !materialChangeReason.trim()}
-              className="gap-1.5"
-            >
-              <Replace className="h-4 w-4" />
-              Save change
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Change material / size — same shared window as the Stores side */}
+      <ChangeMaterialDialog
+        open={materialDialogOpen}
+        requisitionId={requisitionId}
+        itemId={selectedItemForMaterial?.id ?? null}
+        changedByRole="Planner"
+        onClose={() => { setMaterialDialogOpen(false); setSelectedItemForMaterial(null); }}
+        onSaved={() => loadRequisition()}
+      />
     </div>
   );
 }

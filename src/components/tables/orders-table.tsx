@@ -16,7 +16,7 @@ import { Eye, Calendar, Pencil, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/formatters'
 import { ProductSpec } from '@/components/ui/product-spec'
 import { Progress } from '@/components/ui/progress'
-import { getOrderProgress, getDelayDays } from '@/lib/mock-data/orders'
+import { getOrderProgress, getDelayDays } from '@/lib/utils/order-helpers'
 import { OrderColumnFilters } from '@/lib/api/orders'
 import { X } from 'lucide-react'
 
