@@ -34,7 +34,19 @@ import {
   BarChart3
 } from 'lucide-react'
 import { warehouseService } from '@/lib/api/warehouses'
-import { getSession, canView } from '@/lib/auth'
+import { canView, canViewMenu } from '@/lib/auth'
+import { BrandLogo } from '@/components/layout/brand-logo'
+
+// Visibility: a submenu is shown when the role can view its own route (falling
+// back to the parent module for roles that predate submenu permissions).
+const childVisible = (item: NavItem, child: NavItem) => canViewMenu(child.href, item.module)
+const itemVisible = (item: NavItem): boolean => {
+  if (!item.module) return true // ungated items (e.g. Dashboard landing)
+  if (item.children && item.children.length > 0) {
+    return canView(item.module) || item.children.some((c) => childVisible(item, c))
+  }
+  return canViewMenu(item.href, item.module)
+}
 
 interface NavItem {
   title: string
@@ -243,7 +255,10 @@ export function Sidebar({ isOpen, isExpanded, onClose, onToggle, isMobile = fals
           isExpanded ? "justify-between px-4" : "justify-center px-2"
         )}>
           {isExpanded && (
-            <h1 className="text-base font-bold text-sidebar-foreground">MultiHitech ERP</h1>
+            <BrandLogo
+              className="h-8 w-auto max-w-[178px] object-contain"
+              fallback={<h1 className="text-base font-bold text-sidebar-foreground tracking-tight">MULTI HITECH</h1>}
+            />
           )}
           {/* Toggle button - expands/collapses sidebar */}
           <button
@@ -265,7 +280,7 @@ export function Sidebar({ isOpen, isExpanded, onClose, onToggle, isMobile = fals
           isExpanded ? "px-3" : "px-2"
         )}>
           <ul role="list" className="space-y-1">
-              {navItems.filter((item) => !item.module || canView(item.module)).map((item) => (
+              {navItems.filter(itemVisible).map((item) => (
                 <li key={item.href}>
                   {item.children ? (
                     <>
@@ -297,7 +312,7 @@ export function Sidebar({ isOpen, isExpanded, onClose, onToggle, isMobile = fals
                           </button>
                           {expandedItems.includes(item.href) && (
                             <ul className="mt-1 ml-4 space-y-1">
-                              {item.children.map((child) => (
+                              {item.children.filter((child) => childVisible(item, child)).map((child) => (
                                 <li key={child.href}>
                                   <NavLink item={child} pathname={pathname} isChild onClick={isMobile ? onClose : undefined} isExpanded={isExpanded} />
                                 </li>

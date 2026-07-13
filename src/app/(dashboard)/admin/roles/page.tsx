@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Fragment } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, RefreshCw, ChevronRight, ChevronDown, ShieldCheck } from 'lucide-react'
+import {
+  Plus, Pencil, Trash2, RefreshCw, ChevronRight, ChevronDown, ShieldCheck,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,24 +14,29 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { adminService, RoleResponse, PermissionMap } from '@/lib/api/auth'
+import {
+  PERMISSION_CATALOG, ALL_ACTIONS, allPermissionEntries, PermAction, PermModule,
+} from '@/lib/permission-catalog'
 
-const MODULES = ['Dashboard', 'Masters', 'Sales', 'Procurement', 'Stores', 'Production', 'Quality', 'Inventory', 'Dispatch', 'Planning', 'Reports', 'Admin']
-const ACTIONS = ['View', 'Create', 'Edit', 'Delete', 'Approve']
-
-// Some modules don't need all actions
-const APPLICABLE: Record<string, string[]> = {
-  Dashboard:  ['View'],
-  Masters:     ['View', 'Create', 'Edit', 'Delete'],
-  Sales:       ACTIONS,
-  Procurement: ACTIONS,
-  Stores:     ACTIONS,
-  Production: ACTIONS,
-  Quality:    ACTIONS,
-  Inventory:  ACTIONS,
-  Dispatch:   ACTIONS,
-  Planning:   ACTIONS,
-  Reports:    ['View'],
-  Admin:      ['View', 'Create', 'Edit', 'Delete'],
+// Build a permission map that covers every catalog key. When a submenu row is
+// missing for the role (legacy roles that only had module-level permissions), it
+// is seeded from the parent module so the grid reflects the *effective* access.
+function hydrate(map: PermissionMap): PermissionMap {
+  const out: PermissionMap = {}
+  for (const mod of PERMISSION_CATALOG) {
+    out[mod.key] = { ...(map[mod.key] || {}) }
+    for (const child of mod.children) {
+      if (map[child.key]) {
+        out[child.key] = { ...map[child.key] }
+      } else {
+        // seed from module-level values (fallback behaviour)
+        const seeded: Record<string, boolean> = {}
+        child.actions.forEach((a) => { seeded[a] = map[mod.key]?.[a] ?? false })
+        out[child.key] = seeded
+      }
+    }
+  }
+  return out
 }
 
 export default function RolesPage() {
@@ -39,6 +46,7 @@ export default function RolesPage() {
   const [permMap, setPermMap] = useState<PermissionMap>({})
   const [permLoading, setPermLoading] = useState(false)
   const [permSaving, setPermSaving] = useState(false)
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
 
   // Create/Edit dialog
   const [dialog, setDialog] = useState<'create' | 'edit' | null>(null)
@@ -62,37 +70,56 @@ export default function RolesPage() {
     setPermLoading(true)
     try {
       const map = await adminService.getPermissions(roleId)
-      setPermMap(map)
+      setPermMap(hydrate(map))
     } catch { toast.error('Failed to load permissions') }
     finally { setPermLoading(false) }
   }
 
-  function togglePerm(module: string, action: string) {
+  function toggleModule(key: string) {
+    setExpandedModules((prev) => {
+      const n = new Set(prev)
+      n.has(key) ? n.delete(key) : n.add(key)
+      return n
+    })
+  }
+
+  function togglePerm(key: string, action: string) {
     setPermMap((prev) => ({
       ...prev,
-      [module]: { ...prev[module], [action]: !prev[module]?.[action] },
+      [key]: { ...prev[key], [action]: !prev[key]?.[action] },
     }))
   }
 
-  function toggleAll(module: string) {
-    const applicable = APPLICABLE[module] || ACTIONS
-    const allOn = applicable.every((a) => permMap[module]?.[a])
-    setPermMap((prev) => ({
-      ...prev,
-      [module]: applicable.reduce((acc, a) => ({ ...acc, [a]: !allOn }), { ...prev[module] }),
-    }))
+  // Toggle every applicable action for a single row (module or submenu)
+  function toggleRowAll(key: string, actions: PermAction[]) {
+    setPermMap((prev) => {
+      const allOn = actions.every((a) => prev[key]?.[a])
+      return { ...prev, [key]: actions.reduce((acc, a) => ({ ...acc, [a]: !allOn }), { ...prev[key] }) }
+    })
+  }
+
+  // Grant / clear an entire module including all of its submenus
+  function toggleModuleCascade(mod: PermModule) {
+    setPermMap((prev) => {
+      const keys = [{ key: mod.key, actions: mod.actions }, ...mod.children.map((c) => ({ key: c.key, actions: c.actions }))]
+      const allOn = keys.every(({ key, actions }) => actions.every((a) => prev[key]?.[a]))
+      const next = { ...prev }
+      keys.forEach(({ key, actions }) => {
+        next[key] = actions.reduce((acc, a) => ({ ...acc, [a]: !allOn }), { ...next[key] })
+      })
+      return next
+    })
   }
 
   async function savePermissions() {
     if (!expandedRole) return
     setPermSaving(true)
     try {
-      const entries: { module: string; action: string; isAllowed: boolean }[] = []
-      MODULES.forEach((m) => {
-        ACTIONS.forEach((a) => {
-          entries.push({ module: m, action: a, isAllowed: permMap[m]?.[a] ?? false })
-        })
-      })
+      const entries = allPermissionEntries().map(({ key, action }) => ({
+        module: key,
+        action,
+        isAllowed: permMap[key]?.[action] ?? false,
+      }))
       await adminService.savePermissions(expandedRole, entries)
       toast.success('Permissions saved')
     } catch { toast.error('Failed to save permissions') }
@@ -103,52 +130,53 @@ export default function RolesPage() {
     setSelected(null); setRoleName(''); setDescription('')
     setDialog('create')
   }
-
   function openEdit(r: RoleResponse) {
     setSelected(r); setRoleName(r.roleName); setDescription(r.description || '')
     setDialog('edit')
   }
-
   async function handleCreate() {
     if (!roleName.trim()) { toast.error('Role name is required'); return }
     setSaving(true)
     try {
       await adminService.createRole({ roleName: roleName.trim(), description: description.trim() || undefined })
-      toast.success('Role created')
-      setDialog(null)
-      await load()
+      toast.success('Role created'); setDialog(null); await load()
     } catch (e: any) { toast.error(e.response?.data?.message || 'Failed') }
     finally { setSaving(false) }
   }
-
   async function handleEdit() {
     if (!selected || !roleName.trim()) return
     setSaving(true)
     try {
       await adminService.updateRole(selected.id, { roleName: roleName.trim(), description: description.trim() || undefined })
-      toast.success('Role updated')
-      setDialog(null)
-      await load()
+      toast.success('Role updated'); setDialog(null); await load()
     } catch (e: any) { toast.error(e.response?.data?.message || 'Failed') }
     finally { setSaving(false) }
   }
-
   async function handleDelete(r: RoleResponse) {
     if (r.userCount > 0) { toast.error(`Cannot delete — ${r.userCount} user(s) assigned`); return }
     if (!confirm(`Delete role "${r.roleName}"?`)) return
     try {
       await adminService.deleteRole(r.id)
-      toast.success('Role deleted')
-      await load()
+      toast.success('Role deleted'); await load()
     } catch (e: any) { toast.error(e.response?.data?.message || 'Failed') }
   }
+
+  const cell = (key: string, action: PermAction, applicable: boolean) => (
+    <td key={action} className="text-center py-2 px-3">
+      {applicable ? (
+        <Checkbox checked={permMap[key]?.[action] ?? false} onCheckedChange={() => togglePerm(key, action)} />
+      ) : (
+        <span className="text-muted-foreground/30">—</span>
+      )}
+    </td>
+  )
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Role Management</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Define roles and assign module permissions</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Define roles and assign permissions per menu and submenu</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /></Button>
@@ -196,48 +224,75 @@ export default function RolesPage() {
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b">
-                                <th className="text-left py-2 pr-4 font-medium w-36">Module</th>
-                                {ACTIONS.map((a) => (
+                                <th className="text-left py-2 pr-4 font-medium w-64">Menu / Page</th>
+                                {ALL_ACTIONS.map((a) => (
                                   <th key={a} className="text-center py-2 px-3 font-medium text-xs uppercase tracking-wide text-muted-foreground">{a}</th>
                                 ))}
                                 <th className="text-center py-2 px-3 font-medium text-xs text-muted-foreground">All</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y">
-                              {MODULES.map((mod) => {
-                                const applicable = APPLICABLE[mod] || ACTIONS
-                                const allOn = applicable.every((a) => permMap[mod]?.[a])
+                            <tbody>
+                              {PERMISSION_CATALOG.map((mod) => {
+                                const hasChildren = mod.children.length > 0
+                                const open = expandedModules.has(mod.key)
+                                const modAllOn = mod.actions.every((a) => permMap[mod.key]?.[a])
                                 return (
-                                  <tr key={mod} className="hover:bg-muted/20">
-                                    <td className="py-2.5 pr-4 font-medium">{mod}</td>
-                                    {ACTIONS.map((action) => {
-                                      const isApplicable = applicable.includes(action)
-                                      return (
-                                        <td key={action} className="text-center py-2.5 px-3">
-                                          {isApplicable ? (
-                                            <Checkbox
-                                              checked={permMap[mod]?.[action] ?? false}
-                                              onCheckedChange={() => togglePerm(mod, action)}
-                                            />
+                                  <Fragment key={mod.key}>
+                                    {/* Module row */}
+                                    <tr className="border-b bg-muted/20">
+                                      <td className="py-2.5 pr-4 font-semibold">
+                                        <button
+                                          type="button"
+                                          className="inline-flex items-center gap-1.5"
+                                          onClick={() => hasChildren && toggleModule(mod.key)}
+                                        >
+                                          {hasChildren ? (
+                                            open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
                                           ) : (
-                                            <span className="text-muted-foreground/30">—</span>
+                                            <span className="w-3.5" />
                                           )}
-                                        </td>
+                                          {mod.label}
+                                          {hasChildren && (
+                                            <span className="text-[10px] font-normal text-muted-foreground">({mod.children.length})</span>
+                                          )}
+                                        </button>
+                                      </td>
+                                      {ALL_ACTIONS.map((action) => cell(mod.key, action, mod.actions.includes(action)))}
+                                      <td className="text-center py-2.5 px-3">
+                                        <button
+                                          type="button"
+                                          className="text-[11px] font-medium text-primary hover:underline"
+                                          onClick={() => toggleModuleCascade(mod)}
+                                          title="Grant / clear this module and all its pages"
+                                        >
+                                          {modAllOn ? 'Clear' : 'Grant'}
+                                        </button>
+                                      </td>
+                                    </tr>
+
+                                    {/* Submenu rows */}
+                                    {hasChildren && open && mod.children.map((child) => {
+                                      const rowAllOn = child.actions.every((a) => permMap[child.key]?.[a])
+                                      return (
+                                        <tr key={child.key} className="border-b hover:bg-muted/10">
+                                          <td className="py-2 pr-4 pl-8 text-muted-foreground">{child.label}</td>
+                                          {ALL_ACTIONS.map((action) => cell(child.key, action, child.actions.includes(action)))}
+                                          <td className="text-center py-2 px-3">
+                                            <Checkbox checked={rowAllOn} onCheckedChange={() => toggleRowAll(child.key, child.actions)} />
+                                          </td>
+                                        </tr>
                                       )
                                     })}
-                                    <td className="text-center py-2.5 px-3">
-                                      <Checkbox
-                                        checked={allOn}
-                                        onCheckedChange={() => toggleAll(mod)}
-                                      />
-                                    </td>
-                                  </tr>
+                                  </Fragment>
                                 )
                               })}
                             </tbody>
                           </table>
                         </div>
-                        <div className="flex justify-end mt-4">
+                        <div className="flex items-center justify-between mt-4">
+                          <p className="text-xs text-muted-foreground">
+                            Tip: “Grant” fills a whole module + its pages. Submenu rows override the module for that page.
+                          </p>
                           <Button onClick={savePermissions} disabled={permSaving} className="gap-2">
                             {permSaving && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                             Save Permissions

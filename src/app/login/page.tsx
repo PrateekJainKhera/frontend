@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authService } from '@/lib/api/auth'
 import { setSession } from '@/lib/auth'
+import { BrandLogo } from '@/components/layout/brand-logo'
 
 const FEATURES = [
   { icon: Factory,       label: 'Production Management',  desc: 'Job cards, scheduling & shop floor control' },
@@ -58,15 +59,20 @@ export default function LoginPage() {
 
         {/* Top: Logo + wordmark */}
         <div className="relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-500 flex items-center justify-center">
-              <Factory className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <p className="font-bold text-lg leading-none">MultiHitech</p>
-              <p className="text-xs text-slate-400 tracking-widest uppercase">ERP System</p>
-            </div>
-          </div>
+          <BrandLogo
+            className="h-14 w-auto max-w-[280px] object-contain bg-white rounded-xl px-5 py-3 shadow-lg"
+            fallback={
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-blue-500 flex items-center justify-center">
+                  <Factory className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-lg leading-none">MultiHitech</p>
+                  <p className="text-xs text-slate-400 tracking-widest uppercase">ERP System</p>
+                </div>
+              </div>
+            }
+          />
         </div>
 
         {/* Middle: Headline + features */}
@@ -107,11 +113,18 @@ export default function LoginPage() {
         <div className="w-full max-w-sm space-y-8">
 
           {/* Mobile-only logo */}
-          <div className="flex lg:hidden items-center gap-2 justify-center">
-            <div className="h-8 w-8 rounded-md bg-slate-900 flex items-center justify-center">
-              <Factory className="h-5 w-5 text-white" />
-            </div>
-            <span className="font-bold text-lg">MultiHitech ERP</span>
+          <div className="flex lg:hidden items-center justify-center">
+            <BrandLogo
+              className="h-10 w-auto max-w-[220px] object-contain"
+              fallback={
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-md bg-slate-900 flex items-center justify-center">
+                    <Factory className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="font-bold text-lg">MultiHitech ERP</span>
+                </div>
+              }
+            />
           </div>
 
           {/* Header */}

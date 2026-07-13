@@ -35,6 +35,7 @@ export interface OSPJobCardOption {
   orderItemId: number | null
   itemSequence: string | null
   childPartName: string | null
+  processId: number
   processName: string | null
   quantity: number
 }
