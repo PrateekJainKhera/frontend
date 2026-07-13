@@ -1,4 +1,5 @@
 'use client'
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
@@ -87,7 +88,7 @@ function LogToOSPDialog({
         jobCardId: row.jobCardId, vendorId: Number(vendorId),
         quantity: row.quantity, sentDate,
         expectedReturnDate: expectedReturn,
-        notes: notes || null, createdBy: 'Admin',
+        notes: notes || null, createdBy: getCurrentUserName(),
       })
       toast.success(`${row.jobCardNo} sent to vendor`)
       onLogged(); onClose()
@@ -187,7 +188,7 @@ function BatchOSPDialog({
         sentDate,
         expectedReturnDate: expectedReturn,
         notes: notes || null,
-        createdBy: 'Admin',
+        createdBy: getCurrentUserName(),
       })
       toast.success(`${ids.length} job card(s) sent to vendor`)
       onSent(); onClose()

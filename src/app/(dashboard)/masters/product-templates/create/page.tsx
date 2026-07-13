@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -212,7 +213,7 @@ export default function CreateProductTemplatePage() {
         technicalNotes: technicalNotes.trim() || undefined,
         qualityCheckpoints: qualityCheckpoints.trim() || undefined,
         isActive: true,
-        createdBy: 'Admin',
+        createdBy: getCurrentUserName(),
         bomItems: bomItemsData
       })
 

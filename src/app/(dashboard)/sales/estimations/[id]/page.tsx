@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
@@ -193,7 +194,7 @@ export default function EstimationDetailPage() {
     if (!estimation) return
     setIsActing(true)
     try {
-      const updated = await estimationService.approve(estimation.id, { approvedBy: 'Admin' })
+      const updated = await estimationService.approve(estimation.id, { approvedBy: getCurrentUserName() })
       setEstimation(updated)
       toast.success('Estimation approved')
     } catch (error) {
@@ -210,7 +211,7 @@ export default function EstimationDetailPage() {
     }
     setIsActing(true)
     try {
-      const updated = await estimationService.reject(estimation.id, { rejectedBy: 'Admin', reason: rejectReason })
+      const updated = await estimationService.reject(estimation.id, { rejectedBy: getCurrentUserName(), reason: rejectReason })
       setEstimation(updated)
       setRejectDialogOpen(false)
       toast.success('Estimation rejected')

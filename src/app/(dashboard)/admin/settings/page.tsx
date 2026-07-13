@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { Settings, Save } from 'lucide-react'
@@ -46,7 +47,7 @@ export default function AdminSettingsPage() {
     try {
       await apiClient.put(`/app-settings/${key}`, {
         value: edits[key],
-        updatedBy: 'Admin'
+        updatedBy: getCurrentUserName()
       })
       toast.success(`${key} updated successfully`)
       loadSettings()

@@ -131,6 +131,7 @@ export const PERMISSION_CATALOG: PermModule[] = [
     children: [
       { key: '/admin/users', label: 'Users', actions: CRUD },
       { key: '/admin/roles', label: 'Roles & Permissions', actions: CRUD },
+      { key: '/admin/audit', label: 'Audit Log', actions: VIEW },
       { key: '/admin/settings', label: 'System Settings', actions: ['View', 'Edit'] },
     ],
   },

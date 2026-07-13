@@ -1,4 +1,5 @@
 'use client'
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -167,7 +168,7 @@ export default function DrawingUploadPage() {
       await productService.linkChildPartDrawing(productId, {
         childPartTemplateId,
         drawingId,
-        createdBy: 'Admin' // TODO: Get from auth context
+        createdBy: getCurrentUserName() // TODO: Get from auth context
       })
 
       setChildPartDrawings(prev => ({ ...prev, [childPartTemplateId]: drawingId }))

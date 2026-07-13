@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -206,7 +207,7 @@ export default function EditOrderPage() {
             dueDate: new Date(item.dueDate).toISOString(),
             priority: item.priority,
             remarks: item.remarks,
-            updatedBy: 'Admin',
+            updatedBy: getCurrentUserName(),
           })
         ))
       } else {
@@ -238,7 +239,7 @@ export default function EditOrderPage() {
               productTemplateId: p.productTemplateId,
               drawingNo: p.drawingNo,
               revisionNo: p.revisionNo,
-              updatedBy: 'Admin',
+              updatedBy: getCurrentUserName(),
             })
           })
       )

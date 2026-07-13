@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from "react"
 import { Plus, Trash2, Check, ChevronsUpDown } from "lucide-react"
@@ -465,7 +466,7 @@ export function GRNEntryDialog({ open, onOpenChange, onSuccess, editGrn }: GRNEn
                 poNo: poNo.trim() || undefined,
                 poDate: poDate || undefined,
                 lines: grnLines,
-                createdBy: 'Admin', // TODO: Get from auth context
+                createdBy: getCurrentUserName(), // TODO: Get from auth context
             }
 
             // Debug: Log the request

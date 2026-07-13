@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2 } from 'lucide-react'
@@ -50,7 +51,7 @@ export default function ProcessCategoriesPage() {
   const [formData, setFormData] = useState<CreateProcessCategoryRequest>({
     categoryName: '',
     description: '',
-    createdBy: 'Admin',
+    createdBy: getCurrentUserName(),
   })
 
   useEffect(() => {
@@ -76,7 +77,7 @@ export default function ProcessCategoriesPage() {
     setFormData({
       categoryName: '',
       description: '',
-      createdBy: 'Admin',
+      createdBy: getCurrentUserName(),
     })
     setDialogOpen(true)
   }
@@ -86,7 +87,7 @@ export default function ProcessCategoriesPage() {
     setFormData({
       categoryName: category.categoryName,
       description: category.description || '',
-      createdBy: 'Admin',
+      createdBy: getCurrentUserName(),
     })
     setDialogOpen(true)
   }
@@ -106,7 +107,7 @@ export default function ProcessCategoriesPage() {
           categoryName: formData.categoryName,
           description: formData.description,
           isActive: editingCategory.isActive,
-          updatedBy: 'Admin',
+          updatedBy: getCurrentUserName(),
         }
         await processCategoryService.update(editingCategory.id, updateRequest)
         toast.success('Process category updated successfully')

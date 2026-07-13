@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
@@ -206,7 +207,7 @@ export default function EditProcessTemplatePage() {
           canBeParallel: step.canBeParallel
         })),
         isActive: true,
-        updatedBy: 'Admin'
+        updatedBy: getCurrentUserName()
       })
 
       toast.success('Process template updated successfully!')

@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -81,7 +82,7 @@ export default function CreateChildPartTemplatePage() {
     }
     setIsAddingType(true)
     try {
-      await childPartTypeService.create({ typeName: newTypeName.trim(), createdBy: 'Admin' })
+      await childPartTypeService.create({ typeName: newTypeName.trim(), createdBy: getCurrentUserName() })
       toast.success(`Type '${newTypeName.trim().toUpperCase()}' added`)
       await loadChildPartTypes()
       setChildPartType(newTypeName.trim().toUpperCase())
@@ -149,7 +150,7 @@ export default function CreateChildPartTemplatePage() {
         technicalNotes: technicalNotes.trim() || undefined,
         isPurchased: isPurchased,
         isActive: true,
-        createdBy: 'Admin'
+        createdBy: getCurrentUserName()
       })
 
       toast.success('Child part template created successfully!')

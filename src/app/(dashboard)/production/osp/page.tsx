@@ -1,4 +1,5 @@
 'use client'
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
@@ -132,7 +133,7 @@ function ReadyToSendTab({
         sentDate,
         expectedReturnDate: expectedReturn,
         notes: notes || null,
-        createdBy: 'Admin',
+        createdBy: getCurrentUserName(),
       })
       toast.success(`${ids.length} part(s) sent to vendor`)
       reset()
@@ -347,7 +348,7 @@ function ReceiveDialog({
         receivedQty: newReceived,
         rejectedQty: newRejected,
         notes: notes || null,
-        updatedBy: 'Admin',
+        updatedBy: getCurrentUserName(),
       })
       toast.success(msg)
       onSaved(); onClose()
@@ -470,7 +471,7 @@ function ResendDialog({
         newSentDate,
         newExpectedReturnDate: newExpectedReturn,
         notes: notes || null,
-        updatedBy: 'Admin',
+        updatedBy: getCurrentUserName(),
       })
       toast.success(`Re-sent to vendor — new OSP entry #${newId} created`)
       onSaved(); onClose()
@@ -567,7 +568,7 @@ function FullReworkDialog({
         receivedQty: 0,
         rejectedQty: remaining,
         notes: `Full rework: ${reason.trim()}`,
-        updatedBy: 'Admin',
+        updatedBy: getCurrentUserName(),
       })
       toast.success(`Full rework started — ${newIds.length} new job card(s) created. OSP entry closed.`)
       onSaved(); onClose()

@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -122,7 +123,7 @@ export function EditProcessDialog({
       const newCategoryId = await processCategoryService.create({
         categoryName: newCategoryName,
         description: newCategoryDescription || undefined,
-        createdBy: 'Admin'
+        createdBy: getCurrentUserName()
       })
 
       toast.success('Process category added successfully')

@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
@@ -225,7 +226,7 @@ export default function ConfigurationsPage() {
 
   // Roller Types
   const addRollerType = async (name: string) => {
-    await rollerTypeService.create({ typeName: name, createdBy: 'Admin' })
+    await rollerTypeService.create({ typeName: name, createdBy: getCurrentUserName() })
     toast.success(`Roller type '${name}' created`)
     const data = await rollerTypeService.getAll()
     setRollerTypes(data.map(r => ({ id: r.id, name: r.typeName, isActive: r.isActive })))
@@ -261,13 +262,13 @@ export default function ConfigurationsPage() {
 
   // Process Categories
   const addProcessCategory = async (name: string) => {
-    await processCategoryService.create({ categoryName: name, createdBy: 'Admin' })
+    await processCategoryService.create({ categoryName: name, createdBy: getCurrentUserName() })
     toast.success(`Process category '${name}' created`)
     const data = await processCategoryService.getAll()
     setProcessCategories(data.map(p => ({ id: p.id, name: p.categoryName, isActive: p.isActive })))
   }
   const updateProcessCategory = async (id: number, name: string, isActive: boolean) => {
-    await processCategoryService.update(id, { id, categoryName: name, isActive, updatedBy: 'Admin' })
+    await processCategoryService.update(id, { id, categoryName: name, isActive, updatedBy: getCurrentUserName() })
     toast.success('Updated')
     setProcessCategories(prev => prev.map(p => p.id === id ? { ...p, name, isActive } : p))
   }
@@ -279,7 +280,7 @@ export default function ConfigurationsPage() {
 
   // Child Part Types
   const addChildPartType = async (name: string) => {
-    await childPartTypeService.create({ typeName: name, createdBy: 'Admin' })
+    await childPartTypeService.create({ typeName: name, createdBy: getCurrentUserName() })
     toast.success(`Child part type '${name}' created`)
     const data = await childPartTypeService.getAll()
     setChildPartTypes(data.map(c => ({ id: c.id, name: c.typeName, isActive: c.isActive })))

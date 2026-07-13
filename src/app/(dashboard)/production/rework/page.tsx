@@ -1,4 +1,5 @@
 'use client'
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
@@ -41,11 +42,11 @@ async function fetchPending(): Promise<PendingRework[]> {
 }
 
 async function approveRework(jobCardId: number): Promise<void> {
-  await api.post(`/rework/${jobCardId}/approve`, { approvedBy: 'Admin' })
+  await api.post(`/rework/${jobCardId}/approve`, { approvedBy: getCurrentUserName() })
 }
 
 async function rejectRework(jobCardId: number): Promise<void> {
-  await api.post(`/rework/${jobCardId}/reject`, { approvedBy: 'Admin' })
+  await api.post(`/rework/${jobCardId}/reject`, { approvedBy: getCurrentUserName() })
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -632,7 +633,7 @@ export default function GenerateJobCardsPage() {
 
       await productDefaultMaterialService.saveDefaults(productId, {
         materials: allMaterials,
-        updatedBy: 'Admin'
+        updatedBy: getCurrentUserName()
       })
 
       // Refresh defaults in state
@@ -692,7 +693,7 @@ export default function GenerateJobCardsPage() {
         unit: d.unit,
         wastageMM: d.wastageMM,
         source: 'Default',
-        confirmedBy: 'Admin'
+        confirmedBy: getCurrentUserName()
       }))
     }
 
@@ -714,7 +715,7 @@ export default function GenerateJobCardsPage() {
       unit: mr.unit,
       wastageMM: mr.wastageMM,
       source: 'Template',
-      confirmedBy: 'Admin'
+      confirmedBy: getCurrentUserName()
     }))
   }
 
@@ -756,7 +757,7 @@ export default function GenerateJobCardsPage() {
       unit: 'pcs',
       wastageMM: 5,
       source: 'Manual',
-      confirmedBy: 'Admin'
+      confirmedBy: getCurrentUserName()
     }
     setMaterialEdits({ ...materialEdits, [childPartTemplateId]: [...materials, newMaterial] })
     setHasUnsavedChanges(true)
@@ -1014,7 +1015,7 @@ export default function GenerateJobCardsPage() {
                 unit: mr.unit,
                 wastageMM: mr.wastageMM,
                 source: mr.source,
-                confirmedBy: 'Admin'
+                confirmedBy: getCurrentUserName()
               }))
             : undefined
 
@@ -1041,7 +1042,7 @@ export default function GenerateJobCardsPage() {
             quantity: itemQuantity * item.bomItem.quantity,
             priority: itemPriority,
             manufacturingDimensions: null,
-            createdBy: 'Admin',
+            createdBy: getCurrentUserName(),
             specialNotes: !isMaterialAvailable ? 'Pending Material - Material shortage detected' : null,
             materialRequirements
           }
@@ -1102,7 +1103,7 @@ export default function GenerateJobCardsPage() {
           quantity: itemQuantity,
           priority: itemPriority,
           manufacturingDimensions: null,
-          createdBy: 'Admin',
+          createdBy: getCurrentUserName(),
         }
 
         await jobCardService.create(payload)
@@ -1128,7 +1129,7 @@ export default function GenerateJobCardsPage() {
             planningStatus: 'Planned',
             delayReason: order.delayReason || undefined,
             version: order.version,
-            updatedBy: 'Admin'
+            updatedBy: getCurrentUserName()
           })
         }
       } catch (error) {
@@ -1231,7 +1232,7 @@ export default function GenerateJobCardsPage() {
           dueDate: currentOrderItem ? currentOrderItem.dueDate : order.dueDate,
           requestedBy: 'Planning',
           remarks: `Auto-generated from job card planning for order ${order.orderNo}${currentOrderItem ? `-${currentOrderItem.itemSequence}` : ''}`,
-          createdBy: 'Admin',
+          createdBy: getCurrentUserName(),
           items: requisitionItems
         }
 

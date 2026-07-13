@@ -1,4 +1,5 @@
 'use client'
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
@@ -241,7 +242,7 @@ function SendToVendorDialog({
         sentDate,
         expectedReturnDate: expectedReturn,
         notes: notes || null,
-        createdBy: 'Admin',
+        createdBy: getCurrentUserName(),
       })
       toast.success(`${step.processName} sent to vendor`)
       onSent(); onClose()

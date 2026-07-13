@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useEffect, useState } from 'react'
 import { Replace } from 'lucide-react'
@@ -12,7 +13,6 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { toast } from 'sonner'
 import { materialService, MaterialResponse } from '@/lib/api/materials'
 import { materialRequisitionService, MaterialRequisitionItemResponse } from '@/lib/api/material-requisitions'
-import { getCurrentUserName } from '@/lib/auth'
 
 /**
  * The ONE "Change Material / Size" window — used by both the planner

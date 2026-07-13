@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -170,7 +171,7 @@ export default function CreateProcessTemplatePage() {
           canBeParallel: step.canBeParallel
         })),
         isActive: true,
-        createdBy: 'Admin'
+        createdBy: getCurrentUserName()
       })
 
       toast.success('Process template created successfully!')

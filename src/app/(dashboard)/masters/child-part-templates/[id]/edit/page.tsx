@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -105,7 +106,7 @@ export default function EditChildPartTemplatePage() {
         technicalNotes: technicalNotes.trim() || undefined,
         isPurchased,
         isActive: template?.isActive ?? true,
-        updatedBy: 'Admin',
+        updatedBy: getCurrentUserName(),
       })
       toast.success('Template updated successfully')
       router.push(`/masters/child-part-templates/${id}`)

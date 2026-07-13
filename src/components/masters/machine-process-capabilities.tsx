@@ -1,4 +1,5 @@
 'use client'
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -188,7 +189,7 @@ export function MachineProcessCapabilities({
           ...data,
           id: editingCapability.id,
           machineId,
-          updatedBy: 'Admin',
+          updatedBy: getCurrentUserName(),
         })
         toast.dismiss(loadingToast)
         toast.success('Capability updated successfully')
@@ -196,7 +197,7 @@ export function MachineProcessCapabilities({
         await processMachineCapabilityService.create({
           ...data,
           machineId,
-          createdBy: 'Admin',
+          createdBy: getCurrentUserName(),
         })
         toast.dismiss(loadingToast)
         toast.success('Capability added successfully')

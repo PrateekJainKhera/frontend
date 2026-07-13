@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -178,7 +179,7 @@ export function CreateProductDialog({
     }
     setIsAddingRollerType(true)
     try {
-      await rollerTypeService.create({ typeName: newRollerTypeName.trim(), createdBy: 'Admin' })
+      await rollerTypeService.create({ typeName: newRollerTypeName.trim(), createdBy: getCurrentUserName() })
       toast.success(`Roller type '${newRollerTypeName.trim()}' added`)
       const data = await rollerTypeService.getAll()
       setRollerTypes(data)

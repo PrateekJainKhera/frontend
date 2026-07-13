@@ -1,3 +1,4 @@
+import { getCurrentUserName } from '@/lib/auth'
 import axios from 'axios'
 import { apiClient, ApiResponse } from './axios-config'
 
@@ -557,7 +558,7 @@ class OrderService {
     try {
       const response = await apiClient.patch<ApiResponse<boolean>>(
         `${this.baseUrl}/${orderId}/update-quantity`,
-        { newQuantity, orderItemId: orderItemId ?? null, updatedBy: 'Admin' }
+        { newQuantity, orderItemId: orderItemId ?? null, updatedBy: getCurrentUserName() }
       )
       if (!response.data.success) throw new Error(response.data.message)
     } catch (error) {

@@ -1,4 +1,5 @@
 'use client'
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -78,7 +79,7 @@ export default function ProductDrawingReviewPage() {
       await productService.updateDrawingReviewStatus(productId, {
         drawingReviewStatus: status,
         drawingReviewNotes: reviewNotes,
-        drawingReviewedBy: 'Admin'
+        drawingReviewedBy: getCurrentUserName()
       })
       const msg = status === 'Approved' ? 'Drawing approved successfully'
         : status === 'Rejected' ? 'Drawing rejected'

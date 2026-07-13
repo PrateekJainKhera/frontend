@@ -1,3 +1,4 @@
+import { getCurrentUserName } from '@/lib/auth'
 import axios from 'axios'
 import { apiClient, ApiResponse } from './axios-config'
 
@@ -252,7 +253,7 @@ class JobCardService {
     try {
       const response = await apiClient.patch<ApiResponse<boolean>>(
         `${this.baseUrl}/${id}/update-quantity`,
-        { newQuantity, updatedBy: 'Admin' }
+        { newQuantity, updatedBy: getCurrentUserName() }
       )
       if (!response.data.success) throw new Error(response.data.message)
     } catch (error) {

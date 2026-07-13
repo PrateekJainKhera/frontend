@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -172,7 +173,7 @@ export default function EditProductTemplatePage() {
         length: length ? parseFloat(length) : undefined,
         diameter: diameter ? parseFloat(diameter) : undefined,
         isActive: true,
-        updatedBy: 'Admin',
+        updatedBy: getCurrentUserName(),
         bomItems: bomData,
       })
 

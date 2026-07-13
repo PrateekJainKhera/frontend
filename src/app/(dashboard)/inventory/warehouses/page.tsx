@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, Warehouse, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
@@ -68,7 +69,7 @@ const emptyForm = (): CreateWarehouseRequest => ({
   materialType: 'RawMaterial',
   minStockPieces: 0,
   minStockLengthMM: 0,
-  createdBy: 'Admin',
+  createdBy: getCurrentUserName(),
 })
 
 export default function WarehousesPage() {
@@ -120,7 +121,7 @@ export default function WarehousesPage() {
       materialType: w.materialType,
       minStockPieces: w.minStockPieces,
       minStockLengthMM: w.minStockLengthMM,
-      createdBy: 'Admin',
+      createdBy: getCurrentUserName(),
     })
     setIsActiveEdit(w.isActive)
     setDialogOpen(true)
@@ -145,7 +146,7 @@ export default function WarehousesPage() {
           minStockPieces: formData.minStockPieces,
           minStockLengthMM: formData.minStockLengthMM,
           isActive: isActiveEdit,
-          updatedBy: 'Admin',
+          updatedBy: getCurrentUserName(),
         }
         await warehouseService.update(editing.id, req)
         toast.success('Warehouse updated successfully')

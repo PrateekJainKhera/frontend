@@ -1,4 +1,5 @@
 'use client'
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import {
@@ -71,7 +72,7 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
     }
     setIsAddingType(true)
     try {
-      await machineTypeService.create({ name: newTypeName.trim(), createdBy: 'Admin' })
+      await machineTypeService.create({ name: newTypeName.trim(), createdBy: getCurrentUserName() })
       toast.success(`Machine type '${newTypeName.trim()}' added`)
       const updated = await machineTypeService.getAll()
       setMachineTypes(updated)

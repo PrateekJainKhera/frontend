@@ -31,7 +31,8 @@ import {
   Settings,
   XCircle,
   RotateCcw,
-  BarChart3
+  BarChart3,
+  History
 } from 'lucide-react'
 import { warehouseService } from '@/lib/api/warehouses'
 import { canView, canViewMenu } from '@/lib/auth'
@@ -201,6 +202,7 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Users', href: '/admin/users', icon: Users },
       { title: 'Roles & Permissions', href: '/admin/roles', icon: ShieldCheck },
+      { title: 'Audit Log', href: '/admin/audit', icon: History },
       { title: 'System Settings', href: '/admin/settings', icon: Settings }
     ]
   }

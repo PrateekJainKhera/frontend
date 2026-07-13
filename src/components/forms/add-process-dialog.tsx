@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -114,7 +115,7 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
       const newCategoryId = await processCategoryService.create({
         categoryName: newCategoryName,
         description: newCategoryDescription || undefined,
-        createdBy: 'Admin'
+        createdBy: getCurrentUserName()
       })
 
       toast.success('Process category added successfully')
@@ -148,7 +149,7 @@ export function AddProcessDialog({ open, onOpenChange, onSuccess }: AddProcessDi
         restTimeHours: (data.restTimeMin || 0) / 60 || null,
         description: data.description || null,
         isOutsourced: data.isOutsourced,
-        createdBy: 'Admin'
+        createdBy: getCurrentUserName()
       })
 
       toast.success('Process added successfully!')

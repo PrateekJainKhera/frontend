@@ -1,4 +1,5 @@
 "use client"
+import { getCurrentUserName } from '@/lib/auth'
 
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -34,7 +35,6 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
 import { orderService } from '@/lib/api/orders'
-import { getCurrentUserName } from '@/lib/auth'
 import { format } from 'date-fns'
 import { AlertCircle } from 'lucide-react'
 
