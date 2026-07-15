@@ -2,7 +2,7 @@
 import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Package, Truck, CheckCircle2, AlertTriangle, RefreshCw, Search } from 'lucide-react'
+import { Package, Truck, CheckCircle2, AlertTriangle, RefreshCw, Search, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -199,21 +199,38 @@ export default function DispatchDashboardPage() {
                       </div>
                       {challan.invoiceNo && (
                         <div>
-                          <span className="block text-xs font-medium text-foreground">Invoice</span>
+                          <span className="block text-xs font-medium text-foreground">Invoice No</span>
                           {challan.invoiceNo}
                         </div>
                       )}
+                      {challan.invoiceDate && (
+                        <div>
+                          <span className="block text-xs font-medium text-foreground">Invoice Date</span>
+                          {formatDate(challan.invoiceDate)}
+                        </div>
+                      )}
                       <div>
-                        <span className="block text-xs font-medium text-foreground">Date</span>
+                        <span className="block text-xs font-medium text-foreground">Challan Date</span>
                         {formatDate(challan.challanDate)}
                       </div>
                     </div>
                   </div>
-                  {challan.isConsolidated && (
-                    <Button variant="outline" size="sm" className="ml-4 shrink-0" onClick={() => setViewChallan(challan)}>
-                      View items
-                    </Button>
-                  )}
+                  <div className="ml-4 shrink-0 flex items-center gap-2">
+                    {challan.invoiceDocument
+                      ? (
+                        <Button variant="outline" size="sm" onClick={() => window.open(challan.invoiceDocument!, '_blank')}>
+                          <Download className="h-4 w-4 mr-1.5" /> Invoice
+                        </Button>
+                      )
+                      : challan.invoiceNo && (
+                        <span className="text-xs text-muted-foreground italic">No PDF attached</span>
+                      )}
+                    {challan.isConsolidated && (
+                      <Button variant="outline" size="sm" onClick={() => setViewChallan(challan)}>
+                        View items
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -642,7 +659,7 @@ function ChallanItemsDialog({ challan, onClose }: { challan: DeliveryChallanApi 
 
   return (
     <Dialog open={!!challan} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between gap-3 pr-6">
             <div>
@@ -651,11 +668,57 @@ function ChallanItemsDialog({ challan, onClose }: { challan: DeliveryChallanApi 
                 {challan?.customerName} · {challan?.invoiceNo ? `Invoice ${challan.invoiceNo}` : 'No invoice'} · {challan?.quantityDispatched} pcs
               </DialogDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={printChallan} disabled={loading || items.length === 0} className="shrink-0">
-              Print Challan
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {challan?.invoiceDocument && (
+                <Button variant="outline" size="sm" onClick={() => window.open(challan.invoiceDocument!, '_blank')}>
+                  <Download className="h-4 w-4 mr-1.5" /> Invoice
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={printChallan} disabled={loading || items.length === 0}>
+                Print Challan
+              </Button>
+            </div>
           </div>
         </DialogHeader>
+
+        {/* Full challan details */}
+        {challan && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2.5 text-sm rounded-lg border p-3 bg-muted/20">
+            {([
+              ['Order', challan.orderNo],
+              ['Customer', challan.customerName],
+              ['Status', challan.status],
+              ['Invoice No', challan.invoiceNo],
+              ['Invoice Date', challan.invoiceDate ? formatDate(challan.invoiceDate) : null],
+              ['Challan Date', formatDate(challan.challanDate)],
+              ['Qty Dispatched', challan.quantityDispatched],
+              ['Transport Mode', challan.transportMode],
+              ['Vehicle No', challan.vehicleNumber],
+              ['Driver', challan.driverName],
+              ['Driver Contact', challan.driverContact],
+              ['Delivery Date', challan.deliveryDate ? formatDate(challan.deliveryDate) : null],
+              ['Dispatched At', challan.dispatchedAt ? formatDate(challan.dispatchedAt) : null],
+              ['Dispatched By', challan.createdBy],
+            ] as [string, unknown][]).map(([label, value]) => (
+              <div key={label}>
+                <span className="block text-xs font-medium text-muted-foreground">{label}</span>
+                <span className="text-foreground">{value === null || value === undefined || value === '' ? '—' : String(value)}</span>
+              </div>
+            ))}
+            {challan.deliveryAddress && (
+              <div className="col-span-full">
+                <span className="block text-xs font-medium text-muted-foreground">Delivery Address</span>
+                <span className="text-foreground">{challan.deliveryAddress}</span>
+              </div>
+            )}
+            {challan.remarks && (
+              <div className="col-span-full">
+                <span className="block text-xs font-medium text-muted-foreground">Remarks</span>
+                <span className="text-foreground">{challan.remarks}</span>
+              </div>
+            )}
+          </div>
+        )}
         {loading ? (
           <p className="text-sm text-muted-foreground py-4">Loading…</p>
         ) : items.length === 0 ? (

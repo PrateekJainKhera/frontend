@@ -3,7 +3,7 @@ import { getCurrentUserName } from '@/lib/auth'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Upload, CheckCircle2, FileText, Loader2, Eye } from 'lucide-react'
+import { ArrowLeft, Upload, CheckCircle2, FileText, Loader2, Eye, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -258,6 +258,17 @@ export default function DrawingUploadPage() {
         </Badge>
       </div>
 
+      {/* Re-approval notice for already-decided drawings */}
+      {['Approved', 'Rejected', 'RevisionRequired'].includes(product.drawingReviewStatus) && (
+        <Alert className="border-amber-300 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            This drawing is currently <b>{product.drawingReviewStatus === 'RevisionRequired' ? 'Revision Required' : product.drawingReviewStatus}</b>.
+            Uploading a new drawing and clicking <b>Submit for Review</b> will send it back for <b>re-approval</b> (status returns to “Under Review”).
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Instructions Alert */}
       <Alert>
         <FileText className="h-4 w-4" />
@@ -475,68 +486,49 @@ export default function DrawingUploadPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        {hasDrawing ? (
+                        {/* File picker is always available so an already-uploaded child
+                            drawing can be replaced — not just uploaded the first time. */}
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          onChange={(e) => handleChildPartFileChange(bomItem.childPartTemplateId, e)}
+                          className="hidden"
+                          id={`child-part-file-${bomItem.childPartTemplateId}`}
+                        />
+                        <label htmlFor={`child-part-file-${bomItem.childPartTemplateId}`}>
+                          <Button size="sm" variant="outline" asChild>
+                            <span>
+                              {hasFile ? 'Change File' : hasDrawing ? 'Replace Drawing' : 'Select File'}
+                            </span>
+                          </Button>
+                        </label>
+                        {hasFile && (
                           <>
-                            {hasFile && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handlePreview(
-                                  childPartFiles[bomItem.childPartTemplateId],
-                                  `${bomItem.childPartTemplateName} Preview`,
-                                  `${product?.partCode} - Child Part Drawing`
-                                )}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Preview
-                              </Button>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <input
-                              type="file"
-                              accept=".pdf,.png,.jpg,.jpeg"
-                              onChange={(e) => handleChildPartFileChange(bomItem.childPartTemplateId, e)}
-                              className="hidden"
-                              id={`child-part-file-${bomItem.childPartTemplateId}`}
-                            />
-                            <label htmlFor={`child-part-file-${bomItem.childPartTemplateId}`}>
-                              <Button size="sm" variant="outline" asChild>
-                                <span>
-                                  {hasFile ? 'Change File' : 'Select File'}
-                                </span>
-                              </Button>
-                            </label>
-                            {hasFile && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handlePreview(
-                                    childPartFiles[bomItem.childPartTemplateId],
-                                    `${bomItem.childPartTemplateName} Preview`,
-                                    `${product?.partCode} - Child Part Drawing`
-                                  )}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleUploadChildPartDrawing(bomItem.childPartTemplateId, bomItem.childPartTemplateName)}
-                                  disabled={uploading}
-                                >
-                                  {uploading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <Upload className="mr-2 h-4 w-4" />
-                                      Upload
-                                    </>
-                                  )}
-                                </Button>
-                              </>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePreview(
+                                childPartFiles[bomItem.childPartTemplateId],
+                                `${bomItem.childPartTemplateName} Preview`,
+                                `${product?.partCode} - Child Part Drawing`
+                              )}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleUploadChildPartDrawing(bomItem.childPartTemplateId, bomItem.childPartTemplateName)}
+                              disabled={uploading}
+                            >
+                              {uploading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Upload className="mr-2 h-4 w-4" />
+                                  {hasDrawing ? 'Replace' : 'Upload'}
+                                </>
+                              )}
+                            </Button>
                           </>
                         )}
                       </div>

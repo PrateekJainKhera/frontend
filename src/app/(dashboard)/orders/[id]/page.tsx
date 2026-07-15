@@ -12,6 +12,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { formatDate, formatDateTime } from '@/lib/utils/formatters'
+import { stageMeta } from '@/lib/utils/workflow-stage'
+import { cn } from '@/lib/utils/cn'
 import { Order, OrderStatus, Priority, PlanningStatus, DrawingReviewStatus } from '@/types'
 import { orderService, OrderResponse, OrderItemResponse } from '@/lib/api/orders'
 import { productService } from '@/lib/api/products'
@@ -65,6 +67,7 @@ export default function OrderDetailPage() {
     delayReason: r.delayReason as any || null,
     status: r.status as OrderStatus,
     priority: r.priority as Priority,
+    workflowStage: r.workflowStage,
     planningStatus: r.planningStatus as PlanningStatus,
     drawingReviewStatus: r.drawingReviewStatus as DrawingReviewStatus,
     orderSource: r.orderSource as any,
@@ -185,13 +188,10 @@ export default function OrderDetailPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold text-primary">{displayOrderNo}</h1>
-            <Badge variant={
-              qty.status === 'Completed' ? 'default' :
-              qty.status === 'In Progress' ? 'secondary' :
-              'outline'
-            }>
-              {qty.status}
-            </Badge>
+            {(() => {
+              const meta = stageMeta(order.workflowStage || qty.status)
+              return <Badge variant="outline" className={cn('font-medium', meta.className)}>{meta.label}</Badge>
+            })()}
           </div>
           <p className="text-muted-foreground">{order.customer?.customerName}</p>
         </div>

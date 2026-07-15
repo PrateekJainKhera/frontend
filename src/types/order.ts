@@ -55,6 +55,7 @@ export interface Order {
   status: OrderStatus
   priority: Priority
   planningStatus: PlanningStatus  // Planning state - NOT_PLANNED, PLANNED, RELEASED
+  workflowStage?: string          // Derived 6-stage pipeline position (from the API)
 
   // Drawing Review - BUSINESS RULE: Planning blocked until APPROVED
   drawingReviewStatus: DrawingReviewStatus

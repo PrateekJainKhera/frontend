@@ -1,5 +1,15 @@
+import axios from 'axios'
 import { apiClient, ApiResponse } from './axios-config'
 import { MachineModel, CreateMachineModelRequest, UpdateMachineModelRequest } from '@/types/machine-model'
+
+// Surface the backend's real message (e.g. "Another model with this name already
+// exists") instead of axios's generic "Request failed with status code 400".
+function apiError(error: unknown, fallback: string): Error {
+  if (axios.isAxiosError(error)) {
+    return new Error(error.response?.data?.message || error.message || fallback)
+  }
+  return error instanceof Error ? error : new Error(fallback)
+}
 
 class MachineModelService {
   private baseURL = '/masters/MachineModels'
@@ -21,31 +31,28 @@ class MachineModelService {
   }
 
   async create(request: CreateMachineModelRequest): Promise<number> {
-    const payload = {
-      ...request,
-      createdBy: request.createdBy || 'User'
-    }
-    const response = await apiClient.post<ApiResponse<number>>(this.baseURL, payload)
-    if (!response.data.success) {
-      throw new Error(response.data.message || 'Failed to create machine model')
-    }
-    return response.data.data || 0
+    try {
+      const payload = { ...request, createdBy: request.createdBy || 'User' }
+      const response = await apiClient.post<ApiResponse<number>>(this.baseURL, payload)
+      if (!response.data.success) throw new Error(response.data.message || 'Failed to create machine model')
+      return response.data.data || 0
+    } catch (error) { throw apiError(error, 'Failed to create machine model') }
   }
 
   async update(id: number, request: UpdateMachineModelRequest): Promise<boolean> {
-    const response = await apiClient.put<ApiResponse<boolean>>(`${this.baseURL}/${id}`, request)
-    if (!response.data.success) {
-      throw new Error(response.data.message || 'Failed to update machine model')
-    }
-    return response.data.data || false
+    try {
+      const response = await apiClient.put<ApiResponse<boolean>>(`${this.baseURL}/${id}`, request)
+      if (!response.data.success) throw new Error(response.data.message || 'Failed to update machine model')
+      return response.data.data || false
+    } catch (error) { throw apiError(error, 'Failed to update machine model') }
   }
 
   async delete(id: number): Promise<boolean> {
-    const response = await apiClient.delete<ApiResponse<boolean>>(`${this.baseURL}/${id}`)
-    if (!response.data.success) {
-      throw new Error(response.data.message || 'Failed to delete machine model')
-    }
-    return response.data.data || false
+    try {
+      const response = await apiClient.delete<ApiResponse<boolean>>(`${this.baseURL}/${id}`)
+      if (!response.data.success) throw new Error(response.data.message || 'Failed to delete machine model')
+      return response.data.data || false
+    } catch (error) { throw apiError(error, 'Failed to delete machine model') }
   }
 }
 

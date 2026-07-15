@@ -65,6 +65,7 @@ export interface OrderResponse {
   status: string
   priority: string
   planningStatus: string
+  workflowStage: string
 
   orderSource: string
   agentCustomerId?: number | null
@@ -123,6 +124,12 @@ export interface CreateOrderPayload {
     priority: string
     linkedProductTemplateId?: number
   }[]
+}
+
+export interface BulkOrderResult {
+  ref?: string
+  success: boolean
+  message?: string
 }
 
 export interface OrderCustomerDrawing {
@@ -360,6 +367,19 @@ class OrderService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to create order: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  /** Bulk-create orders from an imported spreadsheet. Returns a per-row result. */
+  async bulkCreate(orders: { ref?: string; order: CreateOrderPayload }[]): Promise<BulkOrderResult[]> {
+    try {
+      const response = await apiClient.post<ApiResponse<BulkOrderResult[]>>(`${this.baseUrl}/bulk`, { orders })
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || 'Bulk create failed')
       }
       throw error
     }

@@ -192,12 +192,22 @@ export default function DrawingReviewDashboardPage() {
               </Button>
             </Link>
           ) : (
-            <Link href={`/drawing-review/products/${product.id}`}>
-              <Button size="sm" variant="outline">
-                <Eye className="mr-2 h-4 w-4" />
-                View Details
-              </Button>
-            </Link>
+            // Approved / Rejected / Revision Required — allow viewing AND changing the drawing.
+            // Re-uploading + re-submitting moves it back to "Under Review" for re-approval.
+            <div className="flex items-center gap-2">
+              <Link href={`/drawing-review/products/${product.id}`}>
+                <Button size="sm" variant="outline">
+                  <Eye className="mr-2 h-4 w-4" />
+                  View
+                </Button>
+              </Link>
+              <Link href={`/drawing-review/products/${product.id}/upload-drawings`}>
+                <Button size="sm" variant={isApproved ? 'outline' : 'default'}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  {isApproved ? 'Change Drawing' : 'Re-upload'}
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
       </div>

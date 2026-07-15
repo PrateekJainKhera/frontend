@@ -176,6 +176,7 @@ const navItems: NavItem[] = [
     icon: XCircle,
     module: 'Quality',
     children: [
+      { title: 'Quality Check (QC)', href: '/quality/qc', icon: ShieldCheck },
       { title: 'Rejections', href: '/quality/rejections', icon: XCircle },
       // Rework approval lives in Production — link to the real page
       { title: 'Rework Approval', href: '/production/rework', icon: RotateCcw }

@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs } from '@/components/ui/tabs'
+import { WORKFLOW_STAGES, stageSlug } from '@/lib/utils/workflow-stage'
 import {
   Select,
   SelectContent,
@@ -23,11 +24,8 @@ import { toast } from 'sonner'
 const PAGE_SIZES = [10, 25, 50, 100]
 
 // Map a UI tab to the backend status filter
-const tabToStatus = (tab: string): string =>
-  tab === 'pending' ? 'pending'
-  : tab === 'ready' ? 'ready'
-  : tab === 'completed' ? 'completed'
-  : ''
+// Tab value is already the API stage slug (see WORKFLOW_STAGES); 'all' clears the filter.
+const tabToStatus = (tab: string): string => (tab === 'all' ? '' : tab)
 
 export function AllOrdersTab() {
   const router = useRouter()
@@ -82,6 +80,7 @@ export function AllOrdersTab() {
         adjustedDueDate: item.adjustedDueDate ? new Date(item.adjustedDueDate) : null,
         status: item.status as OrderStatus,
         priority: item.priority as Priority,
+        workflowStage: r.workflowStage,
         _itemId: item.id,
         _totalItems: r.items!.length,
       }))
@@ -102,6 +101,7 @@ export function AllOrdersTab() {
       adjustedDueDate: r.adjustedDueDate ? new Date(r.adjustedDueDate) : null,
       status: r.status as OrderStatus,
       priority: r.priority as Priority,
+      workflowStage: r.workflowStage,
     }]
   }
 
@@ -220,12 +220,17 @@ export function AllOrdersTab() {
       {/* Tabs + Search + filters */}
       <Tabs value={activeTab} onValueChange={changeTab} className="w-full">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList className="grid max-w-xl grid-cols-4">
-            <TabsTrigger value="all">All Orders</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="ready">Ready to Dispatch</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-          </TabsList>
+          <Select value={activeTab} onValueChange={changeTab}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="All stages" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All stages</SelectItem>
+              {WORKFLOW_STAGES.map((s) => (
+                <SelectItem key={s} value={stageSlug(s)}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <div className="flex items-center gap-2 flex-1 max-w-lg">
             <div className="flex items-center gap-2 bg-background border-2 border-border rounded-lg px-4 py-1 shadow-sm flex-1">

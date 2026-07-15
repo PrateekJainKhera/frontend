@@ -112,6 +112,7 @@ export const PERMISSION_CATALOG: PermModule[] = [
   {
     key: 'Quality', label: 'Quality', actions: CRUDA,
     children: [
+      { key: '/quality/qc', label: 'Quality Check (QC)', actions: CRUDA },
       { key: '/quality/rejections', label: 'Rejections', actions: CRUDA },
       { key: '/production/rework', label: 'Rework Approval', actions: CRUDA },
     ],

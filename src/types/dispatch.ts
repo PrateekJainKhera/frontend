@@ -124,6 +124,7 @@ export interface DeliveryChallanApi {
   deliveredAt: string | null
   invoiceNo: string | null
   invoiceDate: string | null
+  invoiceDocument: string | null   // full S3 URL of the uploaded invoice PDF
   remarks: string | null
   createdAt: string
   createdBy: string | null

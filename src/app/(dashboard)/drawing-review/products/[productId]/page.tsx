@@ -174,7 +174,20 @@ export default function ProductDrawingReviewPage() {
             </p>
           </div>
         </div>
-        {getStatusBadge(product.drawingReviewStatus)}
+        <div className="flex items-center gap-3">
+          {/* Change/re-upload the drawing even after it's been Approved/Rejected/Revision */}
+          {['Approved', 'Rejected', 'RevisionRequired'].includes(product.drawingReviewStatus) && (
+            <Button
+              variant={product.drawingReviewStatus === 'Approved' ? 'outline' : 'default'}
+              size="sm"
+              onClick={() => router.push(`/drawing-review/products/${productId}/upload-drawings`)}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {product.drawingReviewStatus === 'Approved' ? 'Change Drawing' : 'Re-upload Drawing'}
+            </Button>
+          )}
+          {getStatusBadge(product.drawingReviewStatus)}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

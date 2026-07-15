@@ -39,6 +39,9 @@ const isOverdue = (e: OSPTrackingEntry) =>
 const orderLabel = (e: { orderNo?: string | null; orderId: number; itemSequence?: string | null }) =>
   `${e.orderNo ?? e.orderId}${e.itemSequence ? `-${e.itemSequence}` : ''}`
 
+// Sentinel for the "All processes" chip — shows parts across every process.
+const ALL_PROCESSES = '__all__'
+
 // ════════════════════════════════════════════════════════════════════════════
 //  TAB 1 — READY TO SEND (process → order/child-part → vendor → send)
 // ════════════════════════════════════════════════════════════════════════════
@@ -74,7 +77,7 @@ function ReadyToSendTab({
   const rows = useMemo(() => {
     const q = search.toLowerCase()
     return jobCards.filter((j) =>
-      (j.processName ?? 'Unknown') === process &&
+      (process === ALL_PROCESSES || (j.processName ?? 'Unknown') === process) &&
       (!q ||
         j.jobCardNo.toLowerCase().includes(q) ||
         (j.childPartName ?? '').toLowerCase().includes(q) ||
@@ -160,6 +163,21 @@ function ReadyToSendTab({
           <Layers className="h-3.5 w-3.5" /> Step 1 · Select the outsource process
         </p>
         <div className="flex flex-wrap gap-2">
+          {/* "All processes" — show parts across every process */}
+          <button
+            key="__all__"
+            onClick={() => setProcess(ALL_PROCESSES)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              process === ALL_PROCESSES
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background hover:bg-muted'
+            }`}
+          >
+            All
+            <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
+              process === ALL_PROCESSES ? 'bg-primary-foreground/20' : 'bg-muted-foreground/15'
+            }`}>{jobCards.length}</span>
+          </button>
           {processes.map(([name, count]) => (
             <button
               key={name}
@@ -189,7 +207,7 @@ function ReadyToSendTab({
           {/* Step 2 — pick orders / child parts */}
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5" /> Step 2 · Select orders / parts for <strong className="text-foreground">{process}</strong>
+              <Layers className="h-3.5 w-3.5" /> Step 2 · Select orders / parts for <strong className="text-foreground">{process === ALL_PROCESSES ? 'All processes' : process}</strong>
             </p>
             <div className="relative max-w-xs w-full">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -237,6 +255,9 @@ function ReadyToSendTab({
                         />
                         <span className="font-mono text-xs text-muted-foreground w-28 shrink-0">{it.jobCardNo}</span>
                         <span className="flex-1 min-w-0 truncate">{it.childPartName ?? '—'}</span>
+                        {process === ALL_PROCESSES && it.processName && (
+                          <Badge variant="outline" className="text-[10px] shrink-0">{it.processName}</Badge>
+                        )}
                         {it.itemSequence && (
                           <span className="text-xs text-muted-foreground">Item {it.itemSequence}</span>
                         )}

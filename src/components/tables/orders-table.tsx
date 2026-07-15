@@ -17,6 +17,8 @@ import { formatDate } from '@/lib/utils/formatters'
 import { ProductSpec } from '@/components/ui/product-spec'
 import { Progress } from '@/components/ui/progress'
 import { getOrderProgress, getDelayDays } from '@/lib/utils/order-helpers'
+import { stageMeta } from '@/lib/utils/workflow-stage'
+import { cn } from '@/lib/utils/cn'
 import { OrderColumnFilters } from '@/lib/api/orders'
 import { X } from 'lucide-react'
 
@@ -190,10 +192,13 @@ export function OrdersTable({ orders, onDelete, onEdit, filters, onFilterChange,
                 </TableCell>
                 <TableCell>
                   {(() => {
-                    const s = getEffectiveStatus(order)
+                    // Prefer the server-derived 6-stage workflow position; fall back to the
+                    // coarse client derivation only if the API didn't supply one.
+                    const stage = order.workflowStage || getEffectiveStatus(order)
+                    const meta = stageMeta(stage)
                     return (
-                      <Badge variant={getStatusVariant(s)} className={getStatusClass(s)}>
-                        {s}
+                      <Badge variant="outline" className={cn('font-medium', meta.className)}>
+                        {meta.label}
                       </Badge>
                     )
                   })()}
