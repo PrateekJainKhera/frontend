@@ -31,6 +31,7 @@ export interface CreateProductTemplateRequest {
 
 export interface UpdateProductTemplateRequest {
   templateName: string
+  rollerType?: string
   description?: string | null
   drawingNumber?: string | null
   drawingRevision?: string | null

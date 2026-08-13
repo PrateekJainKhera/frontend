@@ -166,6 +166,7 @@ export default function EditProductTemplatePage() {
 
       await productTemplateService.update(templateId, {
         templateName: templateName.trim(),
+        rollerType: rollerType,
         processTemplateId: processTemplateId,
         description: description.trim() || undefined,
         drawingNumber: drawingNumber.trim() || undefined,
@@ -178,7 +179,7 @@ export default function EditProductTemplatePage() {
       })
 
       toast.success('Product template updated successfully')
-      router.push('/masters/products')
+      router.push('/masters/products?tab=templates')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update template')
     } finally {
@@ -201,7 +202,7 @@ export default function EditProductTemplatePage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/masters/products"><ArrowLeft className="h-4 w-4" /></Link>
+          <Link href="/masters/products?tab=templates"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Edit Product Template</h1>
@@ -389,7 +390,7 @@ export default function EditProductTemplatePage() {
         {/* Actions */}
         <div className="flex justify-end gap-3">
           <Button variant="outline" asChild>
-            <Link href="/masters/products">Cancel</Link>
+            <Link href="/masters/products?tab=templates">Cancel</Link>
           </Button>
           <Button type="submit" disabled={saving}>
             {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />Save Changes</>}

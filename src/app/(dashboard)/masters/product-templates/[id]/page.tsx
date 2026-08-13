@@ -36,7 +36,7 @@ export default function ProductTemplateDetailPage() {
     try {
       await productTemplateService.delete(Number(params.id))
       toast.success('Product template deleted')
-      router.push('/masters/products')
+      router.push('/masters/products?tab=templates')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete product template')
       setDeleting(false)
@@ -99,7 +99,7 @@ export default function ProductTemplateDetailPage() {
               The product template you're looking for doesn't exist
             </p>
             <Button asChild>
-              <Link href="/masters/products">
+              <Link href="/masters/products?tab=templates">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Templates
               </Link>
@@ -116,7 +116,7 @@ export default function ProductTemplateDetailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
-            <Link href="/masters/products">
+            <Link href="/masters/products?tab=templates">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

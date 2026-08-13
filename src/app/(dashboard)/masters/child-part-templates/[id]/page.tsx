@@ -24,7 +24,7 @@ export default function ChildPartTemplateDetailPage() {
     try {
       await childPartTemplateService.delete(Number(params.id))
       toast.success('Template deleted')
-      router.push('/masters/child-part-templates')
+      router.push('/masters/products?tab=child-parts')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete template', { duration: 8000 })
     } finally {
@@ -115,7 +115,7 @@ export default function ChildPartTemplateDetailPage() {
               The child part template you're looking for doesn't exist
             </p>
             <Button asChild>
-              <Link href="/masters/child-part-templates">
+              <Link href="/masters/products?tab=child-parts">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Templates
               </Link>
@@ -132,7 +132,7 @@ export default function ChildPartTemplateDetailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
-            <Link href="/masters/child-part-templates">
+            <Link href="/masters/products?tab=child-parts">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

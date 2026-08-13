@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Search, Mic } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -9,8 +10,10 @@ import { ProductsTab } from '@/components/masters/products-tab'
 import { ProductTemplatesTab } from '@/components/masters/product-templates-tab'
 import { ChildPartTemplatesTab } from '@/components/masters/child-part-templates-tab'
 
-export default function ProductsPage() {
-  const [activeTab, setActiveTab] = useState('products')
+function ProductsPageInner() {
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get('tab') ?? 'products'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [searchQuery, setSearchQuery] = useState('')
 
   const handleMicClick = () => {
@@ -62,5 +65,13 @@ export default function ProductsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProductsPageInner />
+    </Suspense>
   )
 }
