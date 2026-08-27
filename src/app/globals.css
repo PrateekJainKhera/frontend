@@ -57,7 +57,7 @@
 }
 
 :root {
-  /* Direction B — "Clean Enterprise": bright ground, indigo accent, soft cards */
+  /* Direction B -- "Clean Enterprise": bright ground, indigo accent, soft cards */
   --background: #f8f9fc;
   --foreground: #1d2333;
   --card: #ffffff;
@@ -173,13 +173,13 @@
 
   @media (min-width: 1024px) {
     html {
-      font-size: 13px; /* reduced 20% from 16px — desktop only */
+      font-size: 13px; /* reduced 20% from 16px -- desktop only */
     }
   }
 
   @media (min-width: 1280px) {
     html {
-      font-size: 13px; /* reduced 20% from 16px — desktop only */
+      font-size: 13px; /* reduced 20% from 16px -- desktop only */
     }
   }
 
@@ -203,7 +203,7 @@
   }
 }
 
-/* Sonner toast — move close button to right side, centered */
+/* Sonner toast -- move close button to right side, centered */
 [data-sonner-toast] {
   padding-right: 2.5rem !important;
 }

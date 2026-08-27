@@ -14,8 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Eye, FileText } from 'lucide-react'
 import { Drawing } from '@/types/drawing'
 import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
-
-const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace(/\/api$/, '')
+import { resolveDrawingFileUrl } from '@/lib/api/drawings'
 
 interface DrawingsDataGridProps {
     drawings: Drawing[]
@@ -184,7 +183,7 @@ export function DrawingsDataGrid({ drawings }: DrawingsDataGridProps) {
                         <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
                             {row.original.fileUrl ? (
-                                <button onClick={() => { setPreviewUrl(FILE_BASE_URL + row.original.fileUrl!); setPreviewTitle(row.original.drawingName || row.original.fileName || 'Drawing') }} className="text-sm text-blue-600 hover:underline text-left">
+                                <button onClick={() => { setPreviewUrl(resolveDrawingFileUrl(row.original.fileUrl!)); setPreviewTitle(row.original.drawingName || row.original.fileName || 'Drawing') }} className="text-sm text-blue-600 hover:underline text-left">
                                     {row.original.fileName}
                                 </button>
                             ) : (

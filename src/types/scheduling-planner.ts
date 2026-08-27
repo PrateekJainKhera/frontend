@@ -26,6 +26,9 @@ export interface JobCardForScheduling {
   dueDate?: string | null
   childPartName?: string | null
   creationType?: string | null
+  machineModelName?: string | null
+  rollerType?: string | null
+  numberOfTeeth?: number | null
   processId: number
   processName: string
   processCode?: string | null

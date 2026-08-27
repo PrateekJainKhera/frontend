@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { ArrowLeft, Plus, FileText, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
+import { getCurrentUserName } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -44,6 +45,19 @@ interface OrderItem {
   dueDate: string
   priority: Priority
   remarks?: string
+  // true once the user has manually edited this item's due date — stops it
+  // from auto-shifting when the order date changes.
+  dueDateManual?: boolean
+}
+
+// Standard promise: due date defaults to 15 calendar days after the order date.
+const DEFAULT_LEAD_DAYS = 15
+
+function addDays(isoDate: string, days: number): string {
+  const d = new Date(isoDate)
+  if (isNaN(d.getTime())) return ''
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
 }
 
 // Pending customer drawing file
@@ -97,10 +111,20 @@ export default function CreateOrderPage() {
       .catch(err => console.error('Failed to load customers:', err))
   }, [])
 
-  const getDefaultDueDate = () => {
-    const date = new Date()
-    date.setDate(date.getDate() + 14)
-    return date.toISOString().split('T')[0]
+  // Due date follows the order date by DEFAULT_LEAD_DAYS unless the user overrides it.
+  const getDefaultDueDate = () => addDays(orderDate, DEFAULT_LEAD_DAYS)
+
+  // When the order date changes, shift every item whose due date the user hasn't
+  // manually set, so the +15 promise tracks the new order date.
+  const handleOrderDateChange = (newOrderDate: string) => {
+    setOrderDate(newOrderDate)
+    setOrderItems(prev =>
+      prev.map(item =>
+        item.dueDateManual
+          ? item
+          : { ...item, dueDate: addDays(newOrderDate, DEFAULT_LEAD_DAYS) }
+      )
+    )
   }
 
   const form = useForm<FormData>({
@@ -126,7 +150,16 @@ export default function CreateOrderPage() {
     value: number | string | Priority
   ) => {
     setOrderItems(prev =>
-      prev.map(item => item.product.id === productId ? { ...item, [field]: value } : item)
+      prev.map(item =>
+        item.product.id === productId
+          ? {
+              ...item,
+              [field]: value,
+              // Editing the due date pins it — it won't auto-shift with the order date afterward.
+              ...(field === 'dueDate' ? { dueDateManual: true } : {}),
+            }
+          : item
+      )
     )
   }
 
@@ -159,6 +192,7 @@ export default function CreateOrderPage() {
       const orderId = await orderService.create({
         customerId: Number(data.customerId),
         orderDate: orderDate || undefined,
+        createdBy: getCurrentUserName(),
         items: orderItems.map(item => ({
           productId: item.product.id,
           quantity: item.quantity,
@@ -268,9 +302,12 @@ export default function CreateOrderPage() {
                   <Input
                     type="date"
                     value={orderDate}
-                    onChange={(e) => setOrderDate(e.target.value)}
+                    onChange={(e) => handleOrderDateChange(e.target.value)}
                     className="mt-1 max-w-xs"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Due date defaults to {DEFAULT_LEAD_DAYS} days after this. Change it per item below if needed.
+                  </p>
                 </div>
 
                 {/* Products */}

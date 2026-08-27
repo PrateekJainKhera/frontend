@@ -88,21 +88,25 @@ export function AddMachineDialog({ open, onClose, onSuccess }: AddMachineDialogP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmitting) return // guard against double-click/double-submit before validation runs
+    setIsSubmitting(true)
 
     if (!formData.machineName.trim()) {
       toast.error('Machine name is required')
+      setIsSubmitting(false)
       return
     }
     if (!formData.type) {
       toast.error('Machine type is required')
+      setIsSubmitting(false)
       return
     }
     if (!formData.location.trim()) {
       toast.error('Location is required')
+      setIsSubmitting(false)
       return
     }
 
-    setIsSubmitting(true)
     try {
       await machineService.create({
         machineName: formData.machineName,

@@ -147,6 +147,7 @@ export default function OrderDetailPage() {
   }
 
   const isMultiItem = !!(orderResponse.items && orderResponse.items.length > 0)
+  const hasMultipleItems = !!(orderResponse.items && orderResponse.items.length > 1)
   const activeSeq = itemParam || (isMultiItem ? orderResponse.items![0].itemSequence : null)
 
   // Active item for quantities / dates / status
@@ -557,7 +558,7 @@ export default function OrderDetailPage() {
               <CardTitle className="text-lg">Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {isMultiItem ? (
+              {hasMultipleItems ? (
                 <>
                   <Button variant="outline" className="w-full" asChild>
                     <Link href={`/orders/${params.id}/edit`}>

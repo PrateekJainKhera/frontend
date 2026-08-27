@@ -31,6 +31,7 @@ export interface ExecutionViewRow {
   jobCardNo: string
   orderId: number
   orderItemId?: number | null
+  productId?: number | null
   orderNo: string
   machineModel?: string | null
   rollerType?: string | null
@@ -136,13 +137,14 @@ class ProductionService {
     action: 'start' | 'pause' | 'resume' | 'complete' | 'direct-complete',
     completedQty = 0,
     rejectedQty = 0
-  ): Promise<void> {
+  ): Promise<string> {
     try {
-      await apiClient.post(`/production/job-cards/${jobCardId}/action`, {
+      const response = await apiClient.post<ApiResponse<boolean>>(`/production/job-cards/${jobCardId}/action`, {
         action,
         completedQty,
         rejectedQty,
       })
+      return response.data.message ?? ''
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Action failed: ${error.message}`)

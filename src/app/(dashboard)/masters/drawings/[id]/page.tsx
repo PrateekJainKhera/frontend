@@ -24,9 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Drawing } from '@/types/drawing'
-import { drawingService, DrawingResponse } from '@/lib/api/drawings'
-
-const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace('/api', '')
+import { drawingService, DrawingResponse, resolveDrawingFileUrl } from '@/lib/api/drawings'
 
 export default function DrawingDetailPage() {
   const params = useParams()
@@ -183,7 +181,7 @@ export default function DrawingDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => drawing.fileUrl && window.open(FILE_BASE_URL + drawing.fileUrl, '_blank')}>
+          <Button variant="outline" onClick={() => drawing.fileUrl && window.open(resolveDrawingFileUrl(drawing.fileUrl), '_blank')}>
             <Eye className="mr-2 h-4 w-4" />
             Open Drawing
           </Button>
@@ -266,11 +264,11 @@ export default function DrawingDetailPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => drawing.fileUrl && window.open(FILE_BASE_URL + drawing.fileUrl, '_blank')}>
+              <Button variant="outline" size="sm" onClick={() => drawing.fileUrl && window.open(resolveDrawingFileUrl(drawing.fileUrl), '_blank')}>
                 <Eye className="mr-2 h-4 w-4" />
                 Open Drawing
               </Button>
-              <a href={drawing.fileUrl ? FILE_BASE_URL + drawing.fileUrl : '#'} download={drawing.fileName}>
+              <a href={drawing.fileUrl ? resolveDrawingFileUrl(drawing.fileUrl) : '#'} download={drawing.fileName}>
                 <Button size="sm" disabled={!drawing.fileUrl}>
                   <Download className="mr-2 h-4 w-4" />
                   Download

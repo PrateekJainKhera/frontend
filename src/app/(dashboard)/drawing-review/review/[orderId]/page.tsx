@@ -28,11 +28,10 @@ import {
 import { toast } from 'sonner'
 import { orderService, OrderResponse } from '@/lib/api/orders'
 import { productTemplateService, ProductTemplateResponse } from '@/lib/api/product-templates'
-import { drawingService, DrawingResponse } from '@/lib/api/drawings'
+import { childPartTemplateService, ChildPartTemplateResponse } from '@/lib/api/child-part-templates'
+import { drawingService, DrawingResponse, resolveDrawingFileUrl } from '@/lib/api/drawings'
 import { formatDate } from '@/lib/utils/formatters'
 import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
-
-const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace(/\/api$/, '')
 
 export default function DrawingReviewDetailPage() {
   const params = useParams()
@@ -42,6 +41,7 @@ export default function DrawingReviewDetailPage() {
   const [loading, setLoading] = useState(true)
   const [order, setOrder] = useState<OrderResponse | null>(null)
   const [productTemplates, setProductTemplates] = useState<ProductTemplateResponse[]>([])
+  const [childPartTemplates, setChildPartTemplates] = useState<ChildPartTemplateResponse[]>([])
   const [drawings, setDrawings] = useState<DrawingResponse[]>([])
 
   const [reviewNotes, setReviewNotes] = useState('')
@@ -58,6 +58,7 @@ export default function DrawingReviewDetailPage() {
   // Upload form state (for in-house drawing source)
   const [uploadName, setUploadName] = useState('')
   const [uploadType, setUploadType] = useState('shaft')
+  const [uploadChildPartTemplateId, setUploadChildPartTemplateId] = useState('')
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
 
@@ -65,17 +66,30 @@ export default function DrawingReviewDetailPage() {
     loadData()
   }, [orderId])
 
+  const loadDrawingsForOrder = async (order: OrderResponse) => {
+    const [orderDrawings, productDrawings] = await Promise.all([
+      drawingService.getByOrderId(order.id).catch(() => []),
+      order.productId ? drawingService.getByProductId(order.productId).catch(() => []) : Promise.resolve([]),
+    ])
+    const merged = [...orderDrawings]
+    for (const d of productDrawings) {
+      if (!merged.some(existing => existing.id === d.id)) merged.push(d)
+    }
+    return merged
+  }
+
   const loadData = async () => {
     setLoading(true)
     try {
-      const [orderData, templates, orderDrawings] = await Promise.all([
+      const [orderData, templates, childTemplates] = await Promise.all([
         orderService.getById(Number(orderId)),
         productTemplateService.getAll(),
-        drawingService.getByOrderId(Number(orderId))
+        childPartTemplateService.getAll(),
       ])
       setOrder(orderData)
       setProductTemplates(templates)
-      setDrawings(orderDrawings)
+      setChildPartTemplates(childTemplates)
+      setDrawings(await loadDrawingsForOrder(orderData))
       setReviewNotes(orderData.drawingReviewNotes || '')
       if (orderData.linkedProductTemplateId) {
         setSelectedProductTemplateId(String(orderData.linkedProductTemplateId))
@@ -140,15 +154,18 @@ export default function DrawingReviewDetailPage() {
         drawingName: uploadName,
         drawingType: uploadType,
         status: 'draft',
-        linkedOrderId: Number(orderId)
+        linkedProductId: order?.productId,
+        linkedChildPartTemplateId: uploadType !== 'assembly' && uploadChildPartTemplateId
+          ? Number(uploadChildPartTemplateId)
+          : undefined
       })
       toast.success(`Drawing "${uploadName}" uploaded`)
       setUploadName('')
       setUploadType('shaft')
+      setUploadChildPartTemplateId('')
       setUploadFile(null)
       // Reload drawings list
-      const updated = await drawingService.getByOrderId(Number(orderId))
-      setDrawings(updated)
+      if (order) setDrawings(await loadDrawingsForOrder(order))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -326,13 +343,17 @@ export default function DrawingReviewDetailPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Upload form — visible only for in-house drawing source before approval */}
-              {order.drawingSource === 'company' && !isApproved && (
-                <div className="border rounded-lg p-4 bg-green-50 border-green-200 space-y-3">
+              {/* Upload form — drawings attach to the PRODUCT (not this order), since every
+                  order for that product reuses the same drawings. Available regardless of
+                  review status, so a missing child-part drawing can be added at any time. */}
+              <div className="border rounded-lg p-4 bg-green-50 border-green-200 space-y-3">
                   <p className="text-sm font-semibold text-green-900">
-                    Upload Drawing (In-house)
+                    Upload / Attach Drawing to Product{order.productCode ? ` (${order.productCode})` : ''}
                   </p>
-                  <div className="grid grid-cols-3 gap-3">
+                  <p className="text-xs text-green-800">
+                    This drawing is saved on the product, not just this order — it will show up on every order for this product.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
                       <Label className="text-xs">Drawing Name *</Label>
                       <Input
@@ -344,7 +365,10 @@ export default function DrawingReviewDetailPage() {
                     </div>
                     <div>
                       <Label className="text-xs">Type *</Label>
-                      <Select value={uploadType} onValueChange={setUploadType}>
+                      <Select
+                        value={uploadType}
+                        onValueChange={(v) => { setUploadType(v); if (v === 'assembly') setUploadChildPartTemplateId('') }}
+                      >
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -357,6 +381,25 @@ export default function DrawingReviewDetailPage() {
                           <SelectItem value="patti">Patti</SelectItem>
                           <SelectItem value="assembly">Assembly</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Child Part {uploadType === 'assembly' && '(n/a for Assembly)'}</Label>
+                      <Select
+                        value={uploadChildPartTemplateId}
+                        onValueChange={setUploadChildPartTemplateId}
+                        disabled={uploadType === 'assembly'}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select child part" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {childPartTemplates.map(cpt => (
+                            <SelectItem key={cpt.id} value={String(cpt.id)}>
+                              {cpt.templateName} ({cpt.templateCode})
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -380,7 +423,6 @@ export default function DrawingReviewDetailPage() {
                     {isUploading ? 'Uploading...' : 'Upload Drawing'}
                   </Button>
                 </div>
-              )}
 
               {drawings.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -400,6 +442,7 @@ export default function DrawingReviewDetailPage() {
                         <TableHead>Drawing No</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Child Part</TableHead>
                         <TableHead>Revision</TableHead>
                         <TableHead>File</TableHead>
                         <TableHead className="w-[100px]">Review Status</TableHead>
@@ -418,11 +461,16 @@ export default function DrawingReviewDetailPage() {
                             <TableCell className="font-mono text-sm">{drawing.drawingNumber}</TableCell>
                             <TableCell className="font-medium">{drawing.drawingName}</TableCell>
                             <TableCell>{getDrawingTypeBadge(drawing.drawingType)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {drawing.drawingType === 'assembly'
+                                ? <span className="italic">Assembly</span>
+                                : drawing.linkedChildPartTemplateName || '—'}
+                            </TableCell>
                             <TableCell className="text-sm">{drawing.revision || '—'}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {drawing.fileName ? (
                                 drawing.fileUrl ? (
-                                  <button onClick={() => { setPreviewUrl(FILE_BASE_URL + drawing.fileUrl); setPreviewTitle(drawing.drawingName || drawing.fileName || 'Drawing') }} className="flex items-center gap-1 text-blue-600 hover:underline text-left">
+                                  <button onClick={() => { setPreviewUrl(resolveDrawingFileUrl(drawing.fileUrl!)); setPreviewTitle(drawing.drawingName || drawing.fileName || 'Drawing') }} className="flex items-center gap-1 text-blue-600 hover:underline text-left">
                                     <FileText className="h-3 w-3" />
                                     {drawing.fileName.length > 20 ? drawing.fileName.substring(0, 20) + '...' : drawing.fileName}
                                   </button>
@@ -458,7 +506,7 @@ export default function DrawingReviewDetailPage() {
                             </TableCell>
                             <TableCell>
                               {drawing.fileUrl ? (
-                                <Button size="sm" variant="ghost" title="Open drawing" onClick={() => { setPreviewUrl(FILE_BASE_URL + drawing.fileUrl); setPreviewTitle(drawing.drawingName || drawing.fileName || 'Drawing') }}>
+                                <Button size="sm" variant="ghost" title="Open drawing" onClick={() => { setPreviewUrl(resolveDrawingFileUrl(drawing.fileUrl!)); setPreviewTitle(drawing.drawingName || drawing.fileName || 'Drawing') }}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               ) : (

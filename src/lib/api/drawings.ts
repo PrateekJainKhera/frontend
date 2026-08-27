@@ -21,6 +21,8 @@ export interface DrawingResponse {
   linkedCustomerName?: string
   linkedOrderId?: number
   linkedOrderNo?: string
+  linkedChildPartTemplateId?: number
+  linkedChildPartTemplateName?: string
   description?: string
   notes?: string
   isActive: boolean
@@ -44,6 +46,7 @@ export interface CreateDrawingRequest {
   linkedProductId?: number
   linkedCustomerId?: number
   linkedOrderId?: number
+  linkedChildPartTemplateId?: number
   description?: string
   notes?: string
 }
@@ -91,6 +94,18 @@ class DrawingService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.message || `Failed to fetch drawings for order: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getByProductId(productId: number): Promise<DrawingResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<DrawingResponse[]>>(`${this.baseUrl}/by-product/${productId}`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch drawings for product: ${error.message}`)
       }
       throw error
     }
@@ -150,6 +165,7 @@ class DrawingService {
       if (metadata.linkedProductId) formData.append('linkedProductId', metadata.linkedProductId.toString())
       if (metadata.linkedCustomerId) formData.append('linkedCustomerId', metadata.linkedCustomerId.toString())
       if (metadata.linkedOrderId) formData.append('linkedOrderId', metadata.linkedOrderId.toString())
+      if (metadata.linkedChildPartTemplateId) formData.append('linkedChildPartTemplateId', metadata.linkedChildPartTemplateId.toString())
       if (metadata.description) formData.append('description', metadata.description)
       if (metadata.notes) formData.append('notes', metadata.notes)
 
@@ -201,3 +217,13 @@ class DrawingService {
 }
 
 export const drawingService = new DrawingService()
+
+const FILE_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5217/api').replace(/\/api$/, '')
+
+// Drawing.fileUrl is sometimes a full S3 URL (most uploads) and sometimes a bare
+// relative path (a handful of legacy rows) — only prefix the API base when it's relative,
+// otherwise concatenating produces a malformed "http://...https://..." URL that silently
+// fails to load (the preview dialog opens, but shows a blank page).
+export function resolveDrawingFileUrl(fileUrl: string): string {
+  return /^https?:\/\//i.test(fileUrl) ? fileUrl : FILE_BASE_URL + fileUrl
+}

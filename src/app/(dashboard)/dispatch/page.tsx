@@ -1,5 +1,7 @@
 'use client'
-import { getCurrentUserName } from '@/lib/auth'
+import { getCurrentUserName, getSession } from '@/lib/auth'
+import { toast } from 'sonner'
+import { Pencil } from 'lucide-react'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Package, Truck, CheckCircle2, AlertTriangle, RefreshCw, Search, Download } from 'lucide-react'
@@ -238,7 +240,7 @@ export default function DispatchDashboardPage() {
         </TabsContent>
       </Tabs>
 
-      <ChallanItemsDialog challan={viewChallan} onClose={() => setViewChallan(null)} />
+      <ChallanItemsDialog challan={viewChallan} onClose={() => setViewChallan(null)} onSaved={() => { setViewChallan(null); loadData() }} />
     </div>
   )
 }
@@ -351,8 +353,14 @@ function ConsolidatedDispatchPanel({
   }, [readyItems])
 
   const submit = async () => {
+    if (submitting) return // guard against double-click/double-submit before validation runs
     if (!customerId) { setError('Select a client'); return }
     if (selectedLines.length === 0) { setError('Select at least one item'); return }
+    // Invoice is always raised before dispatch — these are mandatory.
+    if (!dispatchDate) { setError('Dispatch Date is required'); return }
+    if (!invoiceNo.trim()) { setError('Invoice No is required'); return }
+    if (!invoiceDate) { setError('Invoice Date is required'); return }
+    if (!vehicleNumber.trim()) { setError('Vehicle No is required'); return }
     // qty bounds
     for (const [oid, q] of selectedLines) {
       const it = customerItems.find(i => i.orderItemId === Number(oid))
@@ -515,15 +523,15 @@ function ConsolidatedDispatchPanel({
           {selectedLines.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Dispatch Date</Label>
+                <Label>Dispatch Date <span className="text-destructive">*</span></Label>
                 <Input type="date" value={dispatchDate} onChange={e => setDispatchDate(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Invoice No</Label>
+                <Label>Invoice No <span className="text-destructive">*</span></Label>
                 <Input value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="e.g. INV-2026-114" />
               </div>
               <div className="space-y-1.5">
-                <Label>Invoice Date</Label>
+                <Label>Invoice Date <span className="text-destructive">*</span></Label>
                 <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
               </div>
               <div className="space-y-1.5">
@@ -531,7 +539,7 @@ function ConsolidatedDispatchPanel({
                 <Input value={transportMode} onChange={e => setTransportMode(e.target.value)} placeholder="Road / Courier…" />
               </div>
               <div className="space-y-1.5">
-                <Label>Vehicle No</Label>
+                <Label>Vehicle No <span className="text-destructive">*</span></Label>
                 <Input value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)} />
               </div>
               <div className="space-y-1.5">
@@ -577,13 +585,55 @@ function ConsolidatedDispatchPanel({
 }
 
 // ── View the line items of a (consolidated) challan ───────────────────────────
-function ChallanItemsDialog({ challan, onClose }: { challan: DeliveryChallanApi | null; onClose: () => void }) {
+function ChallanItemsDialog({ challan, onClose, onSaved }: { challan: DeliveryChallanApi | null; onClose: () => void; onSaved: () => void }) {
   const [items, setItems] = useState<ConsolidatedChallanItem[]>([])
   const [loading, setLoading] = useState(false)
+  const isAdmin = getSession()?.isAdmin ?? false
+
+  // Post-dispatch edit (admin only)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [ed, setEd] = useState({
+    invoiceNo: '', invoiceDate: '', dispatchDate: '', vehicleNumber: '',
+    transportMode: '', driverName: '', driverContact: '', deliveryAddress: '', remarks: '',
+  })
+  const iso = (s?: string | null) => (s ? String(s).split('T')[0] : '')
+
+  const startEdit = () => {
+    if (!challan) return
+    setEd({
+      invoiceNo: challan.invoiceNo ?? '',
+      invoiceDate: iso(challan.invoiceDate),
+      dispatchDate: iso(challan.challanDate),
+      vehicleNumber: challan.vehicleNumber ?? '',
+      transportMode: challan.transportMode ?? '',
+      driverName: challan.driverName ?? '',
+      driverContact: challan.driverContact ?? '',
+      deliveryAddress: challan.deliveryAddress ?? '',
+      remarks: challan.remarks ?? '',
+    })
+    setEditing(true)
+  }
+
+  const saveEdit = async () => {
+    if (!challan) return
+    if (!ed.invoiceNo.trim()) return toast.error('Invoice No is required')
+    if (!ed.invoiceDate) return toast.error('Invoice Date is required')
+    if (!ed.dispatchDate) return toast.error('Dispatch Date is required')
+    if (!ed.vehicleNumber.trim()) return toast.error('Vehicle No is required')
+    setSaving(true)
+    const res = await dispatchService.editDispatch(challan.id, {
+      ...ed, isAdmin, performedBy: getCurrentUserName(),
+    })
+    setSaving(false)
+    if (res.success) { toast.success('Dispatch details updated'); setEditing(false); onSaved() }
+    else toast.error(res.message)
+  }
 
   useEffect(() => {
     if (challan) {
       setLoading(true)
+      setEditing(false)
       dispatchService.getChallanItems(challan.id).then(setItems).finally(() => setLoading(false))
     } else {
       setItems([])
@@ -674,12 +724,48 @@ function ChallanItemsDialog({ challan, onClose }: { challan: DeliveryChallanApi 
                   <Download className="h-4 w-4 mr-1.5" /> Invoice
                 </Button>
               )}
+              {isAdmin && !editing && (
+                <Button variant="outline" size="sm" onClick={startEdit}>
+                  <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={printChallan} disabled={loading || items.length === 0}>
                 Print Challan
               </Button>
             </div>
           </div>
         </DialogHeader>
+
+        {/* Admin post-dispatch edit form */}
+        {editing && challan && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50/60 p-3 space-y-3">
+            <p className="text-sm font-medium text-amber-800">Editing dispatch details (admin)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label>Invoice No <span className="text-destructive">*</span></Label>
+                <Input value={ed.invoiceNo} onChange={e => setEd({ ...ed, invoiceNo: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Invoice Date <span className="text-destructive">*</span></Label>
+                <Input type="date" value={ed.invoiceDate} onChange={e => setEd({ ...ed, invoiceDate: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Dispatch Date <span className="text-destructive">*</span></Label>
+                <Input type="date" value={ed.dispatchDate} onChange={e => setEd({ ...ed, dispatchDate: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Vehicle No <span className="text-destructive">*</span></Label>
+                <Input value={ed.vehicleNumber} onChange={e => setEd({ ...ed, vehicleNumber: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Transport Mode</Label>
+                <Input value={ed.transportMode} onChange={e => setEd({ ...ed, transportMode: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Driver Name</Label>
+                <Input value={ed.driverName} onChange={e => setEd({ ...ed, driverName: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Driver Contact</Label>
+                <Input value={ed.driverContact} onChange={e => setEd({ ...ed, driverContact: e.target.value })} /></div>
+              <div className="col-span-2 space-y-1"><Label>Delivery Address</Label>
+                <Textarea rows={2} value={ed.deliveryAddress} onChange={e => setEd({ ...ed, deliveryAddress: e.target.value })} /></div>
+              <div className="col-span-2 space-y-1"><Label>Remarks</Label>
+                <Input value={ed.remarks} onChange={e => setEd({ ...ed, remarks: e.target.value })} /></div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
+              <Button size="sm" onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Button>
+            </div>
+          </div>
+        )}
 
         {/* Full challan details */}
         {challan && (
@@ -699,6 +785,8 @@ function ChallanItemsDialog({ challan, onClose }: { challan: DeliveryChallanApi 
               ['Delivery Date', challan.deliveryDate ? formatDate(challan.deliveryDate) : null],
               ['Dispatched At', challan.dispatchedAt ? formatDate(challan.dispatchedAt) : null],
               ['Dispatched By', challan.createdBy],
+              ['Last Edited By', challan.updatedBy],
+              ['Last Edited At', challan.updatedAt ? formatDate(challan.updatedAt) : null],
             ] as [string, unknown][]).map(([label, value]) => (
               <div key={label}>
                 <span className="block text-xs font-medium text-muted-foreground">{label}</span>

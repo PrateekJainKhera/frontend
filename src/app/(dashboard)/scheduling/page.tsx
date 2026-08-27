@@ -535,29 +535,83 @@ function Step3({ targetDate, onDateChange, shifts, selectedShiftId, onShiftChang
   )
 }
 
-// ─── Step 4: Machine Assignment per Category ───────────────────────────────
+// ─── Step 4: Machine Assignment per Process (select jobs → assign machine) ──────
 
 interface Step4Props {
   suggestions: CategoryMachineSuggestion[]
-  categoryMachineMap: Map<string, number | null>
-  onSelectMachine: (categoryKey: string, machineId: number | null) => void
+  jobGroups: ChildPartJobGroup[]
+  selectedJcIds: Set<number>
+  jcMachineMap: Map<number, number | null>
+  onAssign: (jobCardIds: number[], machineId: number | null) => void
   shiftHours: number
   onBack: () => void
   onConfirm: () => void
   submitting: boolean
 }
 
-function Step4({ suggestions, categoryMachineMap, onSelectMachine, shiftHours, onBack, onConfirm, submitting }: Step4Props) {
-  const totalMinutes = suggestions.reduce((s, c) => s + c.totalEstimatedMinutes, 0)
-  const totalHours = totalMinutes / 60
+/** One row's product/process context, e.g. "UFO-450 · Magnetic · 116T". */
+function specText(jc?: JobCardForScheduling): string {
+  if (!jc) return ''
+  return [jc.machineModelName, jc.rollerType, (jc.numberOfTeeth ?? 0) > 0 ? `${jc.numberOfTeeth}T` : null]
+    .filter(Boolean).join(' · ')
+}
 
-  // Group by machine: calculate per-machine total
-  const machineMinutes = new Map<number, number>()
-  for (const cat of suggestions) {
-    const machId = categoryMachineMap.get(cat.categoryKey)
-    if (machId && !cat.isOsp && !cat.isManual) {
-      machineMinutes.set(machId, (machineMinutes.get(machId) ?? 0) + cat.totalEstimatedMinutes)
+function Step4({ suggestions, jobGroups, selectedJcIds, jcMachineMap, onAssign, shiftHours, onBack, onConfirm, submitting }: Step4Props) {
+  // jobCardId → detail (for context + duration)
+  const jcLookup = useMemo(() => {
+    const m = new Map<number, JobCardForScheduling>()
+    jobGroups.forEach(g => g.jobCards.forEach(jc => m.set(jc.jobCardId, jc)))
+    return m
+  }, [jobGroups])
+
+  // Only the job cards actually selected for scheduling, per lane
+  const laneJcIds = (cat: CategoryMachineSuggestion) => cat.jobCardIds.filter(id => selectedJcIds.has(id))
+
+  // Live per-machine load (minutes) from current assignment across ALL lanes
+  const machineLoad = useMemo(() => {
+    const load = new Map<number, number>()
+    suggestions.forEach(cat => {
+      if (cat.isOsp || cat.isManual) return
+      laneJcIds(cat).forEach(id => {
+        const machId = jcMachineMap.get(id)
+        if (machId) load.set(machId, (load.get(machId) ?? 0) + (jcLookup.get(id)?.estimatedDurationMinutes ?? 60))
+      })
+    })
+    return load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestions, jcMachineMap, jcLookup, selectedJcIds])
+
+  // Row selection (job card ids) for bulk assignment
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const toggleRow = (id: number) => setSelected(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  // Per-lane chosen machine in the assign toolbar
+  const [laneChoice, setLaneChoice] = useState<Map<string, number>>(new Map())
+
+  const totalMinutes = suggestions.reduce((s, c) => s + c.totalEstimatedMinutes, 0)
+
+  const machineName = (id?: number | null) => {
+    if (!id) return null
+    for (const cat of suggestions) {
+      const m = cat.suggestedMachines.find(x => x.machineId === id)
+      if (m) return m.machineName
     }
+    return `#${id}`
+  }
+
+  // Distribute a lane's selected (or all) job cards across its machines, least-loaded first
+  const autoDistribute = (cat: CategoryMachineSuggestion) => {
+    const ids = laneJcIds(cat)
+    if (cat.suggestedMachines.length === 0 || ids.length === 0) return
+    const machines = cat.suggestedMachines
+    ids.forEach((id, i) => onAssign([id], machines[i % machines.length].machineId))
+  }
+
+  const applyToSelectedInLane = (cat: CategoryMachineSuggestion) => {
+    const ids = laneJcIds(cat).filter(id => selected.has(id))
+    const machId = laneChoice.get(cat.categoryKey)
+    if (!machId || ids.length === 0) return
+    onAssign(ids, machId)
+    setSelected(p => { const n = new Set(p); ids.forEach(id => n.delete(id)); return n })
   }
 
   return (
@@ -569,11 +623,6 @@ function Step4({ suggestions, categoryMachineMap, onSelectMachine, shiftHours, o
           </Button>
           <span className="text-xs text-muted-foreground">
             Total: <span className="font-semibold">{fmtMin(totalMinutes)}</span>
-            {shiftHours > 0 && (
-              <span className={totalHours > shiftHours ? ' text-red-600' : ' text-green-600'}>
-                {' '}/ {shiftHours}h shift
-              </span>
-            )}
           </span>
         </div>
         <Button
@@ -591,73 +640,130 @@ function Step4({ suggestions, categoryMachineMap, onSelectMachine, shiftHours, o
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {suggestions.map((cat, idx) => {
-          const selectedMachineId = categoryMachineMap.get(cat.categoryKey)
-          const machineMinutesForCat = machineMinutes.get(selectedMachineId ?? 0) ?? cat.totalEstimatedMinutes
-          const overCapacity = !cat.isOsp && !cat.isManual && machineMinutesForCat > shiftHours * 60
+          const ids = laneJcIds(cat)
+          if (ids.length === 0) return null
+          const noMachine = cat.isOsp || cat.isManual
+          const selInLane = ids.filter(id => selected.has(id))
+          const selMinutes = selInLane.reduce((s, id) => s + (jcLookup.get(id)?.estimatedDurationMinutes ?? 60), 0)
+          const allSelected = ids.length > 0 && selInLane.length === ids.length
 
           return (
-            <div key={`${cat.categoryKey}-${idx}`} className={`rounded-lg border-2 bg-card overflow-hidden ${overCapacity ? 'border-red-200' : 'border-border'}`}>
-              {/* Category header */}
+            <div key={`${cat.categoryKey}-${idx}`} className="rounded-lg border-2 border-border bg-card overflow-hidden">
+              {/* Lane header */}
               <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/20 border-b">
+                {!noMachine && cat.suggestedMachines.length > 0 && (
+                  <button onClick={() =>
+                    setSelected(p => {
+                      const n = new Set(p)
+                      if (allSelected) ids.forEach(id => n.delete(id)); else ids.forEach(id => n.add(id))
+                      return n
+                    })
+                  } title="Select all in this process">
+                    {allSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
+                  </button>
+                )}
                 <Cpu className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="font-semibold text-sm flex-1">{cat.processCategoryName}</span>
+                <span className="font-semibold text-sm">{cat.processCategoryName}</span>
                 {cat.isOsp && <Badge className="bg-orange-100 text-orange-700 border border-orange-200 text-[10px] h-4 px-1.5">OSP</Badge>}
                 {cat.isManual && <Badge className="bg-blue-100 text-blue-700 border border-blue-200 text-[10px] h-4 px-1.5">Manual</Badge>}
-                <span className="text-xs text-muted-foreground">{cat.totalJobCards} JC · {fmtMin(cat.totalEstimatedMinutes)}</span>
-                {overCapacity && (
-                  <div className="flex items-center gap-1 text-red-600 text-[10px]">
-                    <AlertTriangle className="h-3 w-3" /> Over capacity
-                  </div>
+                <span className="text-xs text-muted-foreground flex-1">{ids.length} jobs · {fmtMin(cat.totalEstimatedMinutes)}</span>
+                {!noMachine && cat.suggestedMachines.length > 1 && (
+                  <Button variant="outline" size="sm" className="h-6 text-[11px] gap-1" onClick={() => autoDistribute(cat)}>
+                    <RefreshCw className="h-3 w-3" /> Auto-distribute
+                  </Button>
                 )}
               </div>
 
-              <div className="p-3">
-                {cat.isOsp || cat.isManual ? (
-                  <div className="text-xs text-muted-foreground px-1">
-                    {cat.isOsp ? 'Outside Service Process — no machine required' : 'Manual process — no machine required'}
+              {/* Selection toolbar — appears when jobs in this lane are checked */}
+              {!noMachine && selInLane.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-primary/5 border-b text-xs">
+                  <span className="font-medium">{selInLane.length} selected · {fmtMin(selMinutes)}</span>
+                  <span className="text-muted-foreground">→ Assign to:</span>
+                  <Select
+                    value={laneChoice.get(cat.categoryKey)?.toString() ?? ''}
+                    onValueChange={v => setLaneChoice(p => { const n = new Map(p); n.set(cat.categoryKey, Number(v)); return n })}
+                  >
+                    <SelectTrigger className="h-7 w-52 text-xs"><SelectValue placeholder="Choose machine" /></SelectTrigger>
+                    <SelectContent>
+                      {cat.suggestedMachines.map(m => (
+                        <SelectItem key={m.machineId} value={m.machineId.toString()} className="text-xs">
+                          {m.machineName} · {m.capacityStatus}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" className="h-7 text-xs" disabled={!laneChoice.get(cat.categoryKey)} onClick={() => applyToSelectedInLane(cat)}>
+                    Apply
+                  </Button>
+                  <button className="text-muted-foreground hover:text-foreground" onClick={() => setSelected(p => { const n = new Set(p); selInLane.forEach(id => n.delete(id)); return n })}>
+                    Clear
+                  </button>
+                </div>
+              )}
+
+              {/* Job card rows with full context */}
+              <div className="divide-y">
+                {noMachine ? (
+                  <div className="px-4 py-2 text-xs text-muted-foreground">
+                    {cat.isOsp ? 'Outside Service Process — no machine required' : 'Manual process — no machine required'} · {ids.length} jobs
                   </div>
                 ) : cat.suggestedMachines.length === 0 ? (
-                  <div className="flex items-center gap-2 text-xs text-orange-600 px-1">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    No machines found for this category. Job cards will be scheduled without machine assignment.
+                  <div className="flex items-center gap-2 px-4 py-2 text-xs text-orange-600">
+                    <AlertTriangle className="h-3.5 w-3.5" /> No machines for this process — {ids.length} jobs will schedule without a machine.
                   </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {cat.suggestedMachines.map(m => {
-                      const selected = m.machineId === selectedMachineId
-                      const statusColor =
-                        m.capacityStatus === 'Available' ? 'text-green-700 bg-green-50 border-green-200' :
-                        m.capacityStatus === 'Moderate' ? 'text-amber-700 bg-amber-50 border-amber-200' :
-                        'text-red-700 bg-red-50 border-red-200'
-                      return (
-                        <button
-                          key={m.machineId}
-                          onClick={() => onSelectMachine(cat.categoryKey, m.machineId)}
-                          className={`w-full text-left rounded-lg border px-3 py-2 text-xs transition-colors ${
-                            selected ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:bg-muted/40'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {selected ? <CheckSquare className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5 text-muted-foreground" />}
-                              <span className="font-semibold">{m.machineName}</span>
-                            </div>
-                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] border ${statusColor}`}>
-                              {m.capacityStatus}
-                            </span>
-                          </div>
-                          <div className="text-muted-foreground mt-0.5 ml-5">
-                            {m.scheduledHours}h / {m.dailyCapacityHours}h used · {m.utilizationPercent}%
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
+                ) : ids.map(id => {
+                  const jc = jcLookup.get(id)
+                  const assigned = jcMachineMap.get(id) ?? null
+                  const isChecked = selected.has(id)
+                  return (
+                    <div key={id} className={`flex items-center gap-2 px-4 py-1.5 text-xs ${isChecked ? 'bg-primary/5' : ''}`}>
+                      <button onClick={() => toggleRow(id)}>
+                        {isChecked ? <CheckSquare className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium">{jc?.orderNo}</span>
+                          {specText(jc) && <span className="text-muted-foreground">· {specText(jc)}</span>}
+                        </div>
+                        <div className="text-muted-foreground truncate">
+                          {jc?.childPartName}{jc?.creationType === 'Assembly' ? ' (Assembly)' : ''} · {jc?.processName}
+                          {jc?.stepNo ? ` · Step ${jc.stepNo}` : ''} · {jc?.quantity} pcs · {fmtMin(jc?.estimatedDurationMinutes ?? 0)}
+                        </div>
+                      </div>
+                      {/* Per-row machine dropdown (quick single change) */}
+                      <Select value={assigned?.toString() ?? ''} onValueChange={v => onAssign([id], Number(v))}>
+                        <SelectTrigger className="h-7 w-44 text-xs shrink-0"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>
+                          {cat.suggestedMachines.map(m => (
+                            <SelectItem key={m.machineId} value={m.machineId.toString()} className="text-xs">{m.machineName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {assigned == null && <span className="text-orange-500 shrink-0" title="No machine assigned">⚠</span>}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )
         })}
+
+        {/* Live machine load summary */}
+        {machineLoad.size > 0 && (
+          <div className="rounded-lg border bg-muted/10 p-3">
+            <div className="text-xs font-semibold mb-2">Machine load (this schedule)</div>
+            <div className="flex flex-wrap gap-2">
+              {Array.from(machineLoad.entries()).map(([machId, mins]) => {
+                const over = mins > shiftHours * 60
+                return (
+                  <span key={machId} className={`rounded-full border px-2 py-0.5 text-[11px] ${over ? 'border-red-300 bg-red-50 text-red-700' : 'border-green-300 bg-green-50 text-green-700'}`}>
+                    {machineName(machId)}: {fmtMin(mins)}{shiftHours > 0 ? ` / ${shiftHours}h` : ''}{over ? ' ⚠ over' : ''}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1749,9 +1855,13 @@ export default function SchedulingPage() {
   const [useOvertime, setUseOvertime] = useState(false)
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
-  // Step 4
+  // Step 4 — machine chosen PER JOB CARD (jobCardId → machineId; null = OSP/Manual/unassigned)
   const [categorySuggestions, setCategorySuggestions] = useState<CategoryMachineSuggestion[]>([])
-  const [categoryMachineMap, setCategoryMachineMap] = useState<Map<string, number | null>>(new Map())
+  const [jcMachineMap, setJcMachineMap] = useState<Map<number, number | null>>(new Map())
+
+  // Assign one machine to a set of job cards at once.
+  const setJcMachines = (ids: number[], machineId: number | null) =>
+    setJcMachineMap(prev => { const n = new Map(prev); ids.forEach(id => n.set(id, machineId)); return n })
 
   // Step 5
   const [results, setResults] = useState<BatchScheduleV2Result[]>([])
@@ -1814,13 +1924,18 @@ export default function SchedulingPage() {
         Array.from(selectedJcIds), targetDate
       )
       setCategorySuggestions(sugg)
-      // Auto-select best machine per category (first in list = lowest utilization)
-      const map = new Map<string, number | null>()
+      // Default: balance each lane's job cards across its capable machines
+      // (least-loaded first — suggestedMachines already sorted by utilization asc).
+      const map = new Map<number, number | null>()
       sugg.forEach(s => {
-        if (s.isOsp || s.isManual) map.set(s.categoryKey, null)
-        else map.set(s.categoryKey, s.suggestedMachines[0]?.machineId ?? null)
+        if (s.isOsp || s.isManual || s.suggestedMachines.length === 0) {
+          s.jobCardIds.forEach(id => map.set(id, null))
+        } else {
+          const machines = s.suggestedMachines
+          s.jobCardIds.forEach((id, i) => map.set(id, machines[i % machines.length].machineId))
+        }
       })
-      setCategoryMachineMap(map)
+      setJcMachineMap(map)
       setStep(4)
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load machine suggestions')
@@ -1835,38 +1950,28 @@ export default function SchedulingPage() {
     setSubmitting(true)
     try {
       const [shiftH, shiftM] = shift.startTime.split(':').map(Number)
-      // Per-machine cursor map (machineId or 'OSP' or 'Manual')
+      // Per-machine cursor map (each machine's jobs sequence back-to-back)
       const cursors = new Map<string, number>()
 
-      // Build a quick lookup for job card durations
-      const jcDurations = new Map<number, { dur: number; category: CategoryMachineSuggestion }>()
-      for (const cat of categorySuggestions) {
-        for (const jcId of cat.jobCardIds) {
-          if (!selectedJcIds.has(jcId)) continue
-          let dur = 60
-          for (const g of jobGroups) {
-            const jc = g.jobCards.find(j => j.jobCardId === jcId)
-            if (jc) { dur = jc.estimatedDurationMinutes; break }
-          }
-          jcDurations.set(jcId, { dur, category: cat })
-        }
-      }
+      // Job card detail lookup (for durations)
+      const jcLookup = new Map<number, JobCardForScheduling>()
+      jobGroups.forEach(g => g.jobCards.forEach(jc => jcLookup.set(jc.jobCardId, jc)))
 
       const schedules: CreateScheduleV2Request[] = []
 
       for (const cat of categorySuggestions) {
-        const machineId = categoryMachineMap.get(cat.categoryKey) ?? null
-        const cursorKey = cat.isOsp ? 'OSP' : cat.isManual ? 'Manual' : `M${machineId}`
-
-        if (!cursors.has(cursorKey)) {
-          const base = new Date(`${targetDate}T00:00:00`)
-          base.setHours(shiftH, shiftM, 0, 0)
-          cursors.set(cursorKey, base.getTime())
-        }
-
         for (const jcId of cat.jobCardIds) {
           if (!selectedJcIds.has(jcId)) continue
-          const dur = jcDurations.get(jcId)?.dur ?? 60
+          const dur = jcLookup.get(jcId)?.estimatedDurationMinutes ?? 60
+          const machineId = (cat.isOsp || cat.isManual) ? null : (jcMachineMap.get(jcId) ?? null)
+          const cursorKey = cat.isOsp ? 'OSP' : cat.isManual ? 'Manual' : (machineId ? `M${machineId}` : 'Unassigned')
+
+          if (!cursors.has(cursorKey)) {
+            const base = new Date(`${targetDate}T00:00:00`)
+            base.setHours(shiftH, shiftM, 0, 0)
+            cursors.set(cursorKey, base.getTime())
+          }
+
           const startMs = cursors.get(cursorKey)!
           const endMs = startMs + dur * 60 * 1000
           cursors.set(cursorKey, endMs)
@@ -1907,7 +2012,7 @@ export default function SchedulingPage() {
     setJobGroups([])
     setSelectedJcIds(new Set())
     setCategorySuggestions([])
-    setCategoryMachineMap(new Map())
+    setJcMachineMap(new Map())
     setResults([])
     loadOrders()
   }
@@ -2017,10 +2122,10 @@ export default function SchedulingPage() {
           ) : step === 4 ? (
             <Step4
               suggestions={categorySuggestions}
-              categoryMachineMap={categoryMachineMap}
-              onSelectMachine={(key, machId) =>
-                setCategoryMachineMap(prev => { const n = new Map(prev); n.set(key, machId); return n })
-              }
+              jobGroups={jobGroups}
+              selectedJcIds={selectedJcIds}
+              jcMachineMap={jcMachineMap}
+              onAssign={setJcMachines}
               shiftHours={shiftHours}
               onBack={() => setStep(3)}
               onConfirm={handleConfirm}
