@@ -93,6 +93,7 @@ export const PERMISSION_CATALOG: PermModule[] = [
       { key: '/inventory/component-issue', label: 'Issue to Shop Floor', actions: CRUD },
       { key: '/inventory/component-consume', label: 'Consume Components', actions: CRUD },
       { key: '/inventory/reconcile', label: 'Stock Reconcile', actions: CRUD },
+      { key: '/inventory/wastage', label: 'Wastage & Scrap Sales', actions: CRUD },
       { key: '/inventory/warehouses', label: 'Warehouses', actions: CRUD },
       { key: '/inventory/grn-approvals', label: 'GRN Approvals', actions: CRUDA },
     ],

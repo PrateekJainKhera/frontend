@@ -16,6 +16,7 @@ import { ManufacturingDimensionsForm } from "./manufacturing-dimensions-form"
 import { drawingService, BulkUploadResult } from "@/lib/api/drawings"
 import { productService } from "@/lib/api/products"
 import { customerService } from "@/lib/api/customer"
+import { childPartTemplateService, ChildPartTemplateResponse } from "@/lib/api/child-part-templates"
 import { Product } from "@/types/product"
 import { Customer } from "@/types/customer"
 
@@ -30,6 +31,7 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [products, setProducts] = useState<Product[]>([])
     const [customers, setCustomers] = useState<Customer[]>([])
+    const [childPartTemplates, setChildPartTemplates] = useState<ChildPartTemplateResponse[]>([])
 
     // Single upload form state
     const [drawingNumber, setDrawingNumber] = useState("")
@@ -42,6 +44,7 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
     const [notes, setNotes] = useState("")
     const [linkedProductId, setLinkedProductId] = useState("")
     const [linkedCustomerId, setLinkedCustomerId] = useState("")
+    const [linkedChildPartTemplateId, setLinkedChildPartTemplateId] = useState("")
     const [manufacturingDimensions, setManufacturingDimensions] = useState<Partial<ManufacturingDimensions>>({
         materialGrade: ""
     })
@@ -55,6 +58,7 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
     useEffect(() => {
         productService.getAll().then(setProducts).catch(() => {})
         customerService.getAll().then(setCustomers).catch(() => {})
+        childPartTemplateService.getAll().then(setChildPartTemplates).catch(() => {})
     }, [])
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,18 +84,20 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
     // Single upload submit
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (uploading) return // guard against double-click/double-submit before validation runs
+        setUploading(true)
 
         if (!selectedFile) {
             toast.error("Please select a file to upload")
+            setUploading(false)
             return
         }
 
         if (!drawingName || !description) {
             toast.error("Please fill all required fields")
+            setUploading(false)
             return
         }
-
-        setUploading(true)
 
         try {
             const hasDimensions = Object.values(manufacturingDimensions).some(v => v !== "" && v !== 0 && v !== undefined)
@@ -107,6 +113,9 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
                 manufacturingDimensionsJSON: dimensionsJson,
                 linkedProductId: linkedProductId ? parseInt(linkedProductId) : undefined,
                 linkedCustomerId: linkedCustomerId ? parseInt(linkedCustomerId) : undefined,
+                linkedChildPartTemplateId: drawingType !== 'final' && linkedChildPartTemplateId
+                    ? parseInt(linkedChildPartTemplateId)
+                    : undefined,
                 description,
                 notes: notes || undefined,
             }
@@ -135,6 +144,7 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
         setNotes("")
         setLinkedProductId("")
         setLinkedCustomerId("")
+        setLinkedChildPartTemplateId("")
         setManufacturingDimensions({ materialGrade: "" })
     }
 
@@ -163,12 +173,15 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
     }
 
     const handleBulkUpload = async () => {
+        if (uploading) return // guard against double-click/double-submit before validation runs
+        setUploading(true)
+
         if (bulkFiles.length === 0) {
             toast.error("Please select files to upload")
+            setUploading(false)
             return
         }
 
-        setUploading(true)
         setBulkResults([])
 
         try {
@@ -334,7 +347,12 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
                                     {/* Linking (Optional) */}
                                     <div className="space-y-3">
                                         <Label className="text-sm font-semibold">Link to (Optional)</Label>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <p className="text-xs text-muted-foreground">
+                                            Drawings are attached to the Product, not to individual orders — every order for
+                                            that product reuses these drawings. Pick the specific child part this drawing is
+                                            for, so it shows up on that part during production (leave blank for a general/assembly drawing).
+                                        </p>
+                                        <div className="grid grid-cols-3 gap-4">
                                             <div className="space-y-2">
                                                 <Label className="text-xs">Product / Roller</Label>
                                                 <Select value={linkedProductId || undefined} onValueChange={setLinkedProductId}>
@@ -342,6 +360,21 @@ export function AddDrawingDialog({ open, onOpenChange, onSuccess }: AddDrawingDi
                                                     <SelectContent>
                                                         {products.map((product) => (
                                                             <SelectItem key={product.id} value={product.id.toString()}>{product.partCode} — {product.modelName}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs">Child Part {drawingType === 'final' && '(n/a for Final Assembly)'}</Label>
+                                                <Select
+                                                    value={linkedChildPartTemplateId || undefined}
+                                                    onValueChange={setLinkedChildPartTemplateId}
+                                                    disabled={drawingType === 'final'}
+                                                >
+                                                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {childPartTemplates.map((cpt) => (
+                                                            <SelectItem key={cpt.id} value={cpt.id.toString()}>{cpt.templateName} ({cpt.templateCode})</SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>

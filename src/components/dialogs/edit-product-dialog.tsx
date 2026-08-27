@@ -130,6 +130,32 @@ export function EditProductDialog({
     },
   })
 
+  // The dialog stays mounted across edits, so re-sync the form to the current
+  // product every time it opens — otherwise it keeps the first product's values.
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        partCode: product.partCode ?? '',
+        customerName: product.customerName ?? '',
+        modelId: product.modelId,
+        rollerType: product.rollerType ?? '',
+        diameter: product.diameter ?? undefined,
+        length: product.length ?? undefined,
+        materialGrade: product.materialGrade ?? '',
+        drawingNo: product.drawingNo ?? '',
+        revisionNo: product.revisionNo ?? '',
+        revisionDate: product.revisionDate ?? '',
+        hasTeeth: (product.numberOfTeeth ?? 0) > 0,
+        numberOfTeeth: product.numberOfTeeth ?? 0,
+        surfaceFinish: product.surfaceFinish ?? '',
+        hardness: product.hardness ?? '',
+        processTemplateId: product.processTemplateId || 1,
+        productTemplateId: product.productTemplateId ?? undefined,
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, product.id])
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     const loadingToast = toast.loading('Updating product...')

@@ -5,8 +5,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   ChevronDown, ChevronRight, CheckCircle, Lock, Clock, RefreshCw, Layers, Truck, Play,
-  ShieldCheck, FileUp, XCircle, Search, X,
+  ShieldCheck, FileUp, XCircle, Search, X, FileText,
 } from 'lucide-react'
+import { drawingService, DrawingResponse, resolveDrawingFileUrl } from '@/lib/api/drawings'
+import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
 import { Badge } from '@/components/ui/badge'
 import { ProductSpec } from '@/components/ui/product-spec'
 import { Button } from '@/components/ui/button'
@@ -262,13 +264,15 @@ function BatchOSPDialog({
 // ── Single job card row ───────────────────────────────────────────────────────
 
 function JobCardRow({
-  row, state, ospChecked,
+  row, state, ospChecked, drawings, onOpenDrawing,
   onToggle, onOspToggle,
   onQtyChange, onSubmit, onStart, onLogOSP, onReportRejection,
 }: {
   row: ExecutionViewRow
   state: RowState
   ospChecked: boolean
+  drawings: DrawingResponse[]
+  onOpenDrawing: (d: DrawingResponse) => void
   onToggle: () => void
   onOspToggle: () => void
   onQtyChange: (field: 'completedQty' | 'rejectedQty', value: string) => void
@@ -281,6 +285,8 @@ function JobCardRow({
   const isLocked = row.isLocked
   const isOsp = row.isOsp
   const atVendor = isOsp && row.ospStatus === 'Sent'
+  const remaining = Math.max(0, row.quantity - row.completedQty - row.rejectedQty)
+  const hasPartialProgress = !isDone && (row.completedQty > 0 || row.rejectedQty > 0)
 
   const bgClass = isDone
     ? 'bg-green-50 border-green-200'
@@ -333,6 +339,23 @@ function JobCardRow({
         <span className="text-sm text-muted-foreground">
           Qty: <span className="font-medium text-foreground">{row.quantity}</span>
         </span>
+        {hasPartialProgress && (
+          <Badge variant="outline" className="text-xs border-amber-400 text-amber-700 bg-amber-50">
+            {row.completedQty} done{row.rejectedQty > 0 ? ` · ${row.rejectedQty} rejected` : ''} · {remaining} left
+          </Badge>
+        )}
+
+        {/* Drawing */}
+        {drawings.length === 1 && (
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => onOpenDrawing(drawings[0])}>
+            <FileText className="h-3 w-3" /> Drawing
+          </Button>
+        )}
+        {drawings.length > 1 && (
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => onOpenDrawing(drawings[0])}>
+            <FileText className="h-3 w-3" /> Drawing ({drawings.length})
+          </Button>
+        )}
 
         {/* Status */}
         {atVendor
@@ -419,9 +442,9 @@ function JobCardRow({
       {!isOsp && (state.checked || row.productionStatus === 'InProgress') && !isDone && !isLocked && (
         <div className="mt-3 flex items-end gap-4 flex-wrap border-t border-blue-200 pt-3">
           <div className="flex flex-col gap-1">
-            <Label className="text-xs text-muted-foreground">Completed Qty</Label>
+            <Label className="text-xs text-muted-foreground">Completed Qty (of {remaining} left)</Label>
             <Input
-              type="number" min={0} max={row.quantity}
+              type="number" min={0} max={remaining}
               value={state.completedQty}
               onChange={(e) => onQtyChange('completedQty', e.target.value)}
               className="h-8 w-24 text-sm" placeholder="0"
@@ -430,7 +453,7 @@ function JobCardRow({
           <div className="flex flex-col gap-1">
             <Label className="text-xs text-muted-foreground">Rejected Qty</Label>
             <Input
-              type="number" min={0} max={row.quantity}
+              type="number" min={0} max={remaining}
               value={state.rejectedQty}
               onChange={(e) => onQtyChange('rejectedQty', e.target.value)}
               className="h-8 w-24 text-sm" placeholder="0"
@@ -445,7 +468,7 @@ function JobCardRow({
               {state.submitting
                 ? <RefreshCw className="h-3 w-3 animate-spin mr-1" />
                 : <CheckCircle className="h-3 w-3 mr-1" />}
-              Complete
+              {parseInt(state.completedQty || '0') + parseInt(state.rejectedQty || '0') >= remaining ? 'Complete' : 'Save Progress'}
             </Button>
             <Button size="sm" variant="ghost" className="h-8" onClick={onToggle} disabled={state.submitting}>
               Cancel
@@ -818,6 +841,12 @@ export default function ProductionExecutionPage() {
   // Rework dialog
   const [reworkRow, setReworkRow] = useState<ExecutionViewRow | null>(null)
 
+  // Drawings — fetched once per distinct product present on the page, so each
+  // job-card row can offer a "Drawing" button for its own child part / assembly.
+  const [drawings, setDrawings] = useState<DrawingResponse[]>([])
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState('')
+
   // ── Filter state ──────────────────────────────────────────────────────────
   const [searchText, setSearchText] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
@@ -842,10 +871,14 @@ export default function ProductionExecutionPage() {
         data.forEach((cat) =>
           cat.childParts.forEach((cp) =>
             cp.jobCards.forEach((jc) => {
+              // Default to the REMAINING quantity (not the original total) — completedQty/
+              // rejectedQty accumulate across possibly several partial submissions, so a
+              // job already 4-of-5 done should default to entering just the last 1.
+              const remaining = Math.max(0, jc.quantity - jc.completedQty - jc.rejectedQty)
               if (!next[jc.jobCardId]) {
                 next[jc.jobCardId] = {
                   checked: false,
-                  completedQty: String(jc.quantity),
+                  completedQty: String(remaining),
                   rejectedQty: '0',
                   submitting: false,
                 }
@@ -855,12 +888,58 @@ export default function ProductionExecutionPage() {
         )
         return next
       })
+
+      // Fetch drawings for every distinct product present, so each row can show its
+      // child-part / assembly drawing (a product's drawings apply to every order for it).
+      const productIds = [...new Set(
+        data.flatMap((cat) => cat.childParts.flatMap((cp) => cp.jobCards.map((jc) => jc.productId).filter((id): id is number => !!id)))
+      )]
+      Promise.all(productIds.map((id) => drawingService.getByProductId(id).catch(() => [])))
+        .then((results) => setDrawings(results.flat()))
     } catch {
       toast.error('Failed to load execution view')
     } finally {
       setLoading(false)
     }
   }, [])
+
+  const openDrawing = (d: DrawingResponse) => {
+    if (!d.fileUrl) {
+      toast.error('This drawing has no file attached')
+      return
+    }
+    setPreviewUrl(resolveDrawingFileUrl(d.fileUrl))
+    setPreviewTitle(d.drawingName || d.fileName || 'Drawing')
+  }
+
+  // Drawings for a specific row's child part (or assembly), scoped to that row's own
+  // product — the same child part name can exist on different products with different
+  // drawings, so matching must always be productId-scoped, not just name-scoped.
+  const drawingsForRow = (row: ExecutionViewRow, childPartId: number | null | undefined): DrawingResponse[] => {
+    if (!row.productId) return []
+    const isAssembly = (row.childPartName ?? '').toLowerCase().includes('assembly')
+    const productDrawings = drawings.filter((d) => d.linkedProductId === row.productId)
+
+    if (isAssembly) {
+      return productDrawings.filter((d) => d.drawingType === 'assembly')
+    }
+
+    const byId = childPartId != null
+      ? productDrawings.filter((d) => d.drawingType !== 'assembly' && d.linkedChildPartTemplateId === childPartId)
+      : []
+    if (byId.length > 0) return byId
+
+    const name = (row.childPartName ?? '').toLowerCase()
+    if (!name) return []
+    return productDrawings.filter((d) => {
+      if (d.drawingType === 'assembly') return false
+      const tplName = d.linkedChildPartTemplateName?.toLowerCase()
+      if (tplName && (name.includes(tplName) || tplName.includes(name))) return true
+      const drawingName = d.drawingName?.toLowerCase() ?? ''
+      if (drawingName.includes(name)) return true
+      return name.includes(d.drawingType.toLowerCase())
+    })
+  }
 
   useEffect(() => {
     vendorService.getAll().then(setVendors).catch(() => {})
@@ -1019,7 +1098,8 @@ export default function ProductionExecutionPage() {
       const st = snapshot[row.jobCardId]
       const completed = parseInt(st?.completedQty ?? '0') || 0
       const rejected = parseInt(st?.rejectedQty ?? '0') || 0
-      if (completed + rejected === 0 || completed + rejected > row.quantity) { failCount++; continue }
+      const remaining = Math.max(0, row.quantity - row.completedQty - row.rejectedQty)
+      if (completed + rejected === 0 || completed + rejected > remaining) { failCount++; continue }
       try {
         await productionService.jobCardAction(row.jobCardId, 'direct-complete', completed, rejected)
         successCount++
@@ -1027,7 +1107,7 @@ export default function ProductionExecutionPage() {
     }
 
     setSubmittingCategory(null)
-    if (successCount > 0) toast.success(`${successCount} job card(s) marked complete`)
+    if (successCount > 0) toast.success(`${successCount} job card(s) submitted`)
     if (failCount > 0) toast.error(`${failCount} job card(s) failed — check quantities`)
     await load()
   }
@@ -1054,10 +1134,11 @@ export default function ProductionExecutionPage() {
     const state = rowStates[row.jobCardId]
     const completed = parseInt(state.completedQty) || 0
     const rejected = parseInt(state.rejectedQty) || 0
+    const remaining = Math.max(0, row.quantity - row.completedQty - row.rejectedQty)
 
     if (completed + rejected === 0) { toast.error('Enter at least completed or rejected quantity'); return }
-    if (completed + rejected > row.quantity) {
-      toast.error(`Total (${completed + rejected}) cannot exceed quantity (${row.quantity})`); return
+    if (completed + rejected > remaining) {
+      toast.error(`Total (${completed + rejected}) cannot exceed remaining quantity (${remaining})`); return
     }
 
     setRowStates((prev) => ({
@@ -1066,8 +1147,8 @@ export default function ProductionExecutionPage() {
     }))
 
     try {
-      await productionService.jobCardAction(row.jobCardId, 'direct-complete', completed, rejected)
-      toast.success(`${row.orderNo} — ${row.childPartName} completed`)
+      const message = await productionService.jobCardAction(row.jobCardId, 'direct-complete', completed, rejected)
+      toast.success(message || `${row.orderNo} — ${row.childPartName} updated`)
       await load()
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit')
@@ -1335,10 +1416,12 @@ export default function ProductionExecutionPage() {
                             row={row}
                             state={rowStates[row.jobCardId] || {
                               checked: false,
-                              completedQty: String(row.quantity),
+                              completedQty: String(Math.max(0, row.quantity - row.completedQty - row.rejectedQty)),
                               rejectedQty: '0',
                               submitting: false,
                             }}
+                            drawings={drawingsForRow(row, cp.childPartId)}
+                            onOpenDrawing={openDrawing}
                             ospChecked={!!ospChecked[row.jobCardId]}
                             onToggle={() => toggleRow(row.jobCardId)}
                             onOspToggle={() => toggleOspRow(row.jobCardId)}
@@ -1388,6 +1471,13 @@ export default function ProductionExecutionPage() {
 
       {/* QC Section — shown at bottom when assembly-complete items need sign-off */}
       <QCSection onRefreshExecution={load} />
+
+      <DrawingPreviewDialog
+        open={!!previewUrl}
+        onOpenChange={(open) => { if (!open) setPreviewUrl(null) }}
+        url={previewUrl}
+        title={previewTitle}
+      />
     </div>
   )
 }

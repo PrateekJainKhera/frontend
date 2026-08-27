@@ -45,8 +45,12 @@ export default function CreateChildPartTemplatePage() {
   const [description, setDescription] = useState('')
   const [processTemplateId, setProcessTemplateId] = useState<number | null>(null)
 
-  // Auto-generate template code based on child part type
-  const templateCode = childPartType ? `CPT-${childPartType}-${Date.now().toString().slice(-6)}` : ''
+  // Auto-generate template code based on child part type — truncate to the first 3
+  // letters/digits (matching the product-template generator) instead of embedding the
+  // full type name, which could push the combined code (e.g. when concatenated into a
+  // JobCardNo later) past a downstream column's length limit.
+  const childPartTypeCode = childPartType.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase()
+  const templateCode = childPartTypeCode ? `CPT-${childPartTypeCode}-${Date.now().toString().slice(-6)}` : ''
 
   // Technical notes
   const [technicalNotes, setTechnicalNotes] = useState('')
@@ -118,26 +122,30 @@ export default function CreateChildPartTemplatePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return // guard against double-click/double-submit before validation runs
+    setLoading(true)
 
     // Validation
     if (!templateName.trim()) {
       toast.error('Please enter template name')
+      setLoading(false)
       return
     }
     if (!childPartType) {
       toast.error('Please select child part type')
+      setLoading(false)
       return
     }
     if (applicableTypes.length === 0) {
       toast.error('Please select at least one applicable roller type')
+      setLoading(false)
       return
     }
     if (!isPurchased && !processTemplateId) {
       toast.error('Please select a process template for manufactured parts')
+      setLoading(false)
       return
     }
-
-    setLoading(true)
 
     try {
       await childPartTemplateService.create({

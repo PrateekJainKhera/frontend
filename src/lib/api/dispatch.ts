@@ -75,6 +75,30 @@ class DispatchService {
     }
   }
 
+  // Admin-only edit of a dispatched challan's invoice/shipping details.
+  async editDispatch(
+    challanId: number,
+    data: {
+      invoiceNo: string
+      invoiceDate: string
+      dispatchDate: string
+      vehicleNumber: string
+      transportMode?: string
+      driverName?: string
+      driverContact?: string
+      deliveryAddress?: string
+      remarks?: string
+      isAdmin: boolean
+      performedBy?: string
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await apiClient.put<ApiResponse<boolean>>(`${this.baseUrl}/${challanId}/edit`, { challanId, ...data })
+      return { success: res.data.success, message: res.data.message ?? 'Updated' }
+    } catch (error: any) {
+      return { success: false, message: error?.response?.data?.message ?? 'Failed to update' }
+    }
+  }
 }
 
 export const dispatchService = new DispatchService()

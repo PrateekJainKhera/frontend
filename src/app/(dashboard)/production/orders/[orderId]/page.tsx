@@ -12,6 +12,12 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
@@ -25,10 +31,14 @@ import {
   RotateCcw,
   Wrench,
   Package,
+  FileText,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api/axios-config'
+import { drawingService, DrawingResponse, resolveDrawingFileUrl } from '@/lib/api/drawings'
+import { DrawingPreviewDialog } from '@/components/drawing-preview-dialog'
+import { parseServerDate } from '@/lib/utils/server-date'
 
 // ── Types matching the backend ProductionResponse DTOs ────────────────────────
 interface ProductionStepItem {
@@ -63,6 +73,7 @@ interface ProductionChildPartGroup {
 interface ProductionOrderDetail {
   orderId: number
   orderNo: string
+  productId: number | null
   customerName: string | null
   productName: string | null
   priority: string
@@ -71,7 +82,7 @@ interface ProductionOrderDetail {
   completedSteps: number
   inProgressSteps: number
   childParts: ProductionChildPartGroup[]
-  assembly: ProductionStepItem | null
+  assemblySteps: ProductionStepItem[]
   canStartAssembly: boolean
 }
 
@@ -89,6 +100,50 @@ function StatusBadge({ status }: { status: string }) {
     default:
       return <Badge variant="outline" className="text-muted-foreground">Pending</Badge>
   }
+}
+
+// ── "View Drawing" button — direct open for one match, dropdown for several ──
+function DrawingButton({ drawings, onOpen, label = 'Drawing' }: {
+  drawings: DrawingResponse[]
+  onOpen: (d: DrawingResponse) => void
+  label?: string
+}) {
+  if (drawings.length === 0) return null
+
+  if (drawings.length === 1) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 px-2 text-xs"
+        onClick={(e) => { e.stopPropagation(); onOpen(drawings[0]) }}
+      >
+        <FileText className="h-3 w-3 mr-1" /> {label}
+      </Button>
+    )
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 text-xs"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FileText className="h-3 w-3 mr-1" /> {label} ({drawings.length})
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        {drawings.map(d => (
+          <DropdownMenuItem key={d.id} onClick={() => onOpen(d)}>
+            {d.drawingName || d.drawingNumber}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 // ── Single step row with action buttons ──────────────────────────────────────
@@ -145,10 +200,10 @@ function StepRow({ step, onAction }: {
               </span>
             )}
             {step.actualStartTime && (
-              <span>Started {new Date(step.actualStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>Started {parseServerDate(step.actualStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             )}
             {step.actualEndTime && (
-              <span>Done {new Date(step.actualEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>Done {parseServerDate(step.actualEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             )}
           </div>
         </div>
@@ -192,6 +247,9 @@ export default function OrderProductionPage() {
   const [loading, setLoading] = useState(true)
   const [expandedParts, setExpandedParts] = useState<Set<string>>(new Set())
   const [assemblyExpanded, setAssemblyExpanded] = useState(false)
+  const [drawings, setDrawings] = useState<DrawingResponse[]>([])
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState('')
 
   const loadOrder = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -216,6 +274,52 @@ export default function OrderProductionPage() {
   }, [orderId])
 
   useEffect(() => { loadOrder() }, [loadOrder])
+
+  // Load drawings attached to this order AND to its product (drawings are commonly attached
+  // once to the product master — e.g. "PRI-0231 - PR-GEAR-73T-96T" — and apply to every order
+  // for that product, rather than being re-uploaded per order).
+  useEffect(() => {
+    Promise.all([
+      drawingService.getByOrderId(Number(orderId)).catch(() => []),
+      order?.productId ? drawingService.getByProductId(order.productId).catch(() => []) : Promise.resolve([]),
+    ]).then(([orderDrawings, productDrawings]) => {
+      const merged = [...orderDrawings]
+      for (const d of productDrawings) {
+        if (!merged.some(existing => existing.id === d.id)) merged.push(d)
+      }
+      setDrawings(merged)
+    })
+  }, [orderId, order?.productId])
+
+  const openDrawing = (d: DrawingResponse) => {
+    if (!d.fileUrl) {
+      toast.error('This drawing has no file attached')
+      return
+    }
+    setPreviewUrl(resolveDrawingFileUrl(d.fileUrl))
+    setPreviewTitle(d.drawingName || d.fileName || 'Drawing')
+  }
+
+  // Drawings tagged for this exact child part template, falling back to a loose name
+  // match for drawings uploaded before this order's job cards carried a template link.
+  const drawingsForChildPart = (cp: ProductionChildPartGroup): DrawingResponse[] => {
+    const byId = cp.childPartId != null
+      ? drawings.filter(d => d.drawingType !== 'assembly' && d.linkedChildPartTemplateId === cp.childPartId)
+      : []
+    if (byId.length > 0) return byId
+
+    const name = cp.childPartName.toLowerCase()
+    return drawings.filter(d => {
+      if (d.drawingType === 'assembly') return false
+      const tplName = d.linkedChildPartTemplateName?.toLowerCase()
+      if (tplName && (name.includes(tplName) || tplName.includes(name))) return true
+      const drawingName = d.drawingName?.toLowerCase() ?? ''
+      if (drawingName.includes(name)) return true
+      return name.includes(d.drawingType.toLowerCase())
+    })
+  }
+
+  const assemblyDrawings = drawings.filter(d => d.drawingType === 'assembly')
 
   const handleAction = async (jobCardId: number, action: string) => {
     try {
@@ -333,6 +437,7 @@ export default function OrderProductionPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
+                    <DrawingButton drawings={drawingsForChildPart(cp)} onOpen={openDrawing} />
                     <span className="text-sm text-muted-foreground">{cp.completedSteps}/{cp.totalSteps}</span>
                     <span className="text-sm font-medium w-10 text-right">{cpProgress}%</span>
                   </div>
@@ -351,7 +456,7 @@ export default function OrderProductionPage() {
       </div>
 
       {/* Assembly */}
-      {order.assembly && (
+      {order.assemblySteps.length > 0 && (
         <div className="space-y-2">
           <h2 className="font-medium text-sm text-muted-foreground px-1">Assembly</h2>
           <Collapsible open={assemblyExpanded} onOpenChange={setAssemblyExpanded}>
@@ -360,16 +465,25 @@ export default function OrderProductionPage() {
                 <div className="flex items-center gap-3">
                   {assemblyExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   <span className="font-medium">Final Assembly</span>
-                  <StatusBadge status={order.assembly.productionStatus} />
-                  {!order.canStartAssembly && order.assembly.productionStatus === 'Pending' && (
+                  <StatusBadge status={
+                    order.assemblySteps.every(s => s.productionStatus === 'Completed') ? 'Completed'
+                    : order.assemblySteps.some(s => s.productionStatus === 'InProgress') ? 'InProgress'
+                    : order.assemblySteps.some(s => s.productionStatus === 'Paused') ? 'Paused'
+                    : order.assemblySteps.some(s => s.productionStatus === 'Ready') ? 'Ready'
+                    : 'Pending'
+                  } />
+                  {!order.canStartAssembly && order.assemblySteps[0]?.productionStatus === 'Pending' && (
                     <span className="text-xs text-amber-600">Waiting for all child parts</span>
                   )}
                 </div>
+                <DrawingButton drawings={assemblyDrawings} onOpen={openDrawing} label="Assembly Drawing" />
               </div>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="ml-7 mt-2 pb-2">
-                <StepRow step={order.assembly} onAction={handleAction} />
+              <div className="ml-7 mt-2 space-y-2 pb-2">
+                {order.assemblySteps.map(step => (
+                  <StepRow key={step.jobCardId} step={step} onAction={handleAction} />
+                ))}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -380,7 +494,7 @@ export default function OrderProductionPage() {
       <div className="space-y-2">
         <h2 className="font-medium text-sm text-muted-foreground px-1">Quality Control</h2>
         <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-          {progress === 100 && order.assembly?.productionStatus === 'Completed' ? (
+          {progress === 100 && order.assemblySteps.length > 0 && order.assemblySteps.every(s => s.productionStatus === 'Completed') ? (
             <>
               <Clock className="h-5 w-5 text-amber-600" />
               <span className="font-medium text-amber-700">Awaiting QC inspection</span>
@@ -398,6 +512,13 @@ export default function OrderProductionPage() {
           )}
         </div>
       </div>
+
+      <DrawingPreviewDialog
+        open={!!previewUrl}
+        onOpenChange={(open) => { if (!open) setPreviewUrl(null) }}
+        url={previewUrl}
+        title={previewTitle}
+      />
     </div>
   )
 }

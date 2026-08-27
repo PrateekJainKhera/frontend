@@ -38,8 +38,91 @@ export interface MachineResponse {
   updatedBy: string | null
 }
 
+export interface MachineUtilizationResponse {
+  machineId: number
+  machineCode: string
+  machineName: string
+  machineType: string | null
+  machineStatus: string
+  isCurrentlyBusy: boolean
+  currentJobCardNo: string | null
+  currentProcessName: string | null
+  currentJobExpectedFreeAt: string | null
+  utilizationPercentToday: number
+  scheduledJobsToday: number
+  completedJobsToday: number
+}
+
+export interface MachineScheduleJobResponse {
+  scheduleId: number
+  jobCardId: number
+  jobCardNo: string
+  orderNo: string | null
+  itemSequence: string | null
+  processName: string | null
+  childPartName: string | null
+  machineModelName: string | null
+  quantity: number
+  scheduledStartTime: string
+  scheduledEndTime: string
+  actualStartTime: string | null
+  actualEndTime: string | null
+  status: string
+  finishedEarly: boolean
+}
+
+export interface MachineDailyScheduleResponse {
+  machineId: number
+  machineCode: string
+  machineName: string
+  machineType: string | null
+  jobs: MachineScheduleJobResponse[]
+}
+
 class MachineService {
   private baseUrl = '/machines'
+
+  async getDailySchedule(date?: string): Promise<MachineDailyScheduleResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<MachineDailyScheduleResponse[]>>(
+        `${this.baseUrl}/daily-schedule`,
+        { params: date ? { date } : undefined }
+      )
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch daily schedule: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getUtilization(): Promise<MachineUtilizationResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<MachineUtilizationResponse[]>>(`${this.baseUrl}/utilization`)
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch machine utilization: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  async getMachineJobs(machineId: number, date?: string): Promise<MachineScheduleJobResponse[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<MachineScheduleJobResponse[]>>(
+        `${this.baseUrl}/${machineId}/jobs`,
+        { params: date ? { date } : undefined }
+      )
+      return response.data.data || []
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || `Failed to fetch machine jobs: ${error.message}`)
+      }
+      throw error
+    }
+  }
 
   async getAll(): Promise<MachineResponse[]> {
     try {

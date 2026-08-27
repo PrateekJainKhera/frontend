@@ -123,6 +123,10 @@ const navItems: NavItem[] = [
     href: '/scheduling',
     icon: Calendar,
     module: 'Planning',
+    children: [
+      { title: 'Board', href: '/scheduling', icon: Calendar },
+      { title: 'Machine Utilization', href: '/scheduling/machine-utilization', icon: Calendar },
+    ]
   },
   {
     title: 'Production',
@@ -149,6 +153,7 @@ const navItems: NavItem[] = [
       { title: 'Issue to Shop Floor', href: '/inventory/component-issue', icon: PackageMinus },
       { title: 'Consume Components', href: '/inventory/component-consume', icon: PackageMinus },
       { title: 'Stock Reconcile', href: '/inventory/reconcile', icon: PackageCheck },
+      { title: 'Wastage & Scrap Sales', href: '/inventory/wastage', icon: PackageMinus },
       { title: 'Warehouses', href: '/inventory/warehouses', icon: Warehouse },
       { title: 'GRN Approvals', href: '/inventory/grn-approvals', icon: ShieldAlert }
     ]
